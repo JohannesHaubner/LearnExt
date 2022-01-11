@@ -36,8 +36,10 @@ class Biharmonic(ExtensionOperator):
 
         u_, z_ = uz.split(deepcopy=True)
 
-        file = File('../../Output/Extension/function.pvd')
-        file << u_
+        save_ext = False
+        if save_ext:
+            file = File('../../Output/Extension/function.pvd')
+            file << u_
 
         return u_
 

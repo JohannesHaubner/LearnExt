@@ -5,6 +5,9 @@ import matplotlib.pyplot as plt
 import sys
 sys.path.insert(1, '../extension_operator')
 import extension
+sys.path.insert(1, '../fsi_solver')
+import solver
+
 
 # load mesh
 mesh = Mesh()
@@ -23,14 +26,14 @@ bdfile << boundaries
 bdfile = File("../../Output/Mesh_Generation/domains.pvd")
 bdfile << domains
 
-# subdomains
-fluid_domain = MeshView.create(domains, 4)
-solid_domain = MeshView.create(domains, 5)
-#plot(solid_domain)
-#plt.show()
-
 # boundary parts
 params = np.load('../../Output/Mesh_Generation/params.npy', allow_pickle='TRUE').item()
+
+# subdomains
+fluid_domain = MeshView.create(domains, params["fluid"])
+solid_domain = MeshView.create(domains, params["solid"])
+#plot(solid_domain)
+#plt.show()
 
 # parameters for FSI system
 FSI_param = {}
@@ -55,5 +58,7 @@ FSI_param['boundary_cond'] = Expression(("(t < 2)?(1.5*Ubar*4.0*x[1]*(0.41 -x[1]
 # extension operator
 extension_operator = extension.Biharmonic(fluid_domain)
 
-breakpoint()
+# initialize FSI solver
+fsisolver = solver.FSIsolver(mesh, params, FSI_param, extension_operator)
+fsisolver.solve()
 
