@@ -2,8 +2,9 @@ import sympy as sym
 from dolfin import *
 
 class Solver(object):
-    def __init__(self, mesh):
+    def __init__(self, mesh, boundaries):
         self.mesh = mesh
+        self.boundaries = boundaries
 
     def solve(self):
         """solve PDE"""
@@ -30,10 +31,11 @@ class Context(object):
         self.bc.t = self.t
 
 class FSI(Context):
-    def __init__(self, mesh, param, FSI_params, option):
+    def __init__(self, mesh, boundaries, param, FSI_params, option):
         super().__init__(FSI_params)
         self.init = FSI_params["initial_cond"]
         self.mesh = mesh
+        self.boundaries = boundaries
         self.param = param
         self.FSI_params = FSI_params
         self.option #0 to solve system 1, 1 to solve system 3
@@ -43,7 +45,20 @@ class FSI(Context):
         # help variables
         self.aphat = 1e-9
 
-    def weak_form(self, vp, vp_, u_, psi, option):
+    def get_boundary_conditions(self, VP):
+        """
+        :param VP: function space in which velocity and pressure live
+        :return:
+        """
+        bc_in = DirichletBC(VP.sub(0), self.bc, self.boundaries, self.param["inflow"])
+        bc_ns = DirichletBC(VP.sub(0), Constant((0.0,0.0)), self.boundaries, self.param["noslip"])
+        bc_of = DirichletBC(VP.sub(0), Constant((0.0,0.0)), self.boundaries, self.param["obstacle_fluid"])
+        bc_os = DirichletBC(VP.sub(0), Constant((0.0, 0.0)), self.boundaries, self.param["obstacle_solid"])
+
+        return [bc_in, bc_ns, bc_of, bc_os]
+
+
+    def get_weak_form(self, vp, vp_, u, u_, psi, option):
         k = self.dt
         theta = self.theta
         lambdas = self.FSI_params["lambdas"]
@@ -62,17 +77,37 @@ class FSI(Context):
 
         # variables for variational form
         I = Identity(2)
-        Fhat = I + grad(u_ + k*(theta*v + (1-theta)*v_))
+
+        if option == 0:
+            Fhat = I + grad(u_ + k*(theta*v + (1-theta)*v_))
+        elif option == 1:
+            Fhat = I + grad(u)
+
         Fhatt = Fhat.T
         Fhati = inv(Fhat)
         Fhatti = Fhati.T
         Ehat = 0.5 * (Fhatt * Fhat - I)
         Jhat = det(Fhat)
 
+        if option == 0:
+            sFhat = Fhat
+            sFhatt = Fhatt
+            sFhati = Fhati
+            sFhatti = Fhatti
+            sEhat = Ehat
+            sJhat = Jhat
+        elif option == 1:
+            sFhat = I + grad(u_ + k*(theta * v + (1 - theta)*v_))
+            sFhatt = sFhat.T
+            sFhati = inv(sFhat)
+            sFhatti = sFhati.T
+            sEhat = 0.5 * (sFhatt * sFhat - I)
+            sJhat = det(sFhat)
+
         # stress tensors
         sigmafp = -p * I
         sigmafv = rhof * nyf * (grad(v) * Fhati + Fhatti *grad(v).T)
-        sigmasv = inv(Jhat) * Fhat * (lambdas * tr(Ehat) * I + 2.0 * mys * Ehat) * Fhatt # STVK
+        sigmasv = inv(sJhat) * sFhat * (lambdas * tr(sEhat) * I + 2.0 * mys * sEhat) * sFhatt # STVK
 
         # variables for previous time-step
         Fhat_ = I + grad(u_)
@@ -132,10 +167,11 @@ class FSI(Context):
 
 
 class FSIsolver(Solver):
-    def __init__(self, mesh, param, FSI_params, extension_operator):
+    def __init__(self, mesh, boundaries, param, FSI_params, extension_operator):
         """
         solves the FSI system on mesh
         :param mesh: computational mesh (with fluid and solid part)
+        :param boundaries: MeshFunction that contains boundary information
         :param param: contains id's for subdomains and boundary parts
         :param FSI_params: contains FSI parameters
         lambdas, mys, rhos, rhof, nyf
@@ -145,7 +181,7 @@ class FSIsolver(Solver):
         initial_cond, boundary_cond
         :param extension_operator: object of the ExtensionOperator-class
         """
-        super().__init__(mesh)
+        super().__init__(mesh, boundaries)
         self.param = param
         self.FSI_params = FSI_params
         self.extension_operator = extension_operator

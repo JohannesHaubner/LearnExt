@@ -59,6 +59,6 @@ FSI_param['boundary_cond'] = Expression(("(t < 2)?(1.5*Ubar*4.0*x[1]*(0.41 -x[1]
 extension_operator = extension.Biharmonic(fluid_domain)
 
 # initialize FSI solver
-fsisolver = solver.FSIsolver(mesh, params, FSI_param, extension_operator)
+fsisolver = solver.FSIsolver(mesh, boundaries, params, FSI_param, extension_operator)
 fsisolver.solve()
 
