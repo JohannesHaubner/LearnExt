@@ -12,6 +12,35 @@ class Biharmonic(ExtensionOperator):
     def __init__(self, mesh):
         super().__init__(mesh)
 
+        T = VectorElement("CG", self.mesh.ufl_cell(), 2)
+        self.FS = FunctionSpace(self.mesh, MixedElement(T, T))
+
+    def extend(self, boundary_conditions):
+        """ biharmonic extension of boundary_conditions (Function on boundary of self.mesh) to the interior """
+
+        uz = TrialFunction(self.FS)
+        puz = TestFunction(self.FS)
+        (u, z) = split(uz)
+        (psiu, psiz) = split(puz)
+
+        dx = Measure('dx', domain=self.mesh)
+
+        a = inner(grad(z), grad(psiu)) * dx + inner(z, psiz) * dx - inner(grad(u), grad(psiz)) * dx
+        L = Constant(0.0) * psiu[0] * dx
+
+        bc = DirichletBC(self.FS.sub(0), boundary_conditions, 'on_boundary')
+
+        uz = Function(self.FS)
+
+        solve(a == L, uz, bc)
+
+        u_, z_ = uz.split(deepcopy=True)
+
+        file = File('../../Output/Extension/function.pvd')
+        file << u_
+
+        return u_
+
 
 
 if __name__ == "__main__":
@@ -33,9 +62,20 @@ if __name__ == "__main__":
     bdfile << domains
 
     # subdomains
-    fluid_domain = MeshView.create(domains, 4)
+    fluid_domain = MeshView.create(domains, 7)
+    mvcf = MeshValueCollection("size_t", fluid_domain, 1)
+    boundariesf = cpp.mesh.MeshFunctionSizet(fluid_domain, mvcf)
+    bdfile = File("../../Output/Mesh_Generation/boundaryf.pvd")
+    bdfile << boundariesf
+
+    class Boundary(SubDomain):
+        def inside(self, x, on_boundary):
+            return on_boundary
+
+    bound = Boundary()
+
+    bound.mark(boundariesf, 0)
+    bdfile << boundariesf
 
     # boundary conditions on whole outer part of fluid domain
-
-    #
-    Biharmonic(fluid_domain)
+    Biharmonic(fluid_domain).extend(Expression(("x[0]", "x[1]"), degree=1))
