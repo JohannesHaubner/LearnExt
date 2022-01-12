@@ -91,8 +91,6 @@ class FSI(Context):
                 self.dfile << u
 
                 # save velocity and pressure
-                c = interpolate(Constant(1.0), FunctionSpace(self.FSI_params["solid_mesh"], "CG",1))
-                c.rename("charfunc", "charfunc")
                 (v, p) = vp.split(deepcopy=True)
                 ui = Function(u.function_space())
                 ui.vector()[:] = -1.0 * u.vector()[:]
@@ -102,12 +100,22 @@ class FSI(Context):
                 pp = project(p - pmed / vol * Constant("1.0"), p.function_space())
                 v.rename("velocity", "velocity")
                 p.rename("pressure", "pressure")
-                c.rename("charfunc", "charfunc")
                 self.pfile << p
                 self.vfile << v
-                self.cfile << c
 
                 ALE.move(self.mesh, ui)
+
+                # save characteristic function of solid mesh
+                Vs = VectorFunctionSpace(self.FSI_params["solid_mesh"], "CG", 2)
+                c = interpolate(Constant(1.0), FunctionSpace(self.FSI_params["solid_mesh"], "CG", 1))
+                c.rename("charfunc", "charfunc")
+                us = transfer_to_subfunc(u, Vs)
+                usi = Function(us.function_space())
+                usi.vector()[:] = -1.0 * us.vector()[:]
+                ALE.move(self.FSI_params["solid_mesh"], us)
+                self.cfile << c
+                ALE.move(self.FSI_params["solid_mesh"], usi)
+
 
     def save_displacement(self, u):
         try:
