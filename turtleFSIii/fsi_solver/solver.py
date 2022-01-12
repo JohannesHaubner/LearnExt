@@ -2,12 +2,17 @@ import sympy as sym
 from dolfin import *
 
 class Solver(object):
-    def __init__(self, mesh, boundaries):
+    def __init__(self, mesh, boundaries, domains):
         self.mesh = mesh
         self.boundaries = boundaries
+        self.domains = domains
 
     def solve(self):
         """solve PDE"""
+        raise NotImplementedError
+
+    def save_snapshot(self):
+        """save snapshot"""
         raise NotImplementedError
 
 class Context(object):
@@ -21,7 +26,7 @@ class Context(object):
         self.bc = params["boundary_cond"]
 
     def check_termination(self):
-        return (not self.t < self.T)
+        return (not self.t <= self.T)
 
     def advance_time(self):
         """
@@ -30,20 +35,48 @@ class Context(object):
         self.t += self.dt
         self.bc.t = self.t
 
+
 class FSI(Context):
-    def __init__(self, mesh, boundaries, param, FSI_params, option):
+    def __init__(self, mesh, boundaries, domains, param, FSI_params):
         super().__init__(FSI_params)
-        self.init = FSI_params["initial_cond"]
         self.mesh = mesh
         self.boundaries = boundaries
+        self.domains = domains
         self.param = param
         self.FSI_params = FSI_params
-        self.option #0 to solve system 1, 1 to solve system 3
 
         self.theta = 0.5 + self.FSI_params["deltat"] # theta-time-stepping parameter
 
         # help variables
         self.aphat = 1e-9
+
+        self.filename = FSI_params["save_directory"]
+        self.N = FSI_params["save_every_N_snapshot"]
+
+    def save_snapshot(self):
+        if self.filename == None:
+            pass
+        elif self.N == 0:
+            print("N has to be larger than 0, continue without saving snapshots...")
+        else:
+            if abs(self.t/(self.dt * self.N) - round(self.t/(self.dt * self.N))) < 1e-10:
+                print('TODO: save snapshot...', self.t)
+
+    def save_displacement(self):
+        print(self.t)
+
+    def solve_system(self, vp_, u, u_, option):
+        vp = Function(vp_.function_space())
+        vp.vector()[:] = vp_.vector()[:]
+        psi = TestFunction(vp_.function_space())
+
+        bc = self.get_boundary_conditions(vp_.function_space())
+        F = self.get_weak_form(vp, vp_, u, u_, psi, option)
+
+        solve(F== 0, vp, bc, solver_parameters={"nonlinear_solver": "newton", "newton_solver":
+            {"maximum_iterations": 20}})
+
+        return vp
 
     def get_boundary_conditions(self, VP):
         """
@@ -59,6 +92,7 @@ class FSI(Context):
 
 
     def get_weak_form(self, vp, vp_, u, u_, psi, option):
+        # 0 to solve system 1, 1 to solve system 3
         k = self.dt
         theta = self.theta
         lambdas = self.FSI_params["lambdas"]
@@ -67,8 +101,10 @@ class FSI(Context):
         rhos = self.FSI_params["rhos"]
         nyf = self.FSI_params["nyf"]
 
-        dxf = dx(mesh)(self.param["fluid"])
-        dxs = dx(mesh)(self.param["solid"])
+        dx = Measure("dx", domain=self.mesh, subdomain_data=self.domains)
+
+        dxf = dx(self.param["fluid"])
+        dxs = dx(self.param["solid"])
 
         # split functions
         (v, p) = split(vp)
@@ -167,11 +203,12 @@ class FSI(Context):
 
 
 class FSIsolver(Solver):
-    def __init__(self, mesh, boundaries, param, FSI_params, extension_operator):
+    def __init__(self, mesh, boundaries, domains, param, FSI_params, extension_operator):
         """
         solves the FSI system on mesh
         :param mesh: computational mesh (with fluid and solid part)
         :param boundaries: MeshFunction that contains boundary information
+        :param domains: MeshFunction that contains subdomain information
         :param param: contains id's for subdomains and boundary parts
         :param FSI_params: contains FSI parameters
         lambdas, mys, rhos, rhof, nyf
@@ -181,13 +218,43 @@ class FSIsolver(Solver):
         initial_cond, boundary_cond
         :param extension_operator: object of the ExtensionOperator-class
         """
-        super().__init__(mesh, boundaries)
+        super().__init__(mesh, boundaries, domains)
         self.param = param
         self.FSI_params = FSI_params
         self.extension_operator = extension_operator
 
+        # function space
+        V2 = VectorElement("CG", mesh.ufl_cell(), 2)
+        S1 = FiniteElement("CG", mesh.ufl_cell(), 1)
+        self.VP = FunctionSpace(mesh, MixedElement(V2, S1))
+
+        self.U = VectorFunctionSpace(mesh, "CG", 2)
+
+        # FSI
+        self.FSI = FSI(self.mesh, self.boundaries, self.domains, self.param, self.FSI_params)
+
     def solve(self):
-        print('here')
+        # velocity and pressure
+        vp = Function(self.VP)
+        vp_fl = Function(self.VP)  # fully Lagrangian
+        vp_ = Function(self.VP)    # previous time-step
+
+        # deformation
+        u = Function(self.U)
+        u_ = Function(self.U)      # previous time-step
+
+        while not self.FSI.check_termination():
+            self.FSI.save_snapshot()
+            self.FSI.save_displacement()
+            self.FSI.advance_time()
+
+            u_.assign(u)
+            vp_.assign(vp)
+            vp.assign(self.FSI.solve_system(vp_, u, u_, 0))
+            exit(0)
+            u.assign(interpolate(self.extension_operator.extend(), u_.function_space()))
+            vp.assign(self.FSI.solve_system(vp_, u, u_, 1))
+
 
 
 

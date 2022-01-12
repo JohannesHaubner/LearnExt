@@ -48,8 +48,7 @@ FSI_param['t'] = 0.0
 FSI_param['deltat'] = 0.0025
 FSI_param['T'] = 15.0
 
-# initial and boundary conditions
-FSI_param['initial_cond'] = Constant((0., 0.))
+# boundary conditions, need to be 0 at t = 0
 Ubar = 1.0
 FSI_param['boundary_cond'] = Expression(("(t < 2)?(1.5*Ubar*4.0*x[1]*(0.41 -x[1])/ 0.1681*0.5*(1-cos(pi/2*t))):"
                                          "(1.5*Ubar*4.0*x[1]*(0.41 -x[1]))/ 0.1681", "0.0"),
@@ -58,7 +57,11 @@ FSI_param['boundary_cond'] = Expression(("(t < 2)?(1.5*Ubar*4.0*x[1]*(0.41 -x[1]
 # extension operator
 extension_operator = extension.Biharmonic(fluid_domain)
 
+# save options
+FSI_param['save_directory'] = str('../../Output/FSIbenchmarkII') #no save if set to None
+FSI_param['save_every_N_snapshot'] = 8 # save every 8th snapshot
+
 # initialize FSI solver
-fsisolver = solver.FSIsolver(mesh, boundaries, params, FSI_param, extension_operator)
+fsisolver = solver.FSIsolver(mesh, boundaries, domains, params, FSI_param, extension_operator)
 fsisolver.solve()
 
