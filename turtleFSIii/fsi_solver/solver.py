@@ -60,17 +60,54 @@ class FSI(Context):
 
         self.displacement_filename = self.savedir + "/displacementy.txt"
         self.displacement = []
-        self.velocity_filename = self.savedir + "/velocity.pvd"
-        self.velocity_solid_filename = self.savedir + "/velocity_solid.pvd"
 
-    def save_snapshot(self):
-        if self.velocity_filename == None:
+        if not self.savedir == None:
+            velocity_filename = self.savedir + "/velocity.pvd"
+            charfunc_filename = self.savedir + "/char.pvd"
+            pressure_filename = self.savedir + "/pressure.pvd"
+            deformation_filename = self.savedir + "/displacement.pvd"
+
+            self.vfile = File(velocity_filename)
+            self.cfile = File(charfunc_filename)
+            self.pfile = File(pressure_filename)
+            self.dfile = File(deformation_filename)
+
+        dx = Measure("dx", domain=self.mesh, subdomain_data=self.domains)
+
+        self.dxf = dx(self.param["fluid"])
+        self.dxs = dx(self.param["solid"])
+
+    def save_snapshot(self, vp, u):
+        if self.savedir == None:
             pass
         elif self.N == 0:
             print("N has to be larger than 0, continue without saving snapshots...")
         else:
             if abs(self.t/(self.dt * self.N) - round(self.t/(self.dt * self.N))) < 1e-10:
-                print('TODO: save snapshot...', self.t)
+                print('save snapshot...', self.t)
+
+                # save displacement
+                u.rename("displacement", "displacement")
+                self.dfile << u
+
+                # save velocity and pressure
+                c = interpolate(Constant(1.0), FunctionSpace(self.FSI_params["solid_mesh"], "CG",1))
+                c.rename("charfunc", "charfunc")
+                (v, p) = vp.split(deepcopy=True)
+                ui = Function(u.function_space())
+                ui.vector()[:] = -1.0 * u.vector()[:]
+                pmed = assemble(p * self.dxf)
+                vol = assemble(Constant("1.0") * self.dxf)
+                ALE.move(self.mesh, u)
+                pp = project(p - pmed / vol * Constant("1.0"), p.function_space())
+                v.rename("velocity", "velocity")
+                p.rename("pressure", "pressure")
+                c.rename("charfunc", "charfunc")
+                self.pfile << p
+                self.vfile << v
+                self.cfile << c
+
+                ALE.move(self.mesh, ui)
 
     def save_displacement(self, u):
         try:
@@ -131,8 +168,8 @@ class FSI(Context):
 
         dx = Measure("dx", domain=self.mesh, subdomain_data=self.domains)
 
-        dxf = dx(self.param["fluid"])
-        dxs = dx(self.param["solid"])
+        dxf = self.dxf
+        dxs = self.dxs
 
         # split functions
         (v, p) = split(vp)
@@ -272,7 +309,7 @@ class FSIsolver(Solver):
         u_ = Function(self.U)      # previous time-step
 
         while not self.FSI.check_termination():
-            self.FSI.save_snapshot()
+            self.FSI.save_snapshot(vp, u)
             self.FSI.save_displacement(u)
             self.FSI.advance_time()
 
