@@ -1,5 +1,8 @@
 import sympy as sym
 from dolfin import *
+import sys
+sys.path.insert(1, '../tools')
+from tools import transfer_to_subfunc, transfer_subfunction_to_parent
 
 class Solver(object):
     def __init__(self, mesh, boundaries, domains):
@@ -37,13 +40,14 @@ class Context(object):
 
 
 class FSI(Context):
-    def __init__(self, mesh, boundaries, domains, param, FSI_params):
+    def __init__(self, mesh, boundaries, domains, param, FSI_params, extension_operator):
         super().__init__(FSI_params)
         self.mesh = mesh
         self.boundaries = boundaries
         self.domains = domains
         self.param = param
         self.FSI_params = FSI_params
+        self.extension_operator = extension_operator
 
         self.theta = 0.5 + self.FSI_params["deltat"] # theta-time-stepping parameter
 
@@ -64,6 +68,19 @@ class FSI(Context):
 
     def save_displacement(self):
         print(self.t)
+
+    def get_deformation(self, vp, vp_, u_):
+        u = Function(u_.function_space())
+        (v_, p_) = vp_.split(deepcopy=True)
+        (v, p) = vp.split(deepcopy=True)
+        u.vector()[:] = u_.vector()[:] + self.dt*(self.theta*v_.vector()[:] + (1-self.theta*v.vector()[:]))
+        fluid_domain = self.FSI_params["fluid_mesh"]
+        Vbf = VectorFunctionSpace(fluid_domain, "CG", 2)
+        boundary_def = transfer_to_subfunc(u, Vbf)
+
+        unew = self.extension_operator.extend(boundary_def)
+        u = transfer_subfunction_to_parent(unew, u)
+        return u
 
     def solve_system(self, vp_, u, u_, option):
         vp = Function(vp_.function_space())
@@ -231,7 +248,7 @@ class FSIsolver(Solver):
         self.U = VectorFunctionSpace(mesh, "CG", 2)
 
         # FSI
-        self.FSI = FSI(self.mesh, self.boundaries, self.domains, self.param, self.FSI_params)
+        self.FSI = FSI(self.mesh, self.boundaries, self.domains, self.param, self.FSI_params, self.extension_operator)
 
     def solve(self):
         # velocity and pressure
@@ -251,8 +268,7 @@ class FSIsolver(Solver):
             u_.assign(u)
             vp_.assign(vp)
             vp.assign(self.FSI.solve_system(vp_, u, u_, 0))
-            exit(0)
-            u.assign(interpolate(self.extension_operator.extend(), u_.function_space()))
+            u.assign(self.FSI.get_deformation(vp, vp_, u_))
             vp.assign(self.FSI.solve_system(vp_, u, u_, 1))
 
 

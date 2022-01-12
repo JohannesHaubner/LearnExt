@@ -38,6 +38,9 @@ solid_domain = MeshView.create(domains, params["solid"])
 # parameters for FSI system
 FSI_param = {}
 
+FSI_param['fluid_mesh'] = fluid_domain
+FSI_param['solid_mesh'] = solid_domain
+
 FSI_param['lambdas'] = 2.0e6
 FSI_param['mys'] = 0.5e6
 FSI_param['rhos'] = 1.0e4
