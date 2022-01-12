@@ -28,7 +28,7 @@ class Biharmonic(ExtensionOperator):
         a = inner(grad(z), grad(psiu)) * dx + inner(z, psiz) * dx - inner(grad(u), grad(psiz)) * dx
         L = Constant(0.0) * psiu[0] * dx
 
-        bc = DirichletBC(self.FS.sub(0), boundary_conditions, 'on_boundary') 
+        bc = DirichletBC(self.FS.sub(0), boundary_conditions, 'on_boundary')
 
         uz = Function(self.FS)
 

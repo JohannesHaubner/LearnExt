@@ -1,5 +1,6 @@
 import sympy as sym
 from dolfin import *
+import numpy as np
 import sys
 sys.path.insert(1, '../tools')
 from tools import transfer_to_subfunc, transfer_subfunction_to_parent
@@ -54,11 +55,16 @@ class FSI(Context):
         # help variables
         self.aphat = 1e-9
 
-        self.filename = FSI_params["save_directory"]
+        self.savedir = FSI_params["save_directory"]
         self.N = FSI_params["save_every_N_snapshot"]
 
+        self.displacement_filename = self.savedir + "/displacementy.txt"
+        self.displacement = []
+        self.velocity_filename = self.savedir + "/velocity.pvd"
+        self.velocity_solid_filename = self.savedir + "/velocity_solid.pvd"
+
     def save_snapshot(self):
-        if self.filename == None:
+        if self.velocity_filename == None:
             pass
         elif self.N == 0:
             print("N has to be larger than 0, continue without saving snapshots...")
@@ -66,14 +72,19 @@ class FSI(Context):
             if abs(self.t/(self.dt * self.N) - round(self.t/(self.dt * self.N))) < 1e-10:
                 print('TODO: save snapshot...', self.t)
 
-    def save_displacement(self):
-        print(self.t)
+    def save_displacement(self, u):
+        try:
+            self.displacement.append(u(self.FSI_params["displacement_point"])[1])
+            np.savetxt(self.displacement_filename, self.displacement)
+        except:
+            print('Displacement can not be saved. Does FSI_params contain displacement_point?'
+                  ' Does folder exist where .txt-file should be saved to?')
 
     def get_deformation(self, vp, vp_, u_):
         u = Function(u_.function_space())
         (v_, p_) = vp_.split(deepcopy=True)
         (v, p) = vp.split(deepcopy=True)
-        u.vector()[:] = u_.vector()[:] + self.dt*(self.theta*v_.vector()[:] + (1-self.theta*v.vector()[:]))
+        u.vector()[:] = u_.vector()[:] + self.dt*(self.theta*v_.vector()[:] + (1-self.theta)*v.vector()[:])
         fluid_domain = self.FSI_params["fluid_mesh"]
         Vbf = VectorFunctionSpace(fluid_domain, "CG", 2)
         boundary_def = transfer_to_subfunc(u, Vbf)
@@ -262,7 +273,7 @@ class FSIsolver(Solver):
 
         while not self.FSI.check_termination():
             self.FSI.save_snapshot()
-            self.FSI.save_displacement()
+            self.FSI.save_displacement(u)
             self.FSI.advance_time()
 
             u_.assign(u)
