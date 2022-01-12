@@ -130,6 +130,10 @@ class FSI(Context):
         (v_, p_) = vp_.split(deepcopy=True)
         (v, p) = vp.split(deepcopy=True)
         u.vector()[:] = u_.vector()[:] + self.dt*(self.theta*v_.vector()[:] + (1-self.theta)*v.vector()[:])
+        # 0 displacement on outer fluid boundary
+        bc = DirichletBC(u.function_space(), Constant((0.0,0.0)), 'on_boundary')
+        bc.apply(u.vector())
+        ##
         fluid_domain = self.FSI_params["fluid_mesh"]
         Vbf = VectorFunctionSpace(fluid_domain, "CG", 2)
         boundary_def = transfer_to_subfunc(u, Vbf)
