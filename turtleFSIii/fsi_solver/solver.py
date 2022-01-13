@@ -1,8 +1,12 @@
 import sympy as sym
 from dolfin import *
 import numpy as np
+
+from pathlib import Path
+here = Path(__file__).parent
 import sys
-sys.path.insert(1, '../tools')
+sys.path.insert(0, str(here.parent) + "/tools")
+
 from tools import transfer_to_subfunc, transfer_subfunction_to_parent
 
 class Solver(object):

@@ -3,28 +3,28 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import sys
-sys.path.insert(1, '../extension_operator')
+sys.path.insert(1, '../turtleFSIii/extension_operator')
 import extension
-sys.path.insert(1, '../fsi_solver')
+sys.path.insert(1, '../turtleFSIii/fsi_solver')
 import solver
 
 # example from the turtleFSI package -- slightly changed
 
 # load mesh
 mesh = Mesh()
-with XDMFFile("../../turtleFSIii/create_mesh/turtle_demo/turtle_mesh.xdmf") as infile:
+with XDMFFile("../turtleFSIii/create_mesh/turtle_demo/turtle_mesh.xdmf") as infile:
     infile.read(mesh)
 mvc = MeshValueCollection("size_t", mesh, 2)
 mvc2 = MeshValueCollection("size_t", mesh, 2)
-with XDMFFile("../../turtleFSIii/create_mesh/turtle_demo/mf.xdmf") as infile:
+with XDMFFile("../turtleFSIii/create_mesh/turtle_demo/mf.xdmf") as infile:
     infile.read(mvc, "name_to_read")
-with XDMFFile("../../turtleFSIii/create_mesh/turtle_demo/mc.xdmf") as infile:
+with XDMFFile("../turtleFSIii/create_mesh/turtle_demo/mc.xdmf") as infile:
     infile.read(mvc2, "name_to_read")
 boundaries = cpp.mesh.MeshFunctionSizet(mesh, mvc)
 domains = cpp.mesh.MeshFunctionSizet(mesh,mvc2)
-bdfile = File("../../Output/Mesh_Generation/boundary_turtle.pvd")
+bdfile = File("./../Output/Mesh_Generation/boundary_turtle.pvd")
 bdfile << boundaries
-bdfile = File("../../Output/Mesh_Generation/domains_turtle.pvd")
+bdfile = File("./../Output/Mesh_Generation/domains_turtle.pvd")
 bdfile << domains
 
 # boundary parts
@@ -73,7 +73,7 @@ FSI_param['boundary_cond'] = Expression(("(t < 2)?(Ubar*4.0*(0.25 -x[1]*x[1])*0.
 extension_operator = extension.Biharmonic(fluid_domain)
 
 # save options
-FSI_param['save_directory'] = str('../../Output/turtleFSI') #no save if set to None
+FSI_param['save_directory'] = str('./../Output/turtleFSI') #no save if set to None
 FSI_param['save_every_N_snapshot'] = 1 # save every 8th snapshot
 
 # initialize FSI solver
