@@ -160,12 +160,13 @@ class FSI(Context):
         :param VP: function space in which velocity and pressure live
         :return:
         """
-        bc_in = DirichletBC(VP.sub(0), self.bc, self.boundaries, self.param["inflow"])
-        bc_ns = DirichletBC(VP.sub(0), Constant((0.0,0.0)), self.boundaries, self.param["noslip"])
-        bc_of = DirichletBC(VP.sub(0), Constant((0.0,0.0)), self.boundaries, self.param["obstacle_fluid"])
-        bc_os = DirichletBC(VP.sub(0), Constant((0.0, 0.0)), self.boundaries, self.param["obstacle_solid"])
+        bc = []
+        bc.append(DirichletBC(VP.sub(0), self.bc, self.boundaries, self.param["inflow"]))
 
-        return [bc_in, bc_ns, bc_of, bc_os]
+        for i in self.param["no_slip_ids"]:
+            bc.append(DirichletBC(VP.sub(0), Constant((0.0,0.0)), self.boundaries, self.param[i]))
+
+        return bc
 
 
     def get_weak_form(self, vp, vp_, u, u_, psi, option):
