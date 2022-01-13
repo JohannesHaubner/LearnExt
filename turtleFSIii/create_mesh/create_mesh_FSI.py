@@ -105,12 +105,12 @@ model.add_physical([plane_surface2], "solid") # mark solid domain with 7
 
 geometry.generate_mesh(dim=2)
 import gmsh
-gmsh.write("mesh.msh")
+gmsh.write("../../Output/Mesh_Generation/mesh.msh")
 gmsh.clear()
 geometry.__exit__()
 
 import meshio
-mesh_from_file = meshio.read("mesh.msh")
+mesh_from_file = meshio.read("../../Output/Mesh_Generation/mesh.msh")
 
 import numpy
 def create_mesh(mesh, cell_type, prune_z=False):
