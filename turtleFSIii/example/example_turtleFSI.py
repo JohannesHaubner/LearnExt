@@ -65,8 +65,8 @@ FSI_param['displacement_point'] = Point((0.6, 0.2))
 
 # boundary conditions, need to be 0 at t = 0
 Ubar = 1.0
-FSI_param['boundary_cond'] = Expression(("(t < 2)?(1.5*Ubar*4.0*(0.25 -x[1]*x[1])/ 0.1681*0.5*(1-cos(pi/2*t))):"
-                                         "(1.5*Ubar*4.0*(0.25 -x[1]*x[1]))/ 0.1681", "0.0"),
+FSI_param['boundary_cond'] = Expression(("(t < 2)?(Ubar*4.0*(0.25 -x[1]*x[1])*0.5*(1-cos(pi/2*t))):"
+                                         "(Ubar*4.0*(0.25 -x[1]*x[1]))", "0.0"),
                                         Ubar=Ubar, t=FSI_param['t'], degree=2)
 
 # extension operator
