@@ -12,13 +12,13 @@ import solver
 
 # load mesh
 mesh = Mesh()
-with XDMFFile("../turtleFSIii/create_mesh/turtle_demo/turtle_mesh.xdmf") as infile:
+with XDMFFile("./create_mesh/turtle_demo/turtle_mesh.xdmf") as infile:
     infile.read(mesh)
 mvc = MeshValueCollection("size_t", mesh, 2)
 mvc2 = MeshValueCollection("size_t", mesh, 2)
-with XDMFFile("../turtleFSIii/create_mesh/turtle_demo/mf.xdmf") as infile:
+with XDMFFile("./create_mesh/turtle_demo/mf.xdmf") as infile:
     infile.read(mvc, "name_to_read")
-with XDMFFile("../turtleFSIii/create_mesh/turtle_demo/mc.xdmf") as infile:
+with XDMFFile("./create_mesh/turtle_demo/mc.xdmf") as infile:
     infile.read(mvc2, "name_to_read")
 boundaries = cpp.mesh.MeshFunctionSizet(mesh, mvc)
 domains = cpp.mesh.MeshFunctionSizet(mesh,mvc2)
@@ -65,8 +65,7 @@ FSI_param['displacement_point'] = Point((0.6, 0.2))
 
 # boundary conditions, need to be 0 at t = 0
 Ubar = 1.0
-FSI_param['boundary_cond'] = Expression(("(t < 2)?(Ubar*4.0*(0.25 -x[1]*x[1])*0.5*(1-cos(pi/2*t))):"
-                                         "(Ubar*4.0*(0.25 -x[1]*x[1]))", "0.0"),
+FSI_param['boundary_cond'] = Expression(("(Ubar*4.0*(0.25 -x[1]*x[1])*0.5*(1-cos(pi/2*t)))", "0.0"),
                                         Ubar=Ubar, t=FSI_param['t'], degree=2)
 
 # extension operator

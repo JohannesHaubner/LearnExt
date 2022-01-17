@@ -8,6 +8,7 @@ import extension
 sys.path.insert(1, '../turtleFSIii/fsi_solver')
 import solver
 
+# create mesh: first create mesh by running ./create_mesh/create_mesh_FSI.py
 
 # load mesh
 mesh = Mesh()
