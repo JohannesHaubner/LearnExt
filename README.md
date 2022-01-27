@@ -1,6 +1,6 @@
 [![MIT License](https://img.shields.io/apm/l/atomic-design-ui.svg?style=plastic)](https://choosealicense/licenses/mit/)
 
-# LearnExtension
+# LearnExt
 
 Code repository for the manuscript
 > J. Haubner, M. Kuchta, K.-A. Mardal: Learning a Mesh Motion Technique with Application to Fluid-Structure Interaction and Shape Optimization
