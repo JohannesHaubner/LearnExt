@@ -3,9 +3,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import sys
-sys.path.insert(1, '../turtleFSIii/extension_operator')
+sys.path.insert(1, '../FSIsolver/extension_operator')
 import extension
-sys.path.insert(1, '../turtleFSIii/fsi_solver')
+sys.path.insert(1, '../FSIsolver/fsi_solver')
 import solver
 
 # example from the turtleFSI package -- slightly changed
