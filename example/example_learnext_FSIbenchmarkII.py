@@ -70,12 +70,16 @@ class LearnExtension(extension.ExtensionOperator):
         super().__init__(mesh)
 
         T = VectorElement("CG", self.mesh.ufl_cell(), 1)
+        T2 = VectorElement("CG", self.mesh.ufl_cell(), 2)
         self.FS = FunctionSpace(self.mesh, T)
+        self.FS2 = FunctionSpace(self.mesh, T2)
         output_directory = str("../Output/learnExt/results/")
         self.net = ANN(output_directory + "trained_network.pkl")
 
     def extend(self, boundary_conditions):
         """ biharmonic extension of boundary_conditions (Function on self.mesh) to the interior """
+
+        boundary_conditions = interpolate(boundary_conditions, self.FS)
 
         u = Function(self.FS)
         v = TestFunction(self.FS)
@@ -91,6 +95,8 @@ class LearnExtension(extension.ExtensionOperator):
 
 
         solve(E == 0, u, bc)
+
+        u = interpolate(u, self.FS2)
 
         save_ext = False
         if save_ext:
