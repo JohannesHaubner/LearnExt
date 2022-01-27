@@ -1,0 +1,69 @@
+<?xml version="1.0"?>
+<Xdmf Version="3.0">
+  <Domain>
+    <Grid GridType="Collection" CollectionType="Temporal" Name="alpha_opt">
+      <Grid Name="alpha_opt_0" GridType="Uniform">
+        <Topology NumberOfElements="28289" TopologyType="Triangle" NodesPerElement="3">
+          <DataItem Dimensions="28289 3" NumberType="UInt" Format="HDF">optimal_control_data.h5:alpha_opt/alpha_opt_0/mesh/topology</DataItem>
+        </Topology>
+        <Geometry GeometryType="XY">
+          <DataItem Dimensions="14421 2" Format="HDF">optimal_control_data.h5:alpha_opt/alpha_opt_0/mesh/geometry</DataItem>
+        </Geometry>
+        <Time Value="0.000000000000000e+00" />
+        <Attribute ItemType="FiniteElementFunction" ElementFamily="CG" ElementDegree="1" ElementCell="triangle" Name="alpha_opt" Center="Other" AttributeType="Scalar">
+          <DataItem Dimensions="84867 1" NumberType="UInt" Format="HDF">optimal_control_data.h5:alpha_opt/alpha_opt_0/cell_dofs</DataItem>
+          <DataItem Dimensions="14421 1" NumberType="Float" Format="HDF">optimal_control_data.h5:alpha_opt/alpha_opt_0/vector</DataItem>
+          <DataItem Dimensions="28290 1" NumberType="UInt" Format="HDF">optimal_control_data.h5:alpha_opt/alpha_opt_0/x_cell_dofs</DataItem>
+          <DataItem Dimensions="28289 1" NumberType="UInt" Format="HDF">optimal_control_data.h5:alpha_opt/alpha_opt_0/cells</DataItem>
+        </Attribute>
+      </Grid>
+      <Grid Name="alpha_opt_1" GridType="Uniform">
+        <Topology NumberOfElements="28289" TopologyType="Triangle" NodesPerElement="3">
+          <DataItem Dimensions="28289 3" NumberType="UInt" Format="HDF">optimal_control_data.h5:alpha_opt/alpha_opt_1/mesh/topology</DataItem>
+        </Topology>
+        <Geometry GeometryType="XY">
+          <DataItem Dimensions="14421 2" Format="HDF">optimal_control_data.h5:alpha_opt/alpha_opt_1/mesh/geometry</DataItem>
+        </Geometry>
+        <Time Value="0.000000000000000e+00" />
+        <Attribute ItemType="FiniteElementFunction" ElementFamily="CG" ElementDegree="1" ElementCell="triangle" Name="alpha_opt" Center="Other" AttributeType="Scalar">
+          <DataItem Dimensions="84867 1" NumberType="UInt" Format="HDF">optimal_control_data.h5:alpha_opt/alpha_opt_1/cell_dofs</DataItem>
+          <DataItem Dimensions="14421 1" NumberType="Float" Format="HDF">optimal_control_data.h5:alpha_opt/alpha_opt_1/vector</DataItem>
+          <DataItem Dimensions="28290 1" NumberType="UInt" Format="HDF">optimal_control_data.h5:alpha_opt/alpha_opt_1/x_cell_dofs</DataItem>
+          <DataItem Dimensions="28289 1" NumberType="UInt" Format="HDF">optimal_control_data.h5:alpha_opt/alpha_opt_1/cells</DataItem>
+        </Attribute>
+      </Grid>
+    </Grid>
+    <Grid GridType="Collection" CollectionType="Temporal" Name="normgradtraf">
+      <Grid Name="normgradtraf_0" GridType="Uniform">
+        <Topology NumberOfElements="28289" TopologyType="Triangle" NodesPerElement="3">
+          <DataItem Dimensions="28289 3" NumberType="UInt" Format="HDF">optimal_control_data.h5:normgradtraf/normgradtraf_0/mesh/topology</DataItem>
+        </Topology>
+        <Geometry GeometryType="XY">
+          <DataItem Dimensions="14421 2" Format="HDF">optimal_control_data.h5:normgradtraf/normgradtraf_0/mesh/geometry</DataItem>
+        </Geometry>
+        <Time Value="0.000000000000000e+00" />
+        <Attribute ItemType="FiniteElementFunction" ElementFamily="CG" ElementDegree="1" ElementCell="triangle" Name="normgradtraf" Center="Other" AttributeType="Scalar">
+          <DataItem Dimensions="84867 1" NumberType="UInt" Format="HDF">optimal_control_data.h5:normgradtraf/normgradtraf_0/cell_dofs</DataItem>
+          <DataItem Dimensions="14421 1" NumberType="Float" Format="HDF">optimal_control_data.h5:normgradtraf/normgradtraf_0/vector</DataItem>
+          <DataItem Dimensions="28290 1" NumberType="UInt" Format="HDF">optimal_control_data.h5:normgradtraf/normgradtraf_0/x_cell_dofs</DataItem>
+          <DataItem Dimensions="28289 1" NumberType="UInt" Format="HDF">optimal_control_data.h5:normgradtraf/normgradtraf_0/cells</DataItem>
+        </Attribute>
+      </Grid>
+      <Grid Name="normgradtraf_1" GridType="Uniform">
+        <Topology NumberOfElements="28289" TopologyType="Triangle" NodesPerElement="3">
+          <DataItem Dimensions="28289 3" NumberType="UInt" Format="HDF">optimal_control_data.h5:normgradtraf/normgradtraf_1/mesh/topology</DataItem>
+        </Topology>
+        <Geometry GeometryType="XY">
+          <DataItem Dimensions="14421 2" Format="HDF">optimal_control_data.h5:normgradtraf/normgradtraf_1/mesh/geometry</DataItem>
+        </Geometry>
+        <Time Value="0.000000000000000e+00" />
+        <Attribute ItemType="FiniteElementFunction" ElementFamily="CG" ElementDegree="1" ElementCell="triangle" Name="normgradtraf" Center="Other" AttributeType="Scalar">
+          <DataItem Dimensions="84867 1" NumberType="UInt" Format="HDF">optimal_control_data.h5:normgradtraf/normgradtraf_1/cell_dofs</DataItem>
+          <DataItem Dimensions="14421 1" NumberType="Float" Format="HDF">optimal_control_data.h5:normgradtraf/normgradtraf_1/vector</DataItem>
+          <DataItem Dimensions="28290 1" NumberType="UInt" Format="HDF">optimal_control_data.h5:normgradtraf/normgradtraf_1/x_cell_dofs</DataItem>
+          <DataItem Dimensions="28289 1" NumberType="UInt" Format="HDF">optimal_control_data.h5:normgradtraf/normgradtraf_1/cells</DataItem>
+        </Attribute>
+      </Grid>
+    </Grid>
+  </Domain>
+</Xdmf>
