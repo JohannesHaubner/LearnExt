@@ -19,6 +19,13 @@ cd example
 python3 example_learnExt_FSIbenchmarkII.py
 ```
 
+To redo the learning process run 
+```
+cd learnExt
+python3 learn.py
+```
+(and modify the file accordingly).
+
 ## License
 
 [MIT](https://choosealicense.com/licenses/mit/)
