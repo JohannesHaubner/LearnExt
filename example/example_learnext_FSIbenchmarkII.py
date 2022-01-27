@@ -79,10 +79,13 @@ class LearnExtension(extension.ExtensionOperator):
     def extend(self, boundary_conditions):
         """ biharmonic extension of boundary_conditions (Function on self.mesh) to the interior """
 
-        boundary_conditions = interpolate(boundary_conditions, self.FS)
+        save_ext = True
+        if save_ext:
+            file = File('../Output/Extension/function.pvd')
+            file << boundary_conditions
 
-        u = Function(self.FS)
-        v = TestFunction(self.FS)
+        u = Function(self.FS2)
+        v = TestFunction(self.FS2)
 
         dx = Measure('dx', domain=self.mesh)
 
@@ -91,16 +94,12 @@ class LearnExtension(extension.ExtensionOperator):
             * (grad(u) + grad(u).T), 1 / 2 * (grad(v) + grad(v).T)) * dx(self.mesh)
 
         # solve PDE
-        bc = DirichletBC(self.FS, boundary_conditions, 'on_boundary')
+        bc = DirichletBC(self.FS2, boundary_conditions, 'on_boundary')
 
 
         solve(E == 0, u, bc)
 
-        u = interpolate(u, self.FS2)
-
-        save_ext = False
         if save_ext:
-            file = File('../../Output/Extension/function.pvd')
             file << u
 
         return u
