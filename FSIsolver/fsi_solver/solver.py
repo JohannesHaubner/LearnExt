@@ -165,7 +165,7 @@ class FSI(Context):
         bc = self.get_boundary_conditions(vp_.function_space())
         F = self.get_weak_form(vp, vp_, u, u_, psi, option)
 
-        solve(F== 0, vp, bc, solver_parameters={"nonlinear_solver": "newton", "newton_solver":
+        solve(F == 0, vp, bc, solver_parameters={"nonlinear_solver": "newton", "newton_solver":
             {"maximum_iterations": 20}})
 
         return vp

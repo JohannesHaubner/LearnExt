@@ -9,6 +9,8 @@ sys.path.insert(1, '../FSIsolver/fsi_solver')
 import solver
 sys.path.insert(1, '../learnExt')
 from NeuralNet.neural_network_custom import ANN, generate_weights
+from learn import threshold
+from coeff_machine_learning import NN_der
 
 # create mesh: first create mesh by running ./create_mesh/create_mesh_FSI.py
 
@@ -89,9 +91,8 @@ class LearnExtension(extension.ExtensionOperator):
 
         dx = Measure('dx', domain=self.mesh)
 
-        E = inner(
-            self.net(inner(1 / 2 * (grad(u) + grad(u).T), 1 / 2 * (grad(u) + grad(u).T))) * 1 / 2
-            * (grad(u) + grad(u).T), 1 / 2 * (grad(v) + grad(v).T)) * dx(self.mesh)
+        E = inner(NN_der(threshold, inner(1 / 2 * (grad(u) + grad(u).T), 1 / 2 * (grad(u) + grad(u).T)), self.net)
+                  * 1 / 2 * (grad(u) + grad(u).T), 1 / 2 * (grad(v) + grad(v).T)) * dx(self.mesh)
 
         # solve PDE
         bc = DirichletBC(self.FS2, boundary_conditions, 'on_boundary')

@@ -4,39 +4,42 @@ import numpy as np
 import coeff_opt_control as opt_cont
 import coeff_machine_learning as opt_ml
 
-# load mesh
-mesh = Mesh()
-with XDMFFile("./Mesh/mesh_triangles.xdmf") as infile:
-    infile.read(mesh)
+threshold  = 0.05 # first part of NN is linear
 
-# read boundary parts
-mvc = MeshValueCollection("size_t", mesh, 1)
-with XDMFFile("./Mesh/facet_mesh.xdmf") as infile:
-    infile.read(mvc, "name_to_read")
-boundaries = cpp.mesh.MeshFunctionSizet(mesh, mvc)
-params = np.load('./Mesh/params.npy', allow_pickle='TRUE').item()
+if __name__ == "__main__":
+    # load mesh
+    mesh = Mesh()
+    with XDMFFile("./Mesh/mesh_triangles.xdmf") as infile:
+        infile.read(mesh)
 
-bfile = File("../Output/learnExt/boundaries.pvd")
-bfile << boundaries
+    # read boundary parts
+    mvc = MeshValueCollection("size_t", mesh, 1)
+    with XDMFFile("./Mesh/facet_mesh.xdmf") as infile:
+        infile.read(mvc, "name_to_read")
+    boundaries = cpp.mesh.MeshFunctionSizet(mesh, mvc)
+    params = np.load('./Mesh/params.npy', allow_pickle='TRUE').item()
 
-# save mesh
-deformation = Expression(("1e-2 * exp(x[0]-6.)", "0."), degree = 2)
-def_boundary_parts = ["design"]
-zero_boundary_parts = ["inflow", "outflow", "noslip"]
-output_directory = str("../Output/learnExt/results/")
+    bfile = File("../Output/learnExt/boundaries.pvd")
+    bfile << boundaries
 
-# function spaces
-Vs = FunctionSpace(mesh, "CG", 1)
-V = VectorFunctionSpace(mesh, "CG", 1)
+    # save mesh
+    deformation = Expression(("1e-2 * exp(x[0]-6.)", "0."), degree = 2)
+    def_boundary_parts = ["design"]
+    zero_boundary_parts = ["inflow", "outflow", "noslip"]
+    output_directory = str("../Output/learnExt/results/")
 
-recompute_optimal_control = False
-if recompute_optimal_control:
-    opt_cont.compute_optimal_coefficient(mesh, V, Vs, params, deformation, def_boundary_parts,
-                                         zero_boundary_parts, boundaries, output_directory)
+    # function spaces
+    Vs = FunctionSpace(mesh, "CG", 1)
+    V = VectorFunctionSpace(mesh, "CG", 1)
 
-recompute_neural_net = False
-if recompute_neural_net:
-    opt_ml.compute_machine_learning(mesh, V, Vs, params, boundaries, output_directory)
+    recompute_optimal_control = False
+    if recompute_optimal_control:
+        opt_cont.compute_optimal_coefficient(mesh, V, Vs, params, deformation, def_boundary_parts,
+                                             zero_boundary_parts, boundaries, output_directory)
 
-opt_ml.visualize(mesh, V, Vs, params, deformation, def_boundary_parts,
-                                         zero_boundary_parts, boundaries, output_directory)
+    recompute_neural_net = True
+    if recompute_neural_net:
+        opt_ml.compute_machine_learning(mesh, V, Vs, params, boundaries, output_directory, threshold)
+
+    opt_ml.visualize(mesh, V, Vs, params, deformation, def_boundary_parts,
+                                             zero_boundary_parts, boundaries, output_directory, threshold)

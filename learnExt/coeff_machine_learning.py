@@ -10,14 +10,15 @@ import NeuralNet.tools as tools
 
 
 class Custom_Reduced_Functional(object):
-    def __init__(self, posfunc, posfunc_der, net, normgradtraf, alpha_opt, init_weights):
+    def __init__(self, posfunc, posfunc_der, net, normgradtraf, alpha_opt, init_weights, threshold):
         self.posfunc = posfunc
         self.posfunc_der = posfunc_der
         self.net = net
         self.normgradtraf = normgradtraf
         self.alpha_opt = alpha_opt
+        self.threshold = threshold
 
-        J = assemble((self.net(self.normgradtraf) - 1.0 - self.alpha_opt) ** 2 * dx)
+        J = assemble((NN_der(0.05, self.normgradtraf, net)- 1.0 - self.alpha_opt) ** 2 * dx)
         Jhat = ReducedFunctional(J, net.weights_ctrls())
         self.Jhat = Jhat
         self.controls = Enlist(net.weights_ctrls())
@@ -96,7 +97,7 @@ class Custom_Reduced_Functional(object):
                   '\t\t check derivative \t', order1[i], '\t\t diff1 \t', diff1[i], '\n'),
         return
 
-def compute_machine_learning(mesh, V, Vs, params, boundaries, output_directory):
+def compute_machine_learning(mesh, V, Vs, params, boundaries, output_directory, threshold):
     alpha_opt = Function(Vs)
     normgradtraf = Function(Vs)
 
@@ -121,7 +122,7 @@ def compute_machine_learning(mesh, V, Vs, params, boundaries, output_directory):
     posfunc = lambda x: x ** 2
     posfunc_der = lambda x: 2 * x
 
-    rf = Custom_Reduced_Functional(posfunc, posfunc_der, net, normgradtraf, alpha_opt, init_weights)
+    rf = Custom_Reduced_Functional(posfunc, posfunc_der, net, normgradtraf, alpha_opt, init_weights, threshold)
     rfn = ReducedFunctionalNumPy(rf)
 
     opt_theta = minimize(rfn, options={"disp": True, "gtol": 1e-12, "ftol": 1e-12,
@@ -133,8 +134,14 @@ def compute_machine_learning(mesh, V, Vs, params, boundaries, output_directory):
     # net save
     net.save(output_directory + "trained_network.pkl")
 
+def smoothmax(r, eps=1e-4):
+    return conditional(gt(r, eps), r - eps / 2, conditional(lt(r, 0), 0, r ** 2 / (2 * eps)))
+
+def NN_der(eta, s, net):
+    return 1.0 + smoothmax(s-eta)*net(s)
+
 def visualize(mesh, V, Vs, params, deformation, def_boundary_parts,
-              zero_boundary_parts, boundaries, output_directory):
+              zero_boundary_parts, boundaries, output_directory, threshold):
     net = ANN(output_directory + "trained_network.pkl")
     alpha_opt = Function(Vs)
 
@@ -156,13 +163,11 @@ def visualize(mesh, V, Vs, params, deformation, def_boundary_parts,
 
         u = Function(V)
         v = TestFunction(V)
-        E = inner(
-            net(inner(1 / 2 * (grad(u) + grad(u).T), 1 / 2 * (grad(u) + grad(u).T))) * 1 / 2 * (grad(u) + grad(u).T),
-            1 / 2 * (grad(v) + grad(v).T)) * dx(mesh)
+        E = inner(NN_der(threshold, inner(1 / 2 * (grad(u) + grad(u).T), 1 / 2 * (grad(u) + grad(u).T)), net)
+                  * 1 / 2 * (grad(u) + grad(u).T), 1 / 2 * (grad(v) + grad(v).T)) * dx(mesh)
         solve(E == 0, u, bc)
 
         up = project(u, V)
-        ap = project(net(inner(grad(u), grad(u))), Vs)
         ALE.move(mesh, up, annotate=False)
         ufile << up
 
