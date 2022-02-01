@@ -1,6 +1,6 @@
 [![MIT License](https://img.shields.io/apm/l/atomic-design-ui.svg?style=plastic)](https://choosealicense/licenses/mit/)
 
-# LearnExtension
+# LearnExt
 
 Code repository for the manuscript
 > J. Haubner, M. Kuchta, K.-A. Mardal: Learning a Mesh Motion Technique with Application to Fluid-Structure Interaction and Shape Optimization
@@ -18,6 +18,13 @@ Install the required version of FEniCS and dolfin-adjoint and run the commands
 cd example
 python3 example_learnExt_FSIbenchmarkII.py
 ```
+
+To redo the learning process run 
+```
+cd learnExt
+python3 learn.py
+```
+(and modify the file accordingly).
 
 ## License
 
