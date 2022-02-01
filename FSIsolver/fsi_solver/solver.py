@@ -63,7 +63,9 @@ class FSI(Context):
         self.N = FSI_params["save_every_N_snapshot"]
 
         self.displacement_filename = self.savedir + "/displacementy.txt"
+        self.determinant_filename = self.savedir + "/determinant.txt"
         self.displacement = []
+        self.determinant_deformation = []
 
         if not self.savedir == None:
             velocity_filename = self.savedir + "/velocity.pvd"
@@ -121,13 +123,22 @@ class FSI(Context):
                 ALE.move(self.FSI_params["solid_mesh"], usi, annotate=False)
 
 
-    def save_displacement(self, u):
+    def save_displacement(self, u, save_det=False):
         try:
             self.displacement.append(u(self.FSI_params["displacement_point"])[1])
             np.savetxt(self.displacement_filename, self.displacement)
         except:
             print('Displacement can not be saved. Does FSI_params contain displacement_point?'
                   ' Does folder exist where .txt-file should be saved to?')
+        try:
+            if save_det == True:
+                V = FunctionSpace(u.function_space().mesh(), "CG", 1)
+                det_u = project(det(Identity(2) + grad(u)), V)
+                self.determinant_deformation.append(det_u.vector().min())
+                np.savetxt(self.determinant_filename, self.determinant_deformation)
+        except:
+            print('Maximum determinant value can not be saved.')
+
 
     def get_deformation(self, vp, vp_, u_):
         u = Function(u_.function_space())
@@ -327,7 +338,7 @@ class FSIsolver(Solver):
 
         while not self.FSI.check_termination():
             self.FSI.save_snapshot(vp, u)
-            self.FSI.save_displacement(u)
+            self.FSI.save_displacement(u, save_det=True)
             self.FSI.advance_time()
 
             u_.assign(u)
