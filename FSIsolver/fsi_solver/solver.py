@@ -102,14 +102,19 @@ class FSI(Context):
                 ui.vector()[:] = -1.0 * u.vector()[:]
                 pmed = assemble(p * self.dxf)
                 vol = assemble(Constant("1.0") * self.dxf)
-                ALE.move(self.mesh, u, annotate=False)
+                try:
+                    ALE.move(self.mesh, u, annotate=False)
+                except:
+                    ALE.move(self.mesh, u)
                 pp = project(p - pmed / vol * Constant("1.0"), p.function_space())
                 v.rename("velocity", "velocity")
                 p.rename("pressure", "pressure")
                 self.pfile << p
                 self.vfile << v
-
-                ALE.move(self.mesh, ui, annotate=False)
+                try:
+                    ALE.move(self.mesh, ui, annotate=False)
+                except:
+                    ALE.move(self.mesh, ui)
 
                 # save characteristic function of solid mesh
                 Vs = VectorFunctionSpace(self.FSI_params["solid_mesh"], "CG", 2)
@@ -118,9 +123,15 @@ class FSI(Context):
                 us = transfer_to_subfunc(u, Vs)
                 usi = Function(us.function_space())
                 usi.vector()[:] = -1.0 * us.vector()[:]
-                ALE.move(self.FSI_params["solid_mesh"], us, annotate=False)
+                try:
+                    ALE.move(self.FSI_params["solid_mesh"], us, annotate=False)
+                except:
+                    ALE.move(self.FSI_params["solid_mesh"], us)
                 self.cfile << c
-                ALE.move(self.FSI_params["solid_mesh"], usi, annotate=False)
+                try:
+                    ALE.move(self.FSI_params["solid_mesh"], usi, annotate=False)
+                except:
+                    ALE.move(self.FSI_params["solid_mesh"], usi)
 
 
     def save_displacement(self, u, save_det=False):
