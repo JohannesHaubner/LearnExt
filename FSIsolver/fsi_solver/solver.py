@@ -316,6 +316,9 @@ class FSIsolver(Solver):
         self.FSI_params = FSI_params
         self.extension_operator = extension_operator
 
+        output_directory = FSI_params["save_directory"]
+        self.xdmf = XDMFFile(output_directory + "/deformation.xdmf")
+
         # function space
         V2 = VectorElement("CG", mesh.ufl_cell(), 2)
         S1 = FiniteElement("CG", mesh.ufl_cell(), 1)
@@ -340,6 +343,9 @@ class FSIsolver(Solver):
             self.FSI.save_snapshot(vp, u)
             self.FSI.save_displacement(u, save_det=True)
             self.FSI.advance_time()
+
+            # save u_ as xdmf, in order to be able to 'learn' extension from here
+            self.xdmf.write_checkpoint(u_, "u_", 0, append=True)
 
             u_.assign(u)
             vp_.assign(vp)

@@ -91,8 +91,10 @@ class LearnExtension(extension.ExtensionOperator):
 
         dx = Measure('dx', domain=self.mesh)
 
-        E = inner(NN_der(threshold, inner(1 / 2 * (grad(u) + grad(u).T), 1 / 2 * (grad(u) + grad(u).T)), self.net)
-                  * 1 / 2 * (grad(u) + grad(u).T), 1 / 2 * (grad(v) + grad(v).T)) * dx(self.mesh)
+        #E = inner(NN_der(threshold, inner(1 / 2 * (grad(u) + grad(u).T), 1 / 2 * (grad(u) + grad(u).T)), self.net)
+        #          * 1 / 2 * (grad(u) + grad(u).T), 1 / 2 * (grad(v) + grad(v).T)) * dx(self.mesh)
+
+        E = inner(1 / 2 * (grad(u) + grad(u).T), 1 / 2 * (grad(v) + grad(v).T)) * dx(self.mesh)
 
         # solve PDE
         bc = DirichletBC(self.FS2, boundary_conditions, 'on_boundary')

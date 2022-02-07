@@ -4,7 +4,7 @@ import numpy as np
 import coeff_opt_control as opt_cont
 import coeff_machine_learning as opt_ml
 
-threshold  = 0.05 # first part of NN is linear
+threshold  = 0.01 # first part of NN is linear
 
 if __name__ == "__main__":
     # load mesh
