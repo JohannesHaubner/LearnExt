@@ -3,10 +3,11 @@ from dolfin_adjoint import *
 import numpy as np
 import moola
 
+def smoothmax(r, eps=1e-4):
+    return conditional(gt(r, eps), r - eps / 2, conditional(lt(r, 0), 0, r ** 2 / (2 * eps)))
 
-def compute_optimal_coefficient(mesh, V, Vs, params, deformation, def_boundary_parts,
-                                zero_boundary_parts, boundaries, output_directory):
-
+def compute_optimal_coefficient_new(mesh, V, Vs, params, deformation, def_boundary_parts,
+                                zero_boundary_parts, boundaries, output_directory, uref):
     u = Function(V)
     v = TestFunction(V)
 
@@ -29,9 +30,8 @@ def compute_optimal_coefficient(mesh, V, Vs, params, deformation, def_boundary_p
 
     b = Function(Vs)
     vb = TestFunction(Vs)
-    E1 = inner(grad(b), grad(vb))*dx(mesh) - inner(alpha, vb)*dx(mesh)
+    E1 = inner(grad(b), grad(vb)) * dx(mesh) - inner(alpha, vb) * dx(mesh)
     solve(E1 == 0, b, bc2)
-
 
     E = inner((1.0 + b) * (grad(u) + grad(u).T), grad(v) + grad(v).T) * dx(mesh)
 
@@ -48,8 +48,9 @@ def compute_optimal_coefficient(mesh, V, Vs, params, deformation, def_boundary_p
 
     # J
     eta = 1e-3
-    J = assemble(pow((1.0 / (det(Identity(2) + grad(u))) + det(Identity(2) + grad(u))), 2) * dx(mesh) + 0.5 * eta * (
-                inner(alpha, alpha) + inner(grad(alpha), grad(alpha))) * dx(mesh))
+    ds = Measure('ds', domain=mesh, subdomain_data=boundaries)
+    J = assemble(pow((1.0 / (det(Identity(2) + grad(u))) + det(Identity(2) + grad(u))), 2) * ds(2)
+                 + 0.5 * eta * (inner(alpha, alpha) + 0.0* inner(grad(alpha), grad(alpha))) * dx(mesh))
     control = Control(alpha)
 
     def Hinit(x):
@@ -57,7 +58,7 @@ def compute_optimal_coefficient(mesh, V, Vs, params, deformation, def_boundary_p
         w.vector().set_local(x)
         u = TrialFunction(Vs)
         v = TestFunction(Vs)
-        a = (inner(u, v) + inner(grad(u), grad(v))) * dx(mesh)
+        a = (inner(u, v) + 0.0*inner(grad(u), grad(v))) * dx(mesh)
         L = inner(w, v) * dx(mesh)
         A, b = PETScMatrix(), PETScVector()
         assemble_system(a, L, [], A_tensor=A, b_tensor=b)
@@ -70,7 +71,7 @@ def compute_optimal_coefficient(mesh, V, Vs, params, deformation, def_boundary_p
     problem = MoolaOptimizationProblem(rf)
     alpha_moola = moola.DolfinPrimalVector(alpha)
     solver = moola.BFGS(problem, alpha_moola,
-                        options={'jtol': 0, 'gtol': 1e-9, 'Hinit': Hinit, 'maxiter': 100, 'mem_lim': 10})
+                        options={'jtol': 1e-4, 'gtol': 1e-9, 'Hinit': Hinit, 'maxiter': 100, 'mem_lim': 10})
 
     sol = solver.solve()
     alpha_opt = sol['control'].data

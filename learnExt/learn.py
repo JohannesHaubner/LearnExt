@@ -32,7 +32,7 @@ if __name__ == "__main__":
     Vs = FunctionSpace(mesh, "CG", 1)
     V = VectorFunctionSpace(mesh, "CG", 1)
 
-    recompute_optimal_control = False
+    recompute_optimal_control = True
     if recompute_optimal_control:
         opt_cont.compute_optimal_coefficient(mesh, V, Vs, params, deformation, def_boundary_parts,
                                              zero_boundary_parts, boundaries, output_directory)
