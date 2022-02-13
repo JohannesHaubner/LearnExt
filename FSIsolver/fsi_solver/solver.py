@@ -297,7 +297,7 @@ class FSI(Context):
 
         if option == 1:
             # this term vanishes in the fully Lagrangian setting
-            A_E += inner(rhof * Jhat_ * grad(v_) * Fhati_ * v_, psiv) * dxf
+            A_E_rhs += inner(rhof * Jhat_ * grad(v_) * Fhati_ * v_, psiv) * dxf
 
         F = A_T + A_P + A_I + theta * A_E + (1 - theta)*A_E_rhs
 
