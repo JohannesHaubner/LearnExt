@@ -155,7 +155,8 @@ class FSI(Context):
         u = Function(u_.function_space())
         (v_, p_) = vp_.split(deepcopy=True)
         (v, p) = vp.split(deepcopy=True)
-        u.vector()[:] = u_.vector()[:] + self.dt*((1-self.theta)*v_.vector()[:] + self.theta*v.vector()[:])
+        u.vector()[:] = u_.vector()[:] + self.dt * v.vector()[:]
+                        #+ self.dt*((1-self.theta)*v_.vector()[:] + self.theta*v.vector()[:])
         # 0 displacement on outer fluid boundary
         bc = DirichletBC(u.function_space(), Constant((0.0,0.0)), 'on_boundary')
         bc.apply(u.vector())
@@ -219,7 +220,7 @@ class FSI(Context):
         I = Identity(2)
 
         if option == 0:
-            Fhat = I + grad(u_ + k*(theta*v + (1-theta)*v_))
+            Fhat = I + grad(u_ + k * v) #+ k*(theta*v + (1-theta)*v_))
         elif option == 1:
             Fhat = I + grad(u)
 
@@ -237,7 +238,7 @@ class FSI(Context):
             sEhat = Ehat
             sJhat = Jhat
         elif option == 1:
-            sFhat = I + grad(u_ + k*(theta * v + (1 - theta)*v_))
+            sFhat = I + grad(u_ + k * v) #I + grad(u_ + k*(theta * v + (1 - theta)*v_))
             sFhatt = sFhat.T
             sFhati = inv(sFhat)
             sFhatti = sFhati.T
