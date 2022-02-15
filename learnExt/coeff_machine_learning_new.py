@@ -163,8 +163,8 @@ def visualize(mesh, V, Vs, params, deformation, def_boundary_parts,
 
         u = Function(V)
         v = TestFunction(V)
-        E = inner(NN_der(threshold, inner(1 / 2 * (grad(u) + grad(u).T), 1 / 2 * (grad(u) + grad(u).T)), net)
-                  * 1 / 2 * (grad(u) + grad(u).T), 1 / 2 * (grad(v) + grad(v).T)) * dx(mesh)
+        E = inner(NN_der(threshold, inner(grad(u), grad(u)), net)
+                  * grad(u), grad(v)) * dx(mesh)
         solve(E == 0, u, bc)
 
         up = project(u, V)
@@ -176,7 +176,7 @@ def visualize(mesh, V, Vs, params, deformation, def_boundary_parts,
         ALE.move(mesh, upi, annotate=False)
         u = Function(V)
         v = TestFunction(V)
-        E = inner((grad(u) + grad(u).T), grad(v) + grad(v).T) * dx(mesh)
+        E = inner(grad(u), grad(v)) * dx(mesh)
         solve(E == 0, u, bc)
 
         up = project(u, V)

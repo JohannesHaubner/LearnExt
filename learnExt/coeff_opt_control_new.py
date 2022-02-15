@@ -25,6 +25,8 @@ def compute_optimal_coefficient_new(mesh, V, Vs, params, deformation, def_bounda
     ufile = File(output_directory + "displacement.pvd")
     afile = File(output_directory + "alpha_opt.pvd")
 
+    set_working_tape(Tape())
+
     # solve optimal control problem
     alpha = interpolate(Constant("0.0"), Vs)
 
@@ -33,24 +35,18 @@ def compute_optimal_coefficient_new(mesh, V, Vs, params, deformation, def_bounda
     E1 = inner(grad(b), grad(vb)) * dx(mesh) - inner(alpha, vb) * dx(mesh)
     solve(E1 == 0, b, bc2)
 
-    E = inner((1.0 + b) * (grad(u) + grad(u).T), grad(v) + grad(v).T) * dx(mesh)
+    E = inner((1.0 + b) * grad(u), grad(v)) * dx(mesh)
 
     # solve PDE
     solve(E == 0, u, bc)
 
-    # save initial
-    up = project(u, V)
-    upi = project(-1.0 * u, V)
-    ALE.move(mesh, up, annotate=False)
-    ufile << up
-    afile << alpha
-    ALE.move(mesh, upi, annotate=False)
-
     # J
-    eta = 1e-3
+    eta = 1e-2
     ds = Measure('ds', domain=mesh, subdomain_data=boundaries)
     J = assemble(pow((1.0 / (det(Identity(2) + grad(u))) + det(Identity(2) + grad(u))), 2) * ds(2)
-                 + 0.5 * eta * (inner(alpha, alpha) + 0.0* inner(grad(alpha), grad(alpha))) * dx(mesh))
+                 + inner(grad(det(Identity(2) + grad(u))), grad(det(Identity(2) + grad(u)))) * ds(2)
+                 + inner(grad(det(Identity(2) + grad(u))), grad(det(Identity(2) + grad(u)))) * dx
+                 + 0.5 * eta * inner(alpha, alpha) * dx(mesh))
     control = Control(alpha)
 
     def Hinit(x):
@@ -58,7 +54,7 @@ def compute_optimal_coefficient_new(mesh, V, Vs, params, deformation, def_bounda
         w.vector().set_local(x)
         u = TrialFunction(Vs)
         v = TestFunction(Vs)
-        a = (inner(u, v) + 0.0*inner(grad(u), grad(v))) * dx(mesh)
+        a = inner(u, v)* dx(mesh)
         L = inner(w, v) * dx(mesh)
         A, b = PETScMatrix(), PETScVector()
         assemble_system(a, L, [], A_tensor=A, b_tensor=b)
@@ -67,6 +63,20 @@ def compute_optimal_coefficient_new(mesh, V, Vs, params, deformation, def_bounda
         return moola.DolfinPrimalVector(u)
 
     rf = ReducedFunctional(J, control)
+
+    test = False
+    if test == True:
+        h = interpolate(Expression("100*x[0]*x[1]", degree=1),alpha.function_space())
+        taylor_test(rf, alpha, h)
+        breakpoint()
+
+    # save initial
+    up = project(u, V)
+    upi = project(-1.0 * u, V)
+    ALE.move(mesh, up, annotate=False)
+    ufile << up
+    afile << alpha
+    ALE.move(mesh, upi, annotate=False)
 
     problem = MoolaOptimizationProblem(rf)
     alpha_moola = moola.DolfinPrimalVector(alpha)
@@ -81,7 +91,7 @@ def compute_optimal_coefficient_new(mesh, V, Vs, params, deformation, def_bounda
     solve(E1 == 0, b_opt, bc2)
 
     # solve u_opt
-    E = inner((1.0 + b_opt) * (grad(u) + grad(u).T), grad(v)) * dx(mesh)
+    E = inner((1.0 + b_opt) * grad(u), grad(v)) * dx(mesh)
     solve(E == 0, u, bc)
 
     up = project(u, V)
@@ -92,7 +102,7 @@ def compute_optimal_coefficient_new(mesh, V, Vs, params, deformation, def_bounda
     ALE.move(mesh, upi, annotate=False)
 
     # breakpoint()
-    normgradtraf = project(inner(0.5 * (grad(u) + grad(u).T), 0.5 * (grad(u) + grad(u).T)), Vs)
+    normgradtraf = project(inner(grad(u), grad(u)), Vs)
 
     xdmf = XDMFFile(output_directory + "optimal_control_data.xdmf")
 

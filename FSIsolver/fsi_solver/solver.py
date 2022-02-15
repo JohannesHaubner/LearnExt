@@ -258,8 +258,23 @@ class FSI(Context):
         Jhat_ = det(Fhat_)
         Jhattheta = theta * Jhat + (1.0 - theta) * Jhat_
 
+        if option == 0:
+            sFhat_ = Fhat_
+            sFhatt_ = Fhatt_
+            sFhati_ = Fhati_
+            sFhatti_ = Fhatti_
+            sEhat_ = Ehat_
+            sJhat_ = Jhat_
+        elif option == 1:
+            sFhat_ = I + grad(u_)
+            sFhatt_ = sFhat_.T
+            sFhati_ = inv(sFhat_)
+            sFhatti_ = sFhati_.T
+            sEhat_ = 0.5 * (sFhatt_ * sFhat_ - I)
+            sJhat_ = det(sFhat_)
+
         sigmafv_ = rhof * nyf * (grad(v_) * Fhati_ + Fhatti_ * grad(v_).T)
-        sigmasv_ = inv(Jhat_) * Fhat_ * (lambdas * tr(Ehat_) * I + 2.0 * mys * Ehat_) * Fhatt_ # STVK
+        sigmasv_ = inv(sJhat_) * sFhat_ * (lambdas * tr(sEhat_) * I + 2.0 * mys * sEhat_) * sFhatt_ # STVK
 
         # weak form
 
@@ -283,7 +298,7 @@ class FSI(Context):
 
         # remaining explicit terms
         A_E = (inner(Jhat * Fhati * sigmafv, grad(psiv).T) * dxf
-               + inner(Jhat * Fhati * sigmasv, grad(psiv).T) * dxs
+               + inner(sJhat * sFhati * sigmasv, grad(psiv).T) * dxs
                )
 
         if option == 1:
@@ -292,7 +307,7 @@ class FSI(Context):
 
         # explicit terms of previous time-step
         A_E_rhs = (inner(Jhat_ * Fhati_ * sigmafv_, grad(psiv).T) * dxf
-                   + inner(Jhat_ * Fhati_ * sigmasv_, grad(psiv).T) * dxs
+                   + inner(sJhat_ * sFhati_ * sigmasv_, grad(psiv).T) * dxs
                    )
 
         if option == 1:
