@@ -91,10 +91,9 @@ class LearnExtension(extension.ExtensionOperator):
 
         dx = Measure('dx', domain=self.mesh)
 
-        #E = inner(NN_der(threshold, inner(1 / 2 * (grad(u) + grad(u).T), 1 / 2 * (grad(u) + grad(u).T)), self.net)
-        #          * 1 / 2 * (grad(u) + grad(u).T), 1 / 2 * (grad(v) + grad(v).T)) * dx(self.mesh)
+        E = inner(NN_der(threshold, inner(grad(u), grad(u)), self.net) * grad(u), grad(v)) * dx(self.mesh)
 
-        E = inner(1 / 2 * (grad(u) + grad(u).T), 1 / 2 * (grad(v) + grad(v).T)) * dx(self.mesh)
+        #E = inner(grad(u),grad(v)) * dx(self.mesh)
 
         # solve PDE
         bc = DirichletBC(self.FS2, boundary_conditions, 'on_boundary')
@@ -110,10 +109,10 @@ class LearnExtension(extension.ExtensionOperator):
 extension_operator = LearnExtension(fluid_domain)
 
 # save options
-FSI_param['save_directory'] = str('./../Output/FSIbenchmarkII') #no save if set to None
+FSI_param['save_directory'] = str('./../Output/FSIbenchmarkII_learnext_test') #no save if set to None
 FSI_param['save_every_N_snapshot'] = 16 # save every 8th snapshot
 
 # initialize FSI solver
-fsisolver = solver.FSIsolver(mesh, boundaries, domains, params, FSI_param, extension_operator)
+fsisolver = solver.FSIsolver(mesh, boundaries, domains, params, FSI_param, extension_operator, warmstart=False)
 fsisolver.solve()
 

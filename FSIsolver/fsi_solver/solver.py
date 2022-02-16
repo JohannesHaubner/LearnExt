@@ -67,6 +67,13 @@ class FSI(Context):
         self.displacement = []
         self.determinant_deformation = []
 
+        # files for warmstart
+        output_directory = self.FSI_params["save_directory"]
+        self.xdmf_states = XDMFFile(output_directory + "/warmstart/states.xdmf")
+        self.xdmf_load = XDMFFile(output_directory[:-2] + "/states.xdmf")
+        self.time_save = str(output_directory + "/warmstart/t.npy")
+        self.time_load = str(output_directory[:-2] + "/t.npy")
+
         if not self.savedir == None:
             velocity_filename = self.savedir + "/velocity.pvd"
             charfunc_filename = self.savedir + "/char.pvd"
@@ -82,6 +89,41 @@ class FSI(Context):
 
         self.dxf = dx(self.param["fluid"])
         self.dxs = dx(self.param["solid"])
+
+
+    def warmstart(self, t):
+        self.warmstart = True
+        self.t = t
+        self.bc.t = t
+
+    def save_states(self, u, u_, vp, vp_):
+        v, p = vp.split(deepcopy=True)
+        v_, p_ = vp_.split(deepcopy=True)
+        self.xdmf_states.write_checkpoint(u, "u", 0, XDMFFile.Encoding.HDF5, append=True)
+        self.xdmf_states.write_checkpoint(u_, "u_", 0, XDMFFile.Encoding.HDF5, append=True)
+        self.xdmf_states.write_checkpoint(v, "v", 0, XDMFFile.Encoding.HDF5, append=True)
+        self.xdmf_states.write_checkpoint(v_, "v_", 0, XDMFFile.Encoding.HDF5, append=True)
+        self.xdmf_states.write_checkpoint(p, "p", 0, XDMFFile.Encoding.HDF5, append=True)
+        self.xdmf_states.write_checkpoint(p_, "p_", 0, XDMFFile.Encoding.HDF5, append=True)
+        np.save(self.time_save, self.t)
+        return u, u_, vp, vp_
+
+    def load_states(self, u, u_, vp, vp_):
+        v, p = vp.split(deepcopy=True)
+        v_, p_ = vp_.split(deepcopy=True)
+        self.xdmf_load.read_checkpoint(u, "u")
+        self.xdmf_load.read_checkpoint(u_, "u_")
+        self.xdmf_load.read_checkpoint(v, "v")
+        self.xdmf_load.read_checkpoint(v_, "v_")
+        self.xdmf_load.read_checkpoint(p, "p")
+        self.xdmf_load.read_checkpoint(p_, "p_")
+        vp.sub(0).assign(v)
+        vp.sub(1).assign(p)
+        vp_.sub(0).assign(v_)
+        vp_.sub(1).assign(p_)
+        t = np.load(self.time_load)
+        self.warmstart(t)
+        return u, u_, vp, vp_
 
     def save_snapshot(self, vp, u):
         if self.savedir == None:
@@ -322,7 +364,7 @@ class FSI(Context):
 
 
 class FSIsolver(Solver):
-    def __init__(self, mesh, boundaries, domains, param, FSI_params, extension_operator):
+    def __init__(self, mesh, boundaries, domains, param, FSI_params, extension_operator, warmstart=False):
         """
         solves the FSI system on mesh
         :param mesh: computational mesh (with fluid and solid part)
@@ -342,8 +384,11 @@ class FSIsolver(Solver):
         self.FSI_params = FSI_params
         self.extension_operator = extension_operator
 
-        output_directory = FSI_params["save_directory"]
-        self.xdmf = XDMFFile(output_directory + "/deformation.xdmf")
+        if warmstart == True:
+            self.FSI_params["save_directory"] += "/warmstarted"
+
+
+        self.warmstart = warmstart
 
         # function space
         V2 = VectorElement("CG", mesh.ufl_cell(), 2)
@@ -358,20 +403,21 @@ class FSIsolver(Solver):
     def solve(self):
         # velocity and pressure
         vp = Function(self.VP)
-        vp_fl = Function(self.VP)  # fully Lagrangian
         vp_ = Function(self.VP)    # previous time-step
 
         # deformation
         u = Function(self.U)
         u_ = Function(self.U)      # previous time-step
 
+        if self.warmstart:
+            u, u_, vp, vp_ = self.FSI.load_states(u, u_, vp, vp_)
+
         while not self.FSI.check_termination():
             self.FSI.save_snapshot(vp, u)
             self.FSI.save_displacement(u, save_det=True)
             self.FSI.advance_time()
 
-            # save u_ as xdmf, in order to be able to 'learn' extension from here
-            self.xdmf.write_checkpoint(u_, "u_", 0, append=True)
+            self.FSI.save_states(u, u_, vp, vp_)
 
             u_.assign(u)
             vp_.assign(vp)
