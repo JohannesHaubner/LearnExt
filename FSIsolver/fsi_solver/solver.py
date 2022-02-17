@@ -52,10 +52,12 @@ class Context(object):
         return (self.dt < self.dt_min) or self.success == True
 
     def adapt_dt(self):
-        print("adapt dt ", self.dt, self.dt*1/2)
         if self.success:
+            if self.dt*2 <= self.dt_max:
+                print("adapt dt ", self.dt, self.dt * 2)
             self.dt = min(self.dt*2, self.dt_max)
         else:
+            print("adapt dt ", self.dt, self.dt * 1 / 2)
             self.t = self.t - self.dt
             self.dt = self.dt * 1/2
 
