@@ -84,12 +84,12 @@ if __name__ == "__main__":
     file << uref
     uref = create_overloaded_object(uref)
 
-    recompute_optimal_control = False
+    recompute_optimal_control = True
     if recompute_optimal_control:
         opt_cont.compute_optimal_coefficient_new(fluid_domain, V, Vs, params, deformation, def_boundary_parts,
                                              zero_boundary_parts, boundaries, output_directory, uref)
 
-    recompute_neural_net = False
+    recompute_neural_net = True
     if recompute_neural_net:
         opt_ml.compute_machine_learning_new(fluid_domain, V, Vs, params, boundaries, output_directory, threshold)
 

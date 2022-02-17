@@ -31,7 +31,10 @@ class Context(object):
         self.t = params["t"]
         self.T = params["T"]
         self.dt = params["deltat"]
+        self.dt_max = params["deltat"]
+        self.dt_min = 1/8 * self.dt_max
         self.bc = params["boundary_cond"]
+        self.success = False
 
     def check_termination(self):
         return (not self.t <= self.T)
@@ -42,6 +45,26 @@ class Context(object):
         """
         self.t += self.dt
         self.bc.t = self.t
+        print('update time: t = ', self.t)
+
+    def check_timestep_success(self):
+        print('check_timestep_sucess', self.dt, self.success)
+        return (self.dt < self.dt_min) or self.success == True
+
+    def adapt_dt(self):
+        print("adapt dt ", self.dt, self.dt*1/2)
+        if self.success:
+            self.dt = min(self.dt*2, self.dt_max)
+        else:
+            self.t = self.t - self.dt
+            self.dt = self.dt * 1/2
+
+    def reset_success(self):
+        self.success = False
+
+    def timestep_success(self):
+        print('timestep successful')
+        self.success = True
 
 
 class FSI(Context):
@@ -64,8 +87,10 @@ class FSI(Context):
 
         self.displacement_filename = self.savedir + "/displacementy.txt"
         self.determinant_filename = self.savedir + "/determinant.txt"
+        self.times_filename = self.savedir + "/times.txt"
         self.displacement = []
         self.determinant_deformation = []
+        self.times = []
 
         # files for warmstart
         output_directory = self.FSI_params["save_directory"]
@@ -117,12 +142,15 @@ class FSI(Context):
         self.xdmf_load.read_checkpoint(v_, "v_")
         self.xdmf_load.read_checkpoint(p, "p")
         self.xdmf_load.read_checkpoint(p_, "p_")
-        vp.sub(0).assign(v)
-        vp.sub(1).assign(p)
-        vp_.sub(0).assign(v_)
-        vp_.sub(1).assign(p_)
+        assign(vp.sub(0), v)
+        assign(vp.sub(1), p)
+        assign(vp_.sub(0), v_)
+        assign(vp_.sub(1), p_)
         t = np.load(self.time_load)
         self.warmstart(t)
+        file = File(self.savedir + '/test.pvd')
+        file << vp
+        file << v
         return u, u_, vp, vp_
 
     def save_snapshot(self, vp, u):
@@ -131,7 +159,8 @@ class FSI(Context):
         elif self.N == 0:
             print("N has to be larger than 0, continue without saving snapshots...")
         else:
-            if abs(self.t/(self.dt * self.N) - round(self.t/(self.dt * self.N))) < 1e-10:
+            t_frac = abs(self.t / 0.04 - round(self.t / 0.04))*0.04  # make a snapshot every 1/25 s
+            if abs(t_frac) < self.dt_min * 0.5:
                 print('save snapshot...', self.t)
 
                 # save displacement
@@ -179,7 +208,9 @@ class FSI(Context):
     def save_displacement(self, u, save_det=False):
         try:
             self.displacement.append(u(self.FSI_params["displacement_point"])[1])
+            self.times.append(self.t)
             np.savetxt(self.displacement_filename, self.displacement)
+            np.savetxt(self.times_filename, self.times)
         except:
             print('Displacement can not be saved. Does FSI_params contain displacement_point?'
                   ' Does folder exist where .txt-file should be saved to?')
@@ -219,7 +250,7 @@ class FSI(Context):
         F = self.get_weak_form(vp, vp_, u, u_, psi, option)
 
         solve(F == 0, vp, bc, solver_parameters={"nonlinear_solver": "newton", "newton_solver":
-            {"maximum_iterations": 20}})
+            {"maximum_iterations": 10}})
 
         return vp
 
@@ -415,15 +446,29 @@ class FSIsolver(Solver):
         while not self.FSI.check_termination():
             self.FSI.save_snapshot(vp, u)
             self.FSI.save_displacement(u, save_det=True)
-            self.FSI.advance_time()
 
             self.FSI.save_states(u, u_, vp, vp_)
 
             u_.assign(u)
             vp_.assign(vp)
-            vp.assign(self.FSI.solve_system(vp_, u, u_, 0))
-            u.assign(self.FSI.get_deformation(vp, vp_, u_))
-            vp.assign(self.FSI.solve_system(vp_, u, u_, 1))
+
+            while not self.FSI.check_timestep_success():
+                try:
+                    self.FSI.advance_time()
+                    print(self.FSI.t, self.FSI.dt)
+                    vp.assign(self.FSI.solve_system(vp_, u, u_, 0))
+                    u.assign(self.FSI.get_deformation(vp, vp_, u_))
+                    vp.assign(self.FSI.solve_system(vp_, u, u_, 1))
+                    self.FSI.timestep_success()
+                    self.FSI.adapt_dt()
+                except:
+                    self.FSI.adapt_dt()
+
+            if self.FSI.success == False:
+                raise ValueError('System not solvable with minimal time-step size.')
+            else:
+                self.FSI.reset_success()
+
 
 
 
