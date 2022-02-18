@@ -59,7 +59,7 @@ class Context(object):
         else:
             print("adapt dt ", self.dt, self.dt * 1 / 2)
             self.t = self.t - self.dt
-            self.dt = self.dt * 1/2
+            self.dt = self.dt * 1 / 2
 
     def reset_success(self):
         self.success = False
