@@ -55,7 +55,7 @@ FSI_param['rhof'] = 1.0e3
 FSI_param['nyf'] = 1.0e-3
 
 FSI_param['t'] = 0.0
-FSI_param['deltat'] = 0.0025
+FSI_param['deltat'] = 0.01
 FSI_param['T'] = 15.0
 
 FSI_param['displacement_point'] = Point((0.6, 0.2))
@@ -91,9 +91,9 @@ class LearnExtension(extension.ExtensionOperator):
 
         dx = Measure('dx', domain=self.mesh)
 
-        E = inner(NN_der(threshold, inner(grad(u), grad(u)), self.net) * grad(u), grad(v)) * dx(self.mesh)
+        #E = inner(NN_der(threshold, inner(grad(u), grad(u)), self.net) * grad(u), grad(v)) * dx(self.mesh)
 
-        #E = inner(grad(u),grad(v)) * dx(self.mesh)
+        E = inner(grad(u), grad(v)) * dx(self.mesh)
 
         # solve PDE
         bc = DirichletBC(self.FS2, boundary_conditions, 'on_boundary')
@@ -109,8 +109,8 @@ class LearnExtension(extension.ExtensionOperator):
 extension_operator = LearnExtension(fluid_domain)
 
 # save options
-FSI_param['save_directory'] = str('./../Output/FSIbenchmarkII_learnext_test') #no save if set to None
-FSI_param['save_every_N_snapshot'] = 16 # save every 8th snapshot
+FSI_param['save_directory'] = str('./../Output/FSIbenchmarkII_harmonic_adaptive') #no save if set to None
+FSI_param['save_every_N_snapshot'] = 4 # save every 8th snapshot
 
 # initialize FSI solver
 fsisolver = solver.FSIsolver(mesh, boundaries, domains, params, FSI_param, extension_operator, warmstart=False)

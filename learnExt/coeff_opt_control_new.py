@@ -41,7 +41,7 @@ def compute_optimal_coefficient_new(mesh, V, Vs, params, deformation, def_bounda
     solve(E == 0, u, bc)
 
     # J
-    eta = 1e-2
+    eta = 1e-1
     ds = Measure('ds', domain=mesh, subdomain_data=boundaries)
     J = assemble(pow((1.0 / (det(Identity(2) + grad(u))) + det(Identity(2) + grad(u))), 2) * ds(2)
                  + inner(grad(det(Identity(2) + grad(u))), grad(det(Identity(2) + grad(u)))) * ds(2)
@@ -62,6 +62,22 @@ def compute_optimal_coefficient_new(mesh, V, Vs, params, deformation, def_bounda
         solve(A, u.vector(), b)
         return moola.DolfinPrimalVector(u)
 
+    '''
+    TODO: check if this is not the better choice for Hinit:
+        def Hinit(x):
+            w = Function(Vs)
+            w.vector().set_local(x)
+            u = TrialFunction(Vs)
+            v = TestFunction(Vs)
+            a = (inner(u, v) + inner(grad(u), grad(v))) * dx(mesh)
+            L = inner(w, v) * dx(mesh)
+            A, b = PETScMatrix(), PETScVector()
+            assemble_system(a, L, [], A_tensor=A, b_tensor=b)
+            u = Function(Vs)
+            solve(A, u.vector(), b)
+            return moola.DolfinPrimalVector(u)
+        '''
+
     rf = ReducedFunctional(J, control)
 
     test = False
@@ -81,7 +97,7 @@ def compute_optimal_coefficient_new(mesh, V, Vs, params, deformation, def_bounda
     problem = MoolaOptimizationProblem(rf)
     alpha_moola = moola.DolfinPrimalVector(alpha)
     solver = moola.BFGS(problem, alpha_moola,
-                        options={'jtol': 1e-4, 'gtol': 1e-9, 'Hinit': Hinit, 'maxiter': 100, 'mem_lim': 10})
+                        options={'jtol': 1e-4, 'gtol': 1e-9, 'Hinit': "default", 'maxiter': 100, 'mem_lim': 10})
 
     sol = solver.solve()
     alpha_opt = sol['control'].data
