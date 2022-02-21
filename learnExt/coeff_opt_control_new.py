@@ -2,16 +2,19 @@ from fenics import *
 from dolfin_adjoint import *
 import numpy as np
 import moola
+from coeff_machine_learning import NN_der
 
 def smoothmax(r, eps=1e-4):
     return conditional(gt(r, eps), r - eps / 2, conditional(lt(r, 0), 0, r ** 2 / (2 * eps)))
 
 def compute_optimal_coefficient_new(mesh, V, Vs, params, deformation, def_boundary_parts,
-                                zero_boundary_parts, boundaries, output_directory, uref):
+                                zero_boundary_parts, boundaries, output_directory, net=None, threshold=None):
     u = Function(V)
     v = TestFunction(V)
 
     # boundary conditions
+    #bc = DirichletBC(V, deformation, "on_boundary")
+    #bc2 = []
     bc = []
     bc2 = []
     zero = Constant(("0.0", "0.0"))
@@ -35,48 +38,22 @@ def compute_optimal_coefficient_new(mesh, V, Vs, params, deformation, def_bounda
     E1 = inner(grad(b), grad(vb)) * dx(mesh) - inner(alpha, vb) * dx(mesh)
     solve(E1 == 0, b, bc2)
 
-    E = inner((1.0 + b) * grad(u), grad(v)) * dx(mesh)
+    if net==None:
+        E = inner((1.0 + b) * grad(u), grad(v)) * dx(mesh)
+    else:
+        E = inner((NN_der(threshold, inner(grad(u), grad(u)), self.net) + b) * grad(u), grad(v)) * dx(mesh)
 
     # solve PDE
     solve(E == 0, u, bc)
 
     # J
-    eta = 1e-1
+    eta = 1
     ds = Measure('ds', domain=mesh, subdomain_data=boundaries)
     J = assemble(pow((1.0 / (det(Identity(2) + grad(u))) + det(Identity(2) + grad(u))), 2) * ds(2)
                  + inner(grad(det(Identity(2) + grad(u))), grad(det(Identity(2) + grad(u)))) * ds(2)
                  + inner(grad(det(Identity(2) + grad(u))), grad(det(Identity(2) + grad(u)))) * dx
                  + 0.5 * eta * inner(alpha, alpha) * dx(mesh))
     control = Control(alpha)
-
-    def Hinit(x):
-        w = Function(Vs)
-        w.vector().set_local(x)
-        u = TrialFunction(Vs)
-        v = TestFunction(Vs)
-        a = inner(u, v)* dx(mesh)
-        L = inner(w, v) * dx(mesh)
-        A, b = PETScMatrix(), PETScVector()
-        assemble_system(a, L, [], A_tensor=A, b_tensor=b)
-        u = Function(Vs)
-        solve(A, u.vector(), b)
-        return moola.DolfinPrimalVector(u)
-
-    '''
-    TODO: check if this is not the better choice for Hinit:
-        def Hinit(x):
-            w = Function(Vs)
-            w.vector().set_local(x)
-            u = TrialFunction(Vs)
-            v = TestFunction(Vs)
-            a = (inner(u, v) + inner(grad(u), grad(v))) * dx(mesh)
-            L = inner(w, v) * dx(mesh)
-            A, b = PETScMatrix(), PETScVector()
-            assemble_system(a, L, [], A_tensor=A, b_tensor=b)
-            u = Function(Vs)
-            solve(A, u.vector(), b)
-            return moola.DolfinPrimalVector(u)
-        '''
 
     rf = ReducedFunctional(J, control)
 
@@ -107,8 +84,14 @@ def compute_optimal_coefficient_new(mesh, V, Vs, params, deformation, def_bounda
     solve(E1 == 0, b_opt, bc2)
 
     # solve u_opt
-    E = inner((1.0 + b_opt) * grad(u), grad(v)) * dx(mesh)
+    if net==None:
+        E = inner((1.0 + b_opt) * grad(u), grad(v)) * dx(mesh)
+    else:
+        E = inner((NN_der(threshold, inner(grad(u), grad(u)), self.net) + b_opt) * grad(u), grad(v)) * dx(mesh)
     solve(E == 0, u, bc)
+
+    if self.net != None:
+        b_opt = project(NN_der(threshold, inner(grad(u_opt), grad(u_opt)), self.net) - 1 + b_opt, Vs)
 
     up = project(u, V)
     upi = project(-u, V)

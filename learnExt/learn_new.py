@@ -87,11 +87,11 @@ if __name__ == "__main__":
     recompute_optimal_control = True
     if recompute_optimal_control:
         opt_cont.compute_optimal_coefficient_new(fluid_domain, V, Vs, params, deformation, def_boundary_parts,
-                                             zero_boundary_parts, boundaries, output_directory, uref)
+                                             zero_boundary_parts, boundaries, output_directory)
 
     recompute_neural_net = True
     if recompute_neural_net:
-        opt_ml.compute_machine_learning_new(fluid_domain, V, Vs, params, boundaries, output_directory, threshold)
+        opt_ml.compute_machine_learning_new(fluid_domain, Vs, output_directory + "/neural_network.pkl", threshold)
 
     opt_ml.visualize(fluid_domain, V, Vs, params, deformation, def_boundary_parts,
                                              zero_boundary_parts, boundaries, output_directory, threshold)

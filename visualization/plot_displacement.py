@@ -38,9 +38,9 @@ def plot_determinant(list, times, str):
 def plot_timestep(times, str):
     colors = [np.asarray([0, 101, 189]) * 1. / 255,
               np.asarray([218, 215, 213]) * 1. / 255]
-    if len(times) > 2:
-        colors = [(len(list) - i) / (len(list)) * colors[0] + i / (len(list)) * colors[1] for i in
-                  range(len(list)+1)]
+    if len(times) > 1:
+        colors = [(len(times) - i) / (len(times)) * colors[0] + i / (len(times)) * colors[1] for i in
+                  range(len(times)+1)]
     times_max = times[0][0] # assume that first time step of first simulation is the maximal timestep
     for i in range(len(times)):
         times_diff = [times[i][k+1] - times[i][k] for k in range(len(times[i])-1)]
@@ -51,17 +51,23 @@ def plot_timestep(times, str):
     pl.close()
 
 if __name__ == "__main__":
-    times = np.loadtxt('../Output/files/learned/times.txt')
+    foldernames = ["learned", "harmonic", "biharmonic"]
 
-    displacement = np.loadtxt('../Output/files/learned/displacementy.txt')
+    times_list = []
+    displacement_list = []
+    determinant_list = []
 
-    plot_displacement([displacement, displacement*1.1, displacement*1.2, displacement*1.3], [times, times, times, times],
+    for i in foldernames:
+        str = "../Output/files/" + i
+        times_list.append(np.loadtxt(str + "/times.txt"))
+        displacement_list.append(np.loadtxt(str + "/displacementy.txt"))
+        determinant_list.append(np.loadtxt(str + "/determinant.txt"))
+
+    plot_displacement(displacement_list, times_list,
                       '../Output/visualizations/displacement_plot.pdf')
 
-    determinant = np.loadtxt('../Output/files/learned/determinant.txt')
-
-    plot_determinant([determinant], [times],
+    plot_determinant(determinant_list, times_list,
                      '../Output/visualizations/determinant_plot.pdf')
 
-    plot_timestep([times],
+    plot_timestep(times_list,
                      '../Output/visualizations/timestepsize_plot.pdf')

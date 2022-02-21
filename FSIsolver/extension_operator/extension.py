@@ -8,6 +8,10 @@ class ExtensionOperator(object):
         """extend the boundary_conditions to the interior of the mesh"""
         raise NotImplementedError
 
+    def custom(self, FSI):
+        """custom function for extension operator"""
+        pass
+
 class Biharmonic(ExtensionOperator):
     def __init__(self, mesh):
         super().__init__(mesh)

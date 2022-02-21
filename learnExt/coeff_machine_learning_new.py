@@ -97,7 +97,7 @@ class Custom_Reduced_Functional(object):
                   '\t\t check derivative \t', order1[i], '\t\t diff1 \t', diff1[i], '\n'),
         return
 
-def compute_machine_learning_new(mesh, V, Vs, params, boundaries, output_directory, threshold):
+def compute_machine_learning_new(mesh, Vs, output_directory, output_path, threshold, net=None):
     alpha_opt = Function(Vs)
     normgradtraf = Function(Vs)
 
@@ -108,16 +108,20 @@ def compute_machine_learning_new(mesh, V, Vs, params, boundaries, output_directo
 
     set_working_tape(Tape())
 
-    # neural net for coefficient
-    layers = [1, 10, 1]
-    bias = [True, True]
-    x, y = SpatialCoordinate(mesh)
-    net = ANN(layers, bias=bias, mesh=mesh)  # , init_method="fixed")
+    if net == None:
+        # neural net for coefficient
+        layers = [1, 10, 1]
+        bias = [True, True]
+        x, y = SpatialCoordinate(mesh)
+        net = ANN(layers, bias=bias, mesh=mesh)  # , init_method="fixed")
 
-    parameters["form_compiler"]["quadrature_degree"] = 4
+        parameters["form_compiler"]["quadrature_degree"] = 4
 
-    # transform net.weights
-    init_weights = generate_weights(layers, bias=bias)
+        # transform net.weights
+        init_weights = generate_weights(layers, bias=bias)
+
+    else:
+        init_weights = net.weights
 
     posfunc = lambda x: x ** 2
     posfunc_der = lambda x: 2 * x
@@ -132,7 +136,8 @@ def compute_machine_learning_new(mesh, V, Vs, params, boundaries, output_directo
     net.set_weights(transformed_opt_theta)
 
     # net save
-    net.save(output_directory + "trained_network.pkl")
+    net.save(output_path)
+    return net
 
 def smoothmax(r, eps=1e-4):
     return conditional(gt(r, eps), r - eps / 2, conditional(lt(r, 0), 0, r ** 2 / (2 * eps)))
@@ -141,12 +146,15 @@ def NN_der(eta, s, net):
     return 1.0 + smoothmax(s-eta)*net(s)
 
 def visualize(mesh, V, Vs, params, deformation, def_boundary_parts,
-              zero_boundary_parts, boundaries, output_directory, threshold):
-    net = ANN(output_directory + "trained_network.pkl")
+              zero_boundary_parts, boundaries, output_directory, threshold, net=None, counter=None):
+    if net == None:
+        net = ANN(output_directory + "/trained_network.pkl")
+    if counter != None:
+        output_d = output_directory + "/" + str(counter) + "_"
     alpha_opt = Function(Vs)
 
     # load data
-    with XDMFFile(output_directory + "optimal_control_data.xdmf") as infile:
+    with XDMFFile(output_directory + "/optimal_control_data.xdmf") as infile:
         infile.read_checkpoint(alpha_opt, "alpha_opt")
 
         # boundary deformation
@@ -159,7 +167,7 @@ def visualize(mesh, V, Vs, params, deformation, def_boundary_parts,
         for i in zero_boundary_parts:
             bc.append(DirichletBC(V, zero, boundaries, params[i]))
 
-        ufile = File(output_directory + "comparison_ml_vs_harmonic.pvd")
+        ufile = File(output_d + "comparison_ml_vs_harmonic.pvd")
 
         u = Function(V)
         v = TestFunction(V)

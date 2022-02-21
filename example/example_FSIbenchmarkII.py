@@ -51,7 +51,7 @@ FSI_param['rhof'] = 1.0e3
 FSI_param['nyf'] = 1.0e-3
 
 FSI_param['t'] = 0.0
-FSI_param['deltat'] = 0.0025 #0.0025
+FSI_param['deltat'] = 0.01 #0.0025
 FSI_param['T'] = 15.0
 
 FSI_param['displacement_point'] = Point((0.6, 0.2))
@@ -66,8 +66,8 @@ FSI_param['boundary_cond'] = Expression(("(t < 2)?(1.5*Ubar*4.0*x[1]*(0.41 -x[1]
 extension_operator = extension.Biharmonic(fluid_domain)
 
 # save options
-FSI_param['save_directory'] = str('./../Output/FSIbenchmarkII') #no save if set to None
-FSI_param['save_every_N_snapshot'] = 4 # save every 8th snapshot TODO change this when using adaptive deltat
+FSI_param['save_directory'] = str('./../Output/FSIbenchmarkII_biharmonic_adaptive_n') #no save if set to None
+#FSI_param['save_every_N_snapshot'] = 4 # save every 8th snapshot TODO change this when using adaptive deltat
 
 # initialize FSI solver
 fsisolver = solver.FSIsolver(mesh, boundaries, domains, params, FSI_param, extension_operator)

@@ -85,7 +85,7 @@ class FSI(Context):
         self.aphat = 1e-9
 
         self.savedir = FSI_params["save_directory"]
-        self.N = FSI_params["save_every_N_snapshot"]
+        #self.N = FSI_params["save_every_N_snapshot"]
 
         self.displacement_filename = self.savedir + "/displacementy.txt"
         self.determinant_filename = self.savedir + "/determinant.txt"
@@ -158,8 +158,6 @@ class FSI(Context):
     def save_snapshot(self, vp, u):
         if self.savedir == None:
             pass
-        elif self.N == 0:
-            print("N has to be larger than 0, continue without saving snapshots...")
         else:
             t_frac = abs(self.t / 0.04 - round(self.t / 0.04))*0.04  # make a snapshot every 1/25 s
             if abs(t_frac) < self.dt_min * 0.5:
@@ -463,8 +461,10 @@ class FSIsolver(Solver):
                     vp.assign(self.FSI.solve_system(vp_, u, u_, 1))
                     self.FSI.timestep_success()
                     self.FSI.adapt_dt()
-                except:
+                except Exception as e:
+                    print(e)
                     self.FSI.adapt_dt()
+                    self.extension_operator.custom(self.FSI)
 
             if self.FSI.success == False:
                 raise ValueError('System not solvable with minimal time-step size.')
