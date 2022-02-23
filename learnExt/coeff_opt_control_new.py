@@ -41,13 +41,13 @@ def compute_optimal_coefficient_new(mesh, V, Vs, params, deformation, def_bounda
     if net==None:
         E = inner((1.0 + b) * grad(u), grad(v)) * dx(mesh)
     else:
-        E = inner((NN_der(threshold, inner(grad(u), grad(u)), self.net) + b) * grad(u), grad(v)) * dx(mesh)
+        E = inner((NN_der(threshold, inner(grad(u), grad(u)), net) + b) * grad(u), grad(v)) * dx(mesh)
 
     # solve PDE
     solve(E == 0, u, bc)
 
     # J
-    eta = 1
+    eta = 1e-1
     ds = Measure('ds', domain=mesh, subdomain_data=boundaries)
     J = assemble(pow((1.0 / (det(Identity(2) + grad(u))) + det(Identity(2) + grad(u))), 2) * ds(2)
                  + inner(grad(det(Identity(2) + grad(u))), grad(det(Identity(2) + grad(u)))) * ds(2)
@@ -87,11 +87,11 @@ def compute_optimal_coefficient_new(mesh, V, Vs, params, deformation, def_bounda
     if net==None:
         E = inner((1.0 + b_opt) * grad(u), grad(v)) * dx(mesh)
     else:
-        E = inner((NN_der(threshold, inner(grad(u), grad(u)), self.net) + b_opt) * grad(u), grad(v)) * dx(mesh)
+        E = inner((NN_der(threshold, inner(grad(u), grad(u)), net) + b_opt) * grad(u), grad(v)) * dx(mesh)
     solve(E == 0, u, bc)
 
-    if self.net != None:
-        b_opt = project(NN_der(threshold, inner(grad(u_opt), grad(u_opt)), self.net) - 1 + b_opt, Vs)
+    if net != None:
+        b_opt = project(NN_der(threshold, inner(grad(u), grad(u)), net) - 1.0 + b_opt, Vs)
 
     up = project(u, V)
     upi = project(-u, V)

@@ -18,7 +18,7 @@ class Custom_Reduced_Functional(object):
         self.alpha_opt = alpha_opt
         self.threshold = threshold
 
-        J = assemble((NN_der(0.05, self.normgradtraf, net)- exp(self.alpha_opt)) ** 2 * dx)
+        J = assemble((NN_der(0.05, self.normgradtraf, net)- 1.0 - self.alpha_opt) ** 2 * dx)
         Jhat = ReducedFunctional(J, net.weights_ctrls())
         self.Jhat = Jhat
         self.controls = Enlist(net.weights_ctrls())
@@ -146,11 +146,13 @@ def NN_der(eta, s, net):
     return 1.0 + smoothmax(s-eta)*net(s)
 
 def visualize(mesh, V, Vs, params, deformation, def_boundary_parts,
-              zero_boundary_parts, boundaries, output_directory, threshold, net=None, counter=None):
+              zero_boundary_parts, boundaries, output_directory, threshold, net=None, counter=None, net_old=None):
     if net == None:
         net = ANN(output_directory + "/trained_network.pkl")
     if counter != None:
         output_d = output_directory + "/" + str(counter) + "_"
+    else:
+        output_d = output_directory + "/"
     alpha_opt = Function(Vs)
 
     # load data
@@ -184,7 +186,10 @@ def visualize(mesh, V, Vs, params, deformation, def_boundary_parts,
         ALE.move(mesh, upi, annotate=False)
         u = Function(V)
         v = TestFunction(V)
-        E = inner(grad(u), grad(v)) * dx(mesh)
+        if net_old != None:
+            E = inner(NN_der(threshold, inner(grad(u), grad(u)), net_old) * grad(u), grad(v)) * dx(mesh)
+        else:
+            E = inner(grad(u), grad(v)) * dx(mesh)
         solve(E == 0, u, bc)
 
         up = project(u, V)

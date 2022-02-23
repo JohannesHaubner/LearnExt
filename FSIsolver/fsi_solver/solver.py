@@ -418,7 +418,6 @@ class FSIsolver(Solver):
         if warmstart == True:
             self.FSI_params["save_directory"] += "/warmstarted"
 
-
         self.warmstart = warmstart
 
         # function space
@@ -456,7 +455,7 @@ class FSIsolver(Solver):
                 try:
                     self.FSI.advance_time()
                     print(self.FSI.t, self.FSI.dt)
-                    vp.assign(self.FSI.solve_system(vp_, u, u_, 0))
+                    vp.assign(self.FSI.solve_system(vp_, u, u_, 0))   #u = u_ here in this system
                     u.assign(self.FSI.get_deformation(vp, vp_, u_))
                     vp.assign(self.FSI.solve_system(vp_, u, u_, 1))
                     self.FSI.timestep_success()
@@ -464,7 +463,9 @@ class FSIsolver(Solver):
                 except Exception as e:
                     print(e)
                     self.FSI.adapt_dt()
-                    self.extension_operator.custom(self.FSI)
+                    flag = self.extension_operator.custom(self.FSI)
+                    if flag == True:
+                        u_.assign(self.FSI.get_deformation(vp, vp_, u_))
 
             if self.FSI.success == False:
                 raise ValueError('System not solvable with minimal time-step size.')

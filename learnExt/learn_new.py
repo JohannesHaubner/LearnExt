@@ -9,8 +9,19 @@ here = Path(__file__).parent
 import sys
 sys.path.insert(0, str(here.parent))
 from FSIsolver.extension_operator.extension import *
+from NeuralNet.neural_network_custom import ANN, generate_weights
 
 threshold  = 0.001 # first part of NN is linear
+
+def learn_NN(mesh, V, Vs, params, deformation, def_boundary_parts, zero_boundary_parts, boundaries, threshold,
+             output_directory, net=None):
+    opt_cont.compute_optimal_coefficient_new(fluid_domain, V, Vs, params, deformation, def_boundary_parts,
+                                             zero_boundary_parts, boundaries, output_directory, net=net,
+                                             threshold=threshold)
+    net = opt_ml.compute_machine_learning_new(fluid_domain, Vs, output_directory,
+                                            output_directory + "/neural_network.pkl", threshold)
+    opt_ml.visualize(fluid_domain, V, Vs, params, deformation, def_boundary_parts,
+                     zero_boundary_parts, boundaries, output_directory, threshold, net=net)
 
 if __name__ == "__main__":
     # load mesh
@@ -84,6 +95,13 @@ if __name__ == "__main__":
     file << uref
     uref = create_overloaded_object(uref)
 
+    net = ANN(output_directory + "/trained_network.pkl")
+
+    learn_NN(fluid_domain, V, Vs, params, deformation, def_boundary_parts, zero_boundary_parts, boundaries, threshold,
+             output_directory, net=net)
+
+    exit(0)
+
     recompute_optimal_control = True
     if recompute_optimal_control:
         opt_cont.compute_optimal_coefficient_new(fluid_domain, V, Vs, params, deformation, def_boundary_parts,
@@ -91,7 +109,8 @@ if __name__ == "__main__":
 
     recompute_neural_net = True
     if recompute_neural_net:
-        opt_ml.compute_machine_learning_new(fluid_domain, Vs, output_directory + "/neural_network.pkl", threshold)
+        opt_ml.compute_machine_learning_new(fluid_domain, Vs, output_directory,
+                                            output_directory + "/neural_network.pkl", threshold)
 
     opt_ml.visualize(fluid_domain, V, Vs, params, deformation, def_boundary_parts,
                                              zero_boundary_parts, boundaries, output_directory, threshold)

@@ -10,7 +10,7 @@ class ExtensionOperator(object):
 
     def custom(self, FSI):
         """custom function for extension operator"""
-        pass
+        return False
 
 class Biharmonic(ExtensionOperator):
     def __init__(self, mesh):
