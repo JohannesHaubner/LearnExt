@@ -106,6 +106,9 @@ def compute_machine_learning_new(mesh, Vs, output_directory, output_path, thresh
         infile.read_checkpoint(alpha_opt, "alpha_opt")
         infile.read_checkpoint(normgradtraf, "normgradtraf")
 
+    file = File('../Output/learnExt/results/bopt.pvd')
+    file << alpha_opt
+
     set_working_tape(Tape())
 
     if net == None:
@@ -137,7 +140,7 @@ def compute_machine_learning_new(mesh, Vs, output_directory, output_path, thresh
 
     # net save
     net.save(output_path)
-    return net
+    return transformed_opt_theta
 
 def smoothmax(r, eps=1e-4):
     return conditional(gt(r, eps), r - eps / 2, conditional(lt(r, 0), 0, r ** 2 / (2 * eps)))
@@ -149,6 +152,7 @@ def visualize(mesh, V, Vs, params, deformation, def_boundary_parts,
               zero_boundary_parts, boundaries, output_directory, threshold, net=None, counter=None, net_old=None):
     if net == None:
         net = ANN(output_directory + "/trained_network.pkl")
+        breakpoint()
     if counter != None:
         output_d = output_directory + "/" + str(counter) + "_"
     else:
@@ -169,7 +173,7 @@ def visualize(mesh, V, Vs, params, deformation, def_boundary_parts,
         for i in zero_boundary_parts:
             bc.append(DirichletBC(V, zero, boundaries, params[i]))
 
-        ufile = File(output_d + "comparison_ml_vs_harmonic.pvd")
+        ufile = File(output_d + "comparison_ml_vs_harmonic_test.pvd")
 
         u = Function(V)
         v = TestFunction(V)
@@ -186,6 +190,8 @@ def visualize(mesh, V, Vs, params, deformation, def_boundary_parts,
         ALE.move(mesh, upi, annotate=False)
         u = Function(V)
         v = TestFunction(V)
+
+        print('Compute reference value')
         if net_old != None:
             E = inner(NN_der(threshold, inner(grad(u), grad(u)), net_old) * grad(u), grad(v)) * dx(mesh)
         else:
@@ -195,3 +201,5 @@ def visualize(mesh, V, Vs, params, deformation, def_boundary_parts,
         up = project(u, V)
         ALE.move(mesh, up, annotate=False)
         ufile << up
+
+        return u

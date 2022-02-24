@@ -439,6 +439,9 @@ class FSIsolver(Solver):
         u = Function(self.U)
         u_ = Function(self.U)      # previous time-step
 
+        vp__ = Function(self.VP)
+        u__ = Function(self.U)
+
         if self.warmstart:
             u, u_, vp, vp_ = self.FSI.load_states(u, u_, vp, vp_)
 
@@ -448,6 +451,8 @@ class FSIsolver(Solver):
 
             self.FSI.save_states(u, u_, vp, vp_)
 
+            u__.assign(u_)
+            vp__.assign(vp_)
             u_.assign(u)
             vp_.assign(vp)
 

@@ -14,14 +14,21 @@ from NeuralNet.neural_network_custom import ANN, generate_weights
 threshold  = 0.001 # first part of NN is linear
 
 def learn_NN(mesh, V, Vs, params, deformation, def_boundary_parts, zero_boundary_parts, boundaries, threshold,
-             output_directory, net=None):
-    opt_cont.compute_optimal_coefficient_new(fluid_domain, V, Vs, params, deformation, def_boundary_parts,
-                                             zero_boundary_parts, boundaries, output_directory, net=net,
-                                             threshold=threshold)
-    net = opt_ml.compute_machine_learning_new(fluid_domain, Vs, output_directory,
-                                            output_directory + "/neural_network.pkl", threshold)
-    opt_ml.visualize(fluid_domain, V, Vs, params, deformation, def_boundary_parts,
-                     zero_boundary_parts, boundaries, output_directory, threshold, net=net)
+             output_directory, netpath):
+    deformation_new = Function(deformation.function_space())
+    deformation_new.assign(deformation)
+    net_old = ANN(netpath)
+    net = ANN(netpath)
+
+    for i in range(1):
+        opt_cont.compute_optimal_coefficient_new(fluid_domain, V, Vs, params, deformation, def_boundary_parts,
+                                                 zero_boundary_parts, boundaries, output_directory, net=net,
+                                                 threshold=threshold, deformation_new=deformation_new)
+        net.set_weights(opt_ml.compute_machine_learning_new(fluid_domain, Vs, output_directory,
+                                                output_directory + "/neural_network_step2.pkl", threshold))
+        deformation_new.assign(opt_ml.visualize(fluid_domain, V, Vs, params, deformation, def_boundary_parts,
+                         zero_boundary_parts, boundaries, output_directory, threshold, net=net, net_old=net_old))
+        # here deformation old is needed to compute the reference solution
 
 if __name__ == "__main__":
     # load mesh
@@ -78,8 +85,9 @@ if __name__ == "__main__":
     V2_mesh = VectorFunctionSpace(mesh, "CG", 2)
 
     deformation = Function(V2_mesh)
-    with XDMFFile("./Mesh/deformation.xdmf") as infile:
-        infile.read_checkpoint(deformation, "u_")
+    def_file_name = "../Output/files/learned/states.xdmf" # "./Mesh/deformation.xdmf"
+    with XDMFFile(def_file_name) as infile:
+        infile.read_checkpoint(deformation, "u")
     deformation = interpolate(deformation, V2)
     #deformation = project(deformation, V)
 
@@ -88,17 +96,11 @@ if __name__ == "__main__":
     file = File('../Output/learnExt/results/boundaries.pvd')
     file << boundaries
 
-    # reference
-    extension_operator = Biharmonic(fluid_domain)
-    uref = extension_operator.extend(deformation)
-    file = File('../Output/learnExt/results/biharmonic.pvd')
-    file << uref
-    uref = create_overloaded_object(uref)
-
-    net = ANN(output_directory + "/trained_network.pkl")
+    net_path = str('../Output/files/learned/trained_network.pkl')
+    #net = ANN(output_directory + "/trained_network.pkl")
 
     learn_NN(fluid_domain, V, Vs, params, deformation, def_boundary_parts, zero_boundary_parts, boundaries, threshold,
-             output_directory, net=net)
+             output_directory, net_path)
 
     exit(0)
 

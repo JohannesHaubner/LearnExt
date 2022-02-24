@@ -8,14 +8,13 @@ import numpy as np
 #pl.savefig('./displacement_plot.png')
 
 colors = [np.asarray([0, 101, 189])*1./255,
-          np.asarray([218, 215, 213])*1./255]#,
+            np.asarray([227, 114, 34])*1./255]
+         #np.asarray([218, 215, 213])*1./255]#,
          # np.asarray([227, 114, 34])*1./255,
          # np.asarray([0, 0, 0])*1./255
          #]
 
-def plot_displacement(list, times, str):
-    colors = [np.asarray([0, 101, 189])*1./255,
-          np.asarray([218, 215, 213])*1./255]
+def plot_displacement(list, times, str, colors):
     if len(list)>2:
         colors = [(len(list)-i)/(len(list))*colors[0] + i/(len(list))*colors[1] for i in range(len(list)+1)]
     for i in range(len(list)):
@@ -24,9 +23,7 @@ def plot_displacement(list, times, str):
         pl.savefig(str)
     pl.close()
 
-def plot_determinant(list, times, str):
-    colors = [np.asarray([0, 101, 189]) * 1. / 255,
-              np.asarray([218, 215, 213]) * 1. / 255]
+def plot_determinant(list, times, str, colors):
     if len(list) > 2:
         colors = [(len(list)-i)/(len(list))*colors[0] + i/(len(list))*colors[1] for i in range(len(list)+1)]
     for i in range(len(list)):
@@ -35,9 +32,7 @@ def plot_determinant(list, times, str):
         pl.savefig(str)
     pl.close()
 
-def plot_timestep(times, str):
-    colors = [np.asarray([0, 101, 189]) * 1. / 255,
-              np.asarray([218, 215, 213]) * 1. / 255]
+def plot_timestep(times, str, colors):
     if len(times) > 1:
         colors = [(len(times) - i) / (len(times)) * colors[0] + i / (len(times)) * colors[1] for i in
                   range(len(times)+1)]
@@ -51,7 +46,7 @@ def plot_timestep(times, str):
     pl.close()
 
 if __name__ == "__main__":
-    foldernames = ["learned", "harmonic", "biharmonic"]
+    foldernames = ["learned", "harmonic", "biharmonic"] #, "learning"]
 
     times_list = []
     displacement_list = []
@@ -64,10 +59,10 @@ if __name__ == "__main__":
         determinant_list.append(np.loadtxt(str + "/determinant.txt"))
 
     plot_displacement(displacement_list, times_list,
-                      '../Output/visualizations/displacement_plot.pdf')
+                      '../Output/visualizations/displacement_plot.pdf', colors)
 
     plot_determinant(determinant_list, times_list,
-                     '../Output/visualizations/determinant_plot.pdf')
+                     '../Output/visualizations/determinant_plot.pdf', colors)
 
     plot_timestep(times_list,
-                     '../Output/visualizations/timestepsize_plot.pdf')
+                     '../Output/visualizations/timestepsize_plot.pdf', colors)
