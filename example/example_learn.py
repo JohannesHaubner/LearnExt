@@ -7,8 +7,8 @@ here = Path(__file__).parent
 import sys
 sys.path.insert(0, str(here.parent))
 from FSIsolver.extension_operator.extension import *
-from learnExt.NeuralNet.neural_network_custom import ANN, generate_weights
-from learnExt.learnext import *
+sys.path.insert(1, '../learnExt')
+from learnext import LearnExt
 
 # load mesh
 mesh = Mesh()
@@ -53,9 +53,9 @@ params["zero_boundary_parts"] = ["no_slip"]
 
 V_mesh = VectorFunctionSpace(mesh, "CG", 2)
 deformation = Function(V_mesh)
-def_file_name = "../Output/files/learned/states.xdmf" # "./Mesh/deformation.xdmf"
+def_file_name = "../Output/files/harmonic_notrafo/states.xdmf" # "./Mesh/deformation.xdmf"
 with XDMFFile(def_file_name) as infile:
-    infile.read_checkpoint(deformation, "u")
+    infile.read_checkpoint(deformation, "u_")
 
 output_path = "../Output/learnExt/results/"
 

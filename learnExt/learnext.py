@@ -2,35 +2,36 @@ from dolfin import *
 from dolfin_adjoint import *
 from pathlib import Path
 
-from learnExt.NeuralNet.neural_network_custom import ANN, generate_weights
+from NeuralNet.neural_network_custom import ANN, generate_weights
 import numpy as np
 from pyadjoint.enlisting import Enlist
 from pyadjoint.reduced_functional_numpy import ReducedFunctionalNumPy
 
 import matplotlib.pyplot as plt
-import learnExt.NeuralNet.tools as tools
+
+from NeuralNet.tools import *
 
 import moola
 
 class Custom_Reduced_Functional(object):
-    def __init__(self, posfunc, posfunc_der, net, normgradtraf, alpha_opt, init_weights, threshold):
+    def __init__(self, posfunc, posfunc_der, net, normgradtraf, b_opt, init_weights, threshold, fb):
         self.posfunc = posfunc
         self.posfunc_der = posfunc_der
         self.net = net
         self.normgradtraf = normgradtraf
-        self.alpha_opt = alpha_opt
+        self.b_opt = b_opt
         self.threshold = threshold
 
-        J = assemble((LearnExt.NN_der(0.05, self.normgradtraf, net)- 1.0 - self.alpha_opt) ** 2 * dx)
+        J = assemble((LearnExt.NN_der(0.05, self.normgradtraf, net) - 1.0 - fb(self.b_opt)) ** 2 * dx)
         Jhat = ReducedFunctional(J, net.weights_ctrls())
         self.Jhat = Jhat
         self.controls = Enlist(net.weights_ctrls())
-        self.ctrls = tools.weights_to_list(init_weights)
+        self.ctrls = weights_to_list(init_weights)
         self.init_weights = init_weights
 
     def eval(self, x):
-        x = tools.list_to_weights(x, self.init_weights)
-        y = tools.trafo_weights(x, self.posfunc)
+        x = list_to_weights(x, self.init_weights)
+        y = trafo_weights(x, self.posfunc)
         return self.Jhat(y)
 
     def __call__(self, values):
@@ -45,30 +46,30 @@ class Custom_Reduced_Functional(object):
         return val
 
     def derivative(self):
-        # print(tools.list_to_array(self.controls))
-        x = tools.list_to_weights(self.ctrls, self.init_weights)
-        y = tools.trafo_weights(x, self.posfunc)
+        # print(list_to_array(self.controls))
+        x = list_to_weights(self.ctrls, self.init_weights)
+        y = trafo_weights(x, self.posfunc)
         self.net.set_weights(y)
         # self.Jhat(y)
         Jhat_der = self.Jhat.derivative()
-        djx = tools.trafo_weights_chainrule(Jhat_der, x, self.posfunc_der)
+        djx = trafo_weights_chainrule(Jhat_der, x, self.posfunc_der)
         return self.controls.delist(djx)  # djx
 
     def first_order_test(self, init_weights):
-        x0 = tools.weights_to_list(init_weights)
-        ds = tools.weights_to_list(init_weights)
+        x0 = weights_to_list(init_weights)
+        ds = weights_to_list(init_weights)
 
-        print(tools.list_to_array(x0))
+        print(list_to_array(x0))
 
         j0 = self.__call__(x0)
         djx = self.derivative()  # x0)
 
         epslist = [0.05, 0.01, 0.005, 0.001, 0.0005, 0.0001, 0.00001, 0.0000001]
-        xlist = [tools.weights_list_add(x0, ds, eps) for eps in epslist]
+        xlist = [weights_list_add(x0, ds, eps) for eps in epslist]
         jlist = [self.__call__(x) for x in xlist]
 
-        ds_ = tools.list_to_array(ds)
-        djx_ = tools.list_to_array(djx)
+        ds_ = list_to_array(ds)
+        djx_ = list_to_array(djx)
 
         self.perform_first_order_check(jlist, j0, djx_, ds_, epslist)
 
@@ -112,6 +113,8 @@ class LearnExt:
         :param output_path:
         :param order: polynomial degree of FEM function
         """
+        #net2 = ANN("../example/learned_networks/trained_network.pkl")
+
         self.mesh = mesh
         self.boundaries = boundaries
         self.params = params
@@ -120,12 +123,14 @@ class LearnExt:
 
         self.Vs = FunctionSpace(mesh, "CG", order)
         self.V = VectorFunctionSpace(mesh, "CG", order)
-        self.V1 = VectorFunctionSpace(mesh, "CG", 1)
+        #self.V1 = VectorFunctionSpace(mesh, "CG", 1)
 
         self.normgradtraf = None
         self.b_opt = None
 
         self.threshold = None
+
+        self.fb = lambda x: exp(x)
 
     @staticmethod
     def NN_der(eta, s, net):
@@ -169,7 +174,7 @@ class LearnExt:
 
         # b -> u
         u = Function(self.V)
-        E = inner((1.0 + b*b) * grad(u), grad(v)) * dx
+        E = inner((1.0 + self.fb(b)) * grad(u), grad(v)) * dx
         solve(E == 0, u, bc)
 
         # reduced objective
@@ -177,11 +182,12 @@ class LearnExt:
         Fhat = Identity(2) + grad(u)
         Fhati = inv(Fhat)
         ds = Measure('ds', domain=self.mesh, subdomain_data=self.boundaries)
-        J = assemble(0.005 * pow((1.0 / (det(Identity(2) + grad(u))) + det(Identity(2) + grad(u))), 2) * ds(2)
-                     + inner(grad(det(Identity(2) + grad(u))), grad(det(Identity(2) + grad(u)))) * ds(2)
-                     + inner(grad(det(Identity(2) + grad(u))), grad(det(Identity(2) + grad(u)))) * dx
-                     #+ inner(Fhati*grad(det(Identity(2) + grad(u)*Fhati)), Fhati*grad(det(Identity(2) + grad(u)*Fhati))) * dx
-                     + 0.5 * eta * (inner(alpha, alpha) + inner(grad(alpha), grad(alpha))) * dx
+        J = assemble(#pow((1.0 / (det(Identity(2) + grad(u))) + det(Identity(2) + grad(u))), 2) * ds(2)
+                     #+ inner(grad(det(Identity(2) + grad(u))), grad(det(Identity(2) + grad(u)))) * ds(2)
+                     #+ inner(grad(det(Identity(2) + grad(u))), grad(det(Identity(2) + grad(u)))) * dx
+                     inner(Fhati*grad(det(Identity(2) + grad(u)*Fhati)), Fhati*grad(det(Identity(2) + grad(u)*Fhati))) * dx
+                     + 0.5 * eta * (inner(alpha, alpha) + inner(grad(alpha), grad(alpha))
+                                    ) * dx
                      )
         control = Control(alpha)
 
@@ -197,8 +203,8 @@ class LearnExt:
         # save initial
         ufile = File(self.output_path + "/displacement.pvd")
         afile = File(self.output_path + "/alpha_opt.pvd")
-        up = project(u, self.V1)
-        upi = project(-1.0 * u, self.V1)
+        up = project(u, self.V)
+        upi = project(-1.0 * u, self.V)
         ALE.move(self.mesh, up, annotate=False)
         ufile << up
         afile << alpha
@@ -209,7 +215,7 @@ class LearnExt:
             w.vector().set_local(x)
             u = TrialFunction(self.Vs)
             v = TestFunction(self.Vs)
-            a = (inner(u, v) + inner(grad(u), grad(v))) * dx
+            a = inner(u, v)*dx + inner(grad(u), grad(v)) * dx
             L = inner(w, v) * dx
             A, b = PETScMatrix(), PETScVector()
             assemble_system(a, L, [], A_tensor=A, b_tensor=b)
@@ -220,7 +226,7 @@ class LearnExt:
         problem = MoolaOptimizationProblem(rf)
         alpha_moola = moola.DolfinPrimalVector(alpha)
         solver = moola.BFGS(problem, alpha_moola,
-                            options={'jtol': 1e-4, 'Hinit': Hinit, 'maxiter': 20, 'mem_lim': 10})
+                            options={'jtol': 1e-4, 'gtol': 1e-9, 'Hinit': Hinit, 'maxiter': 20, 'mem_lim': 10})
 
         sol = solver.solve()
         alpha_opt = sol['control'].data
@@ -230,11 +236,11 @@ class LearnExt:
         solve(E1 == 0, b_opt, bc2)
 
         # solve u_opt
-        E = inner((1.0 + b_opt * b_opt) * grad(u), grad(v)) * dx
+        E = inner((1.0 + self.fb(b_opt)) * grad(u), grad(v)) * dx
         solve(E == 0, u, bc)
 
-        up = project(u, self.V1)
-        upi = project(-u, self.V1)
+        up = project(u, self.V)
+        upi = project(-u, self.V)
         ALE.move(self.mesh, up, annotate=False)
         ufile << up
         afile << b_opt
@@ -286,13 +292,13 @@ class LearnExt:
         posfunc = lambda x: x ** 2
         posfunc_der = lambda x: 2 * x
 
-        rf = Custom_Reduced_Functional(posfunc, posfunc_der, net, normgradtraf, b_opt, init_weights, threshold)
+        rf = Custom_Reduced_Functional(posfunc, posfunc_der, net, normgradtraf, b_opt, init_weights, threshold, self.fb)
         rfn = ReducedFunctionalNumPy(rf)
 
         opt_theta = minimize(rfn, options={"disp": True, "gtol": 1e-12, "ftol": 1e-12,
                                            "maxiter": 100})  # minimize(Jhat, method= "L-BFGS-B") #
 
-        transformed_opt_theta = tools.trafo_weights(tools.list_to_weights(opt_theta, init_weights), posfunc)
+        transformed_opt_theta = trafo_weights(list_to_weights(opt_theta, init_weights), posfunc)
         net.set_weights(transformed_opt_theta)
 
         # net save
@@ -330,7 +336,7 @@ class LearnExt:
         for i in self.params["zero_boundary_parts"]:
             bc.append(DirichletBC(self.V, zero, self.boundaries, self.params[i]))
 
-        ufile = File(self.output_path + "/comparison_ml_vs_harmonic_test.pvd")
+        ufile = File(self.output_path + "/comparison_ml_vs_harmonic.pvd")
 
         # harmonic extension
         u = Function(self.V)
@@ -338,18 +344,18 @@ class LearnExt:
         E = inner(grad(u), grad(v)) * dx
         solve(E == 0, u, bc)
 
-        up = project(u, self.V1)
-        upi = project(-1.0 * u, self.V1)
+        up = project(u, self.V)
+        upi = project(-1.0 * u, self.V)
         ALE.move(self.mesh, up, annotate=False)
         ufile << up
         ALE.move(self.mesh, upi, annotate=False)
 
         # opt control extension
-        E = inner((1.0 + b_opt * b_opt)*grad(u), grad(v))*dx
+        E = inner((1.0 + self.fb(b_opt)) * grad(u), grad(v))*dx
         solve(E == 0, u, bc)
 
-        up = project(u, self.V1)
-        upi = project(-1.0 * u, self.V1)
+        up = project(u, self.V)
+        upi = project(-1.0 * u, self.V)
         ALE.move(self.mesh, up, annotate=False)
         ufile << up
         ALE.move(self.mesh, upi, annotate=False)
@@ -359,8 +365,8 @@ class LearnExt:
                   * grad(u), grad(v)) * dx
         solve(E == 0, u, bc)
 
-        up = project(u, self.V1)
-        upi = project(-1.0 * u, self.V1)
+        up = project(u, self.V)
+        upi = project(-1.0 * u, self.V)
         ALE.move(self.mesh, up, annotate=False)
         ufile << up
         ALE.move(self.mesh, upi, annotate=False)
