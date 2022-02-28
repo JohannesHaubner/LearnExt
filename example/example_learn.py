@@ -53,9 +53,9 @@ params["zero_boundary_parts"] = ["no_slip"]
 
 V_mesh = VectorFunctionSpace(mesh, "CG", 2)
 deformation = Function(V_mesh)
-def_file_name = "../Output/files/harmonic_notrafo/states.xdmf" # "./Mesh/deformation.xdmf"
+def_file_name = "../Output/files/learn_trafo_part1/states.xdmf" # "./Mesh/deformation.xdmf"
 with XDMFFile(def_file_name) as infile:
-    infile.read_checkpoint(deformation, "u_")
+    infile.read_checkpoint(deformation, "u")
 
 output_path = "../Output/learnExt/results/"
 

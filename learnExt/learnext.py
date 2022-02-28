@@ -2,10 +2,14 @@ from dolfin import *
 from dolfin_adjoint import *
 from pathlib import Path
 
+from optimization_custom.ipopt_solver import IPOPTSolver_, IPOPTProblem_
+from optimization_custom.preprocessing import Preprocessing
+
 from NeuralNet.neural_network_custom import ANN, generate_weights
 import numpy as np
 from pyadjoint.enlisting import Enlist
 from pyadjoint.reduced_functional_numpy import ReducedFunctionalNumPy
+import scipy.sparse as sps
 
 import matplotlib.pyplot as plt
 
@@ -119,7 +123,7 @@ class LearnExt:
         self.boundaries = boundaries
         self.params = params
         self.output_path = output_path
-        self.order = order
+        self.order = 1# order
 
         self.Vs = FunctionSpace(mesh, "CG", order)
         self.V = VectorFunctionSpace(mesh, "CG", order)
@@ -130,7 +134,7 @@ class LearnExt:
 
         self.threshold = None
 
-        self.fb = lambda x: exp(x)
+        self.fb = lambda x: x
 
     @staticmethod
     def NN_der(eta, s, net):
@@ -159,7 +163,7 @@ class LearnExt:
         set_working_tape(Tape())
 
         # function spaces
-        alpha = interpolate(Constant(0.01), self.Vs)
+        alpha = interpolate(Constant(0.05), self.Vs)
 
         b = TrialFunction(self.Vs)
         vb = TestFunction(self.Vs)
@@ -170,7 +174,7 @@ class LearnExt:
         # alpha -> b
         E1 = inner(grad(b), grad(vb)) * dx - inner(alpha, vb) * dx
         b = Function(self.Vs)
-        solve(lhs(E1)==rhs(E1), b, bc2)
+        solve(lhs(E1) == rhs(E1), b, bc2)
 
         # b -> u
         u = Function(self.V)
@@ -182,12 +186,9 @@ class LearnExt:
         Fhat = Identity(2) + grad(u)
         Fhati = inv(Fhat)
         ds = Measure('ds', domain=self.mesh, subdomain_data=self.boundaries)
-        J = assemble(#pow((1.0 / (det(Identity(2) + grad(u))) + det(Identity(2) + grad(u))), 2) * ds(2)
-                     #+ inner(grad(det(Identity(2) + grad(u))), grad(det(Identity(2) + grad(u)))) * ds(2)
-                     #+ inner(grad(det(Identity(2) + grad(u))), grad(det(Identity(2) + grad(u)))) * dx
-                     inner(Fhati*grad(det(Identity(2) + grad(u)*Fhati)), Fhati*grad(det(Identity(2) + grad(u)*Fhati))) * dx
-                     + 0.5 * eta * (inner(alpha, alpha) + inner(grad(alpha), grad(alpha))
-                                    ) * dx
+        J = assemble(pow((1.0 / (det(Identity(2) + grad(u))) + det(Identity(2) + grad(u))), 2) * ds(2)
+                     + inner(grad(det(Identity(2) + grad(u))), grad(det(Identity(2) + grad(u)))) * ds(2)
+                     + inner(grad(det(Identity(2) + grad(u))), grad(det(Identity(2) + grad(u)))) * dx
                      )
         control = Control(alpha)
 
@@ -210,26 +211,15 @@ class LearnExt:
         afile << alpha
         ALE.move(self.mesh, upi, annotate=False)
 
-        def Hinit(x):
-            w = Function(self.Vs)
-            w.vector().set_local(x)
-            u = TrialFunction(self.Vs)
-            v = TestFunction(self.Vs)
-            a = inner(u, v)*dx + inner(grad(u), grad(v)) * dx
-            L = inner(w, v) * dx
-            A, b = PETScMatrix(), PETScVector()
-            assemble_system(a, L, [], A_tensor=A, b_tensor=b)
-            u = Function(self.Vs)
-            solve(A, u.vector(), w.vector())
-            return moola.DolfinPrimalVector(u)
+        av = TrialFunction(self.Vs)
+        aw = TestFunction(self.Vs)
+        A = assemble((1e-3*inner(av, aw) + inner(grad(av), grad(aw))) * dx)
 
-        problem = MoolaOptimizationProblem(rf)
-        alpha_moola = moola.DolfinPrimalVector(alpha)
-        solver = moola.BFGS(problem, alpha_moola,
-                            options={'jtol': 1e-4, 'gtol': 1e-9, 'Hinit': Hinit, 'maxiter': 20, 'mem_lim': 10})
-
-        sol = solver.solve()
-        alpha_opt = sol['control'].data
+        reg = 1e-2
+        preprocessing = Preprocessing(self.Vs)
+        problem = IPOPTProblem_([rf], [1], [None], [None], [None], preprocessing, sps.csc_matrix(A.array()), reg)
+        ipopt = IPOPTSolver_(problem)
+        alpha_opt = preprocessing.dof_to_control(ipopt.solve(alpha.vector()[:]))
 
         b_opt = Function(self.Vs)
         E1 = inner(grad(b_opt), grad(vb)) * dx - inner(alpha_opt, vb) * dx
@@ -351,11 +341,13 @@ class LearnExt:
         ALE.move(self.mesh, upi, annotate=False)
 
         # opt control extension
-        E = inner((1.0 + self.fb(b_opt)) * grad(u), grad(v))*dx
-        solve(E == 0, u, bc)
+        u1 = Function(self.V)
+        v = TestFunction(self.V)
+        E = inner((1.0 + self.fb(b_opt)) * grad(u1), grad(v))*dx
+        solve(E == 0, u1, bc)
 
-        up = project(u, self.V)
-        upi = project(-1.0 * u, self.V)
+        up = project(u1, self.V)
+        upi = project(-1.0 * u1, self.V)
         ALE.move(self.mesh, up, annotate=False)
         ufile << up
         ALE.move(self.mesh, upi, annotate=False)
