@@ -9,8 +9,7 @@ sys.path.insert(1, '../FSIsolver/fsi_solver')
 import solver
 sys.path.insert(1, '../learnExt')
 from NeuralNet.neural_network_custom import ANN, generate_weights
-from learn import threshold
-from coeff_machine_learning import NN_der
+from learnext import LearnExt
 
 # create mesh: first create mesh by running ./create_mesh/create_mesh_FSI.py
 
@@ -66,8 +65,10 @@ FSI_param['boundary_cond'] = Expression(("(t < 2)?(1.5*Ubar*4.0*x[1]*(0.41 -x[1]
                                          "(1.5*Ubar*4.0*x[1]*(0.41 -x[1]))/ 0.1681", "0.0"),
                                         Ubar=Ubar, t=FSI_param['t'], degree=2)
 
+threshold = 0.001
+
 # extension operator
-class Harmonic(extension.ExtensionOperator):
+class LearnExtension(extension.ExtensionOperator):
     def __init__(self, mesh):
         super().__init__(mesh)
 
@@ -75,10 +76,13 @@ class Harmonic(extension.ExtensionOperator):
         T2 = VectorElement("CG", self.mesh.ufl_cell(), 2)
         self.FS = FunctionSpace(self.mesh, T)
         self.FS2 = FunctionSpace(self.mesh, T2)
-        output_directory = str("../Output/learnExt/results/")
-        self.net = ANN(output_directory + "trained_network.pkl")
+        self.trafo = True
+        if self.trafo:
+            self.bc_old = Function(self.FS)
+        output_directory = str("../example/learned_networks/")
+        self.net = ANN(output_directory + "trained_network_758_step1.pkl")
 
-    def extend(self, boundary_conditions):
+    def extend(self, boundary_conditions, b_old=None):
         """ harmonic extension of boundary_conditions (Function on self.mesh) to the interior """
 
         save_ext = True
@@ -86,31 +90,49 @@ class Harmonic(extension.ExtensionOperator):
             file = File('../Output/Extension/function.pvd')
             file << boundary_conditions
 
+        if b_old != None:
+            self.bc_old = project(b_old, self.FS)
+
+        if self.trafo:
+            up = project(self.bc_old, self.FS)
+            upi = project(-1.0*up, self.FS)
+            ALE.move(self.mesh, up, annotate=False)
+
         u = Function(self.FS2)
         v = TestFunction(self.FS2)
 
         dx = Measure('dx', domain=self.mesh)
 
-        E = inner(NN_der(threshold, inner(grad(u), grad(u)), self.net) * grad(u), grad(v)) * dx(self.mesh)
+        E = inner(LearnExt.NN_der(threshold, inner(grad(self.bc_old), grad(self.bc_old)), self.net) * grad(u), grad(v)) * dx
 
         # solve PDE
-        bc = DirichletBC(self.FS2, boundary_conditions, 'on_boundary')
+        if self.trafo:
+            bc_func = project(boundary_conditions - self.bc_old, self.FS2)
+        else:
+            bc_func = boundary_conditions
+        bc = DirichletBC(self.FS2, bc_func, 'on_boundary')
 
 
         solve(E == 0, u, bc)
 
+        if self.trafo:
+            u = project(u + self.bc_old, self.FS2)
+            self.bc_old = project(u, self.FS)
+
         if save_ext:
             file << u
+        if self.trafo:
+            ALE.move(self.mesh, upi, annotate=False)
 
         return u
 
 extension_operator = LearnExtension(fluid_domain)
 
 # save options
-FSI_param['save_directory'] = str('./../Output/FSIbenchmarkII_learnnew_adaptive') #no save if set to None
+FSI_param['save_directory'] = str('./../Output/FSIbenchmarkII_incremental_learn_2') #no save if set to None
 #FSI_param['save_every_N_snapshot'] = 4 # save every 8th snapshot
 
 # initialize FSI solver
-fsisolver = solver.FSIsolver(mesh, boundaries, domains, params, FSI_param, extension_operator, warmstart=False)
+fsisolver = solver.FSIsolver(mesh, boundaries, domains, params, FSI_param, extension_operator, warmstart=True)
 fsisolver.solve()
 

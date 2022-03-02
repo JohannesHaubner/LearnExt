@@ -32,7 +32,7 @@ class Context(object):
         self.T = params["T"]
         self.dt = params["deltat"]
         self.dt_max = params["deltat"]
-        self.dt_min = 1/8 * self.dt_max
+        self.dt_min = 1/32 * self.dt_max
         self.bc = params["boundary_cond"]
         self.success = False
 
@@ -150,9 +150,12 @@ class FSI(Context):
         assign(vp_.sub(1), p_)
         t = np.load(self.time_load)
         self.warmstart(t)
+        ui = project(-1.0*u, u.function_space())
+        ALE.move(self.mesh, u, annotate=False)
         file = File(self.savedir + '/test.pvd')
         file << vp
         file << v
+        ALE.move(self.mesh, ui, annotate=False)
         return u, u_, vp, vp_
 
     def save_snapshot(self, vp, u):
@@ -216,15 +219,17 @@ class FSI(Context):
                   ' Does folder exist where .txt-file should be saved to?')
         try:
             if save_det == True:
-                V = FunctionSpace(u.function_space().mesh(), "CG", 1)
-                det_u = project(det(Identity(2) + grad(u)), V)
+                V = VectorFunctionSpace(u.function_space().mesh(), "CG", 1)
+                V0 = FunctionSpace(u.function_space().mesh(), "DG", 0)
+                up = project(u, V)
+                det_u = project(det(Identity(2) + grad(up)), V0)
                 self.determinant_deformation.append(det_u.vector().min())
                 np.savetxt(self.determinant_filename, self.determinant_deformation)
         except:
             print('Maximum determinant value can not be saved.')
 
 
-    def get_deformation(self, vp, vp_, u_):
+    def get_deformation(self, vp, vp_, u_, b_old=None):
         u = Function(u_.function_space())
         (v_, p_) = vp_.split(deepcopy=True)
         (v, p) = vp.split(deepcopy=True)
@@ -237,7 +242,7 @@ class FSI(Context):
         Vbf = VectorFunctionSpace(fluid_domain, "CG", 2)
         boundary_def = transfer_to_subfunc(u, Vbf)
 
-        unew = self.extension_operator.extend(boundary_def)
+        unew = self.extension_operator.extend(boundary_def, b_old)
         u = transfer_subfunction_to_parent(unew, u)
         return u
 
@@ -250,7 +255,7 @@ class FSI(Context):
         F = self.get_weak_form(vp, vp_, u, u_, psi, option)
 
         solve(F == 0, vp, bc, solver_parameters={"nonlinear_solver": "newton", "newton_solver":
-            {"maximum_iterations": 10}})
+            {"maximum_iterations": 20}})
 
         return vp
 
@@ -444,6 +449,9 @@ class FSIsolver(Solver):
 
         if self.warmstart:
             u, u_, vp, vp_ = self.FSI.load_states(u, u_, vp, vp_)
+            zero = interpolate(Constant((0., 0., 0.)), vp.function_space())
+            u.assign(self.FSI.get_deformation(zero, zero, u, b_old=u_))
+            vp.assign(self.FSI.solve_system(vp_, u, u_, 1))
 
         while not self.FSI.check_termination():
             self.FSI.save_snapshot(vp, u)
@@ -457,9 +465,9 @@ class FSIsolver(Solver):
             vp_.assign(vp)
 
             while not self.FSI.check_timestep_success():
+                self.FSI.advance_time()
+                print(self.FSI.t, self.FSI.dt)
                 try:
-                    self.FSI.advance_time()
-                    print(self.FSI.t, self.FSI.dt)
                     vp.assign(self.FSI.solve_system(vp_, u, u_, 0))   #u = u_ here in this system
                     u.assign(self.FSI.get_deformation(vp, vp_, u_))
                     vp.assign(self.FSI.solve_system(vp_, u, u_, 1))
