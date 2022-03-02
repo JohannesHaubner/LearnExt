@@ -16,13 +16,12 @@ Install the required version of FEniCS and dolfin-adjoint and run the commands
 
 ```
 cd example
-python3 example_learnExt_FSIbenchmarkII.py
+python3 example_FSIbenchmarkII_learned.py
 ```
 
 To redo the learning process run 
 ```
-cd learnExt
-python3 learn.py
+python3 example_learn.py
 ```
 (and modify the file accordingly).
 
