@@ -182,12 +182,12 @@ class LearnExt:
         solve(E == 0, u, bc)
 
         # reduced objective
-        eta = 1.0
         Fhat = Identity(2) + grad(u)
         Fhati = inv(Fhat)
         ds = Measure('ds', domain=self.mesh, subdomain_data=self.boundaries)
         J = assemble(pow((1.0 / (det(Identity(2) + grad(u))) + det(Identity(2) + grad(u))), 2) * ds(2)
                      + inner(grad(det(Identity(2) + grad(u))), grad(det(Identity(2) + grad(u)))) * ds(2)
+                     + pow((1.0 / (det(Identity(2) + grad(u))) + det(Identity(2) + grad(u))), 2) * dx
                      + inner(grad(det(Identity(2) + grad(u))), grad(det(Identity(2) + grad(u)))) * dx
                      )
         control = Control(alpha)
@@ -215,7 +215,7 @@ class LearnExt:
         aw = TestFunction(self.Vs)
         A = assemble((1e-3*inner(av, aw) + inner(grad(av), grad(aw))) * dx)
 
-        reg = 1e-2
+        reg = 1e-3
         preprocessing = Preprocessing(self.Vs)
         problem = IPOPTProblem_([rf], [1], [None], [None], [None], preprocessing, sps.csc_matrix(A.array()), reg)
         ipopt = IPOPTSolver_(problem)
@@ -279,14 +279,14 @@ class LearnExt:
         # transform net.weights
         init_weights = generate_weights(layers, bias=bias)
 
-        posfunc = lambda x: x ** 2
-        posfunc_der = lambda x: 2 * x
+        posfunc = lambda x: abs(x) #x ** 2
+        posfunc_der = lambda x: np.ones(len(x)) * (x >= 0) - np.ones(len(x))*(x < 0) #2 * x
 
         rf = Custom_Reduced_Functional(posfunc, posfunc_der, net, normgradtraf, b_opt, init_weights, threshold, self.fb)
         rfn = ReducedFunctionalNumPy(rf)
 
-        opt_theta = minimize(rfn, options={"disp": True, "gtol": 1e-12, "ftol": 1e-12,
-                                           "maxiter": 100})  # minimize(Jhat, method= "L-BFGS-B") #
+        opt_theta = minimize(rfn, options={"disp": True, "gtol": 1e-20, "ftol": 1e-20, "tol": 1e-20,
+                                           "maxiter": 1000})  # minimize(Jhat, method= "L-BFGS-B") #
 
         transformed_opt_theta = trafo_weights(list_to_weights(opt_theta, init_weights), posfunc)
         net.set_weights(transformed_opt_theta)
@@ -311,7 +311,7 @@ class LearnExt:
         if self.b_opt == None:
             b_opt = Function(Vs)
             # load data
-            with XDMFFile(output_directory + "/optimal_control_data.xdmf") as infile:
+            with XDMFFile(output_directory + "/optimal_control_data_new.xdmf") as infile:
                 infile.read_checkpoint(b_opt, "b_opt")
         else:
             b_opt = self.b_opt
@@ -326,7 +326,7 @@ class LearnExt:
         for i in self.params["zero_boundary_parts"]:
             bc.append(DirichletBC(self.V, zero, self.boundaries, self.params[i]))
 
-        ufile = File(self.output_path + "/comparison_ml_vs_harmonic.pvd")
+        ufile = File(self.output_path + "/comparison_ml_vs_harmonic_new.pvd")
 
         # harmonic extension
         u = Function(self.V)

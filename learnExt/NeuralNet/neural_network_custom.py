@@ -7,6 +7,12 @@ from numpy.random import randn, random, seed
 #seed(10)
 import dill as pickle
 
+from pathlib import Path
+here = Path(__file__).parent
+import sys
+sys.path.insert(0, str(here.parent))
+sys.path.append(here.parent)
+
 
 class ANN(object):
     def __new__(cls, *args, **kwargs):
