@@ -3,7 +3,7 @@
 # LearnExt
 
 Code repository for the manuscript
-> J. Haubner, M. Kuchta, K.-A. Mardal: Learning a Mesh Motion Technique with Application to Fluid-Structure Interaction and Shape Optimization
+> Learning a Mesh Motion Technique with Application to Fluid-Structure Interaction and Shape Optimization
 
 ## Usage/Examples
 
