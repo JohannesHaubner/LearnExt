@@ -136,14 +136,22 @@ class LearnExt:
 
         self.fb = lambda x: x
 
+        self.net_coeff = interpolate(Constant(0.0), self.Vs)
+
+        self.ufile = File(self.output_path + "/comparison_ml_vs_harmonic_new.pvd")
+
     @staticmethod
     def NN_der(eta, s, net):
-        return 1.0 + smoothmax(s - eta) * net(s)
+        if eta != 0 and net.plot_antider==False:
+            return 1.0 + smoothmax(s - eta) * net(s)
+        else:
+            return net(s)
 
     def learn(self, deformation, threshold):
-        self.optimal_control(deformation)
-        self.machine_learning(threshold)
-        self.visualize(deformation, threshold)
+        for j in range(1):
+            self.optimal_control(deformation)
+            self.machine_learning(threshold)
+            self.visualize(deformation, threshold)
 
     def optimal_control(self, deformation):
         # interpolate
@@ -178,7 +186,7 @@ class LearnExt:
 
         # b -> u
         u = Function(self.V)
-        E = inner((1.0 + self.fb(b)) * grad(u), grad(v)) * dx
+        E = inner((1.0 + self.fb(self.net_coeff + b)) * grad(u), grad(v)) * dx
         solve(E == 0, u, bc)
 
         # reduced objective
@@ -187,8 +195,7 @@ class LearnExt:
         ds = Measure('ds', domain=self.mesh, subdomain_data=self.boundaries)
         J = assemble(pow((1.0 / (det(Identity(2) + grad(u))) + det(Identity(2) + grad(u))), 2) * ds(2)
                      + inner(grad(det(Identity(2) + grad(u))), grad(det(Identity(2) + grad(u)))) * ds(2)
-                     + pow((1.0 / (det(Identity(2) + grad(u))) + det(Identity(2) + grad(u))), 2) * dx
-                     + inner(grad(det(Identity(2) + grad(u))), grad(det(Identity(2) + grad(u)))) * dx
+                     #+ pow((1.0 / (det(Identity(2) + grad(u))) + det(Identity(2) + grad(u))), 2) * dx
                      )
         control = Control(alpha)
 
@@ -215,7 +222,7 @@ class LearnExt:
         aw = TestFunction(self.Vs)
         A = assemble((1e-3*inner(av, aw) + inner(grad(av), grad(aw))) * dx)
 
-        reg = 1e-3
+        reg = 1e-2
         preprocessing = Preprocessing(self.Vs)
         problem = IPOPTProblem_([rf], [1], [None], [None], [None], preprocessing, sps.csc_matrix(A.array()), reg)
         ipopt = IPOPTSolver_(problem)
@@ -224,6 +231,8 @@ class LearnExt:
         b_opt = Function(self.Vs)
         E1 = inner(grad(b_opt), grad(vb)) * dx - inner(alpha_opt, vb) * dx
         solve(E1 == 0, b_opt, bc2)
+
+        b_opt = project(self.net_coeff + b_opt, self.Vs)
 
         # solve u_opt
         E = inner((1.0 + self.fb(b_opt)) * grad(u), grad(v)) * dx
@@ -252,11 +261,11 @@ class LearnExt:
     def machine_learning(self, threshold=0):
         self.threshold = threshold
         if self.b_opt == None or self.normgradtraf == None:
-            b_opt = Function(Vs)
-            normgradtraf = Function(Vs)
+            b_opt = Function(self.Vs)
+            normgradtraf = Function(self.Vs)
 
             # load data
-            with XDMFFile(output_directory + "optimal_control_data.xdmf") as infile:
+            with XDMFFile(self.output_path + "optimal_control_data.xdmf") as infile:
                 infile.read_checkpoint(b_opt, "b_opt")
                 infile.read_checkpoint(normgradtraf, "normgradtraf")
 
@@ -269,24 +278,24 @@ class LearnExt:
         set_working_tape(Tape())
 
         # neural net for coefficient
-        layers = [1, 10, 1]
-        bias = [True, True]
+        layers = [1, 5, 5, 1]
+        bias = [True, True, True]
         x, y = SpatialCoordinate(self.mesh)
-        net = ANN(layers, bias=bias, mesh=mesh)  # , init_method="fixed")
+        net = ANN(layers, bias=bias, mesh=mesh) #, init_method="fixed")
 
         parameters["form_compiler"]["quadrature_degree"] = 4
 
         # transform net.weights
         init_weights = generate_weights(layers, bias=bias)
 
-        posfunc = lambda x: abs(x) #x ** 2
-        posfunc_der = lambda x: np.ones(len(x)) * (x >= 0) - np.ones(len(x))*(x < 0) #2 * x
+        posfunc = lambda x: x**2 + 0.001*x**0 #x ** 2 #abs(x) #x ** 2
+        posfunc_der = lambda x: 2*x #2 * x # np.ones(len(x)) * (x >= 0) - np.ones(len(x))*(x < 0) #2 * x
 
         rf = Custom_Reduced_Functional(posfunc, posfunc_der, net, normgradtraf, b_opt, init_weights, threshold, self.fb)
         rfn = ReducedFunctionalNumPy(rf)
 
-        opt_theta = minimize(rfn, options={"disp": True, "gtol": 1e-20, "ftol": 1e-20, "tol": 1e-20,
-                                           "maxiter": 1000})  # minimize(Jhat, method= "L-BFGS-B") #
+        opt_theta = minimize(rfn, options={"disp": True, "gtol": 1e-20, "ftol": 1e-20,
+                                           "maxiter": 20})  # minimize(Jhat, method= "L-BFGS-B") #
 
         transformed_opt_theta = trafo_weights(list_to_weights(opt_theta, init_weights), posfunc)
         net.set_weights(transformed_opt_theta)
@@ -326,7 +335,7 @@ class LearnExt:
         for i in self.params["zero_boundary_parts"]:
             bc.append(DirichletBC(self.V, zero, self.boundaries, self.params[i]))
 
-        ufile = File(self.output_path + "/comparison_ml_vs_harmonic_new.pvd")
+        ufile = self.ufile
 
         # harmonic extension
         u = Function(self.V)
@@ -362,6 +371,8 @@ class LearnExt:
         ALE.move(self.mesh, up, annotate=False)
         ufile << up
         ALE.move(self.mesh, upi, annotate=False)
+
+        self.net_coeff = project(self.NN_der(threshold, inner(grad(u), grad(u)), net) - 1.0, self.Vs)
 
         pass
 

@@ -42,6 +42,8 @@ class ANN(object):
             self.ctrls = None
             self.backup_weights_flat = None
 
+            self.plot_antider = False
+
     def save(self, path):
         with open(f"{path}", "wb") as f:
             pickle.dump(self, f)
@@ -81,7 +83,10 @@ class ANN(object):
         return state
 
     def __call__(self, *args):
-        return NN(args, self.weights, self.sigma, self.sigma_derivative)
+        if self.plot_antider:
+            return NN(args, self.weights, self.sigma)
+        else:
+            return NN(args, self.weights, self.sigma, self.sigma_derivative)
 
     def weights_flat(self):
         ctrls = self.weights_ctrls()
@@ -133,41 +138,57 @@ def generate_weights(layers, bias, init_method="normal"):
         elif init_method == "normal":
             value = np.sqrt(2 / layers[i]) * randn(dim)
         elif init_method == "fixed":
-            value = 0*randn(dim)
+            value = 0*randn(dim) + np.ones(dim)
         weight["weight"] = Constant(value.reshape(layers[i+1], layers[i]))
 
         if bias[i]:
-            b = Constant(np.zeros(layers[i+1]))
+            b = Constant(np.zeros(layers[i+1]) + randn(layers[i+1]))
             weight["bias"] = b
         weights.append(weight)
     return weights
 
 
-def NN(inputs, weights, sigma, sigma_derivative):
+def NN(inputs, weights, sigma, sigma_derivative=None):
     #weights = weight_transformation(weights) #seems to be the correct spot for weight_transform (get it running or include it somewhere else)
     r = as_vector(inputs)
     output = as_vector(inputs)
     depth = len(weights)
-    for i, weight in enumerate(weights):
-        #print('iteration', i, depth)
-        term = weight["weight"] * r
-        if "bias" in weight:
-            term += weight["bias"]
-        if i  >= depth:
-            r = output
-        else:
-            r = apply_activation(term, func=sigma)
-            r2 = apply_activation(term, func=sigma_derivative) # r2 has the correct form
-            weight_tensor = weight_as_tensor(weight["weight"]) #weight_tensor has the correct form
-            (k, j, i, l) = ufl.indices(4)
-            delta = Identity(weight_tensor.ufl_shape[0])
-            Akj = ufl.as_tensor(r2[k]*delta[k,l]*delta[i,k]*weight_tensor[i,j],(l,j))
-            if i == 0:
-                output = Akj
-            else:
-                output = Akj*output
-            if i == depth -1:
+    if sigma_derivative != None:
+        for i, weight in enumerate(weights):
+            #print('iteration', i, depth)
+            term = weight["weight"] * r
+            if "bias" in weight:
+                term += weight["bias"]
+            if i  >= depth:
                 r = output
+            else:
+                r = apply_activation(term, func=sigma)
+                r2 = apply_activation(term, func=sigma_derivative) # r2 has the correct form
+                weight_tensor = weight_as_tensor(weight["weight"]) #weight_tensor has the correct form
+                (k, j, i, l) = ufl.indices(4)
+                delta = Identity(weight_tensor.ufl_shape[0])
+                Akj = ufl.as_tensor(r2[k]*delta[k,l]*delta[i,k]*weight_tensor[i,j],(l,j))
+                if i == 0:
+                    output = Akj
+                else:
+                    output = Akj*output
+                if i == depth -1:
+                    r = output
+    else:
+        r = as_vector(inputs)
+        depth = len(weights)
+        for i, weight in enumerate(weights):
+            term = weight["weight"] * r
+            if "bias" in weight:
+                term += weight["bias"]
+            if i + 1 >= depth:
+                r = term
+            else:
+                r = apply_activation(term, func=sigma)
+
+        if r.ufl_shape[0] == 1:
+            return r[0]
+        return r
 
     if r.ufl_shape[0] == 1:
         return r[0]
@@ -198,10 +219,10 @@ class ELU(object):
 
 
 def sigmoid(x):
-    return 1/(1 + ufl.exp(-x))
+    return 1./(1 + ufl.exp(-x))
 
 def softmax(x):
-    return ufl.ln(1 + ufl.exp(x))
+    return conditional(ufl.gt(x, 10), x, ufl.ln((1 + ufl.exp(-x))/ufl.exp(-x)))  # TODO fix !!!!
 
 
 def apply_activation(vec, func=ufl.tanh):

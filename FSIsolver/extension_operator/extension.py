@@ -4,7 +4,7 @@ class ExtensionOperator(object):
     def __init__(self, mesh):
         self.mesh = mesh
 
-    def extend(self, boundary_conditions):
+    def extend(self, boundary_conditions, params=None):
         """extend the boundary_conditions to the interior of the mesh"""
         raise NotImplementedError
 

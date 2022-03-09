@@ -267,7 +267,7 @@ class IPOPTSolver_(OptimizationSolver):
                 cu.append(self.problem.scaling_constraints[i] * self.problem.bounds[i][1])
 
         ub = np.array([max_float] * len(x0))
-        lb = np.array([0.0] * len(x0))
+        lb = np.array([min_float] * len(x0))
 
         nlp = cyipopt.Problem(
             n=len(x0),
@@ -291,7 +291,7 @@ class IPOPTSolver_(OptimizationSolver):
         # a benefitial option for starts close to solution:
         nlp.add_option('bound_mult_init_method', 'mu-based')
 
-        nlp.add_option('max_iter', 15)
+        nlp.add_option('max_iter', 20)
         nlp.add_option('tol', 1e-3)
 
         x, info = nlp.solve(x0)

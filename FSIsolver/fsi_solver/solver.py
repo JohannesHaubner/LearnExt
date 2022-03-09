@@ -242,7 +242,14 @@ class FSI(Context):
         Vbf = VectorFunctionSpace(fluid_domain, "CG", 2)
         boundary_def = transfer_to_subfunc(u, Vbf)
 
-        unew = self.extension_operator.extend(boundary_def, b_old)
+        params = {}
+        params["b_old"] = b_old
+        try: ##Todo fix for warmstart
+            params["displacementy"] = self.displacement[-1]
+        except:
+            pass
+
+        unew = self.extension_operator.extend(boundary_def, params)
         u = transfer_subfunction_to_parent(unew, u)
         return u
 
@@ -444,8 +451,8 @@ class FSIsolver(Solver):
         u = Function(self.U)
         u_ = Function(self.U)      # previous time-step
 
-        vp__ = Function(self.VP)
-        u__ = Function(self.U)
+        #vp__ = Function(self.VP)
+        #u__ = Function(self.U)
 
         if self.warmstart:
             u, u_, vp, vp_ = self.FSI.load_states(u, u_, vp, vp_)
@@ -459,8 +466,8 @@ class FSIsolver(Solver):
 
             self.FSI.save_states(u, u_, vp, vp_)
 
-            u__.assign(u_)
-            vp__.assign(vp_)
+            #u__.assign(u_)
+            #vp__.assign(vp_)
             u_.assign(u)
             vp_.assign(vp)
 
