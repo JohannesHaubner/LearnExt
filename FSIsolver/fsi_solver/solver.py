@@ -40,8 +40,8 @@ class Context(object):
         return (not self.t <= self.T)
 
     def choose_t(self):
-        if abs((self.t + self.dt)/0.04 - np.floor((self.t + self.dt)/0.04)) < self.dt_min/2 or \
-                abs(self.t/0.04 - np.floor(self.t /0.04)) < self.dt_min/2:
+        if abs((self.t + self.dt)/0.04 - np.floor((self.t + self.dt)/0.04))*0.04 < self.dt_min/2 or \
+                abs(self.t/0.04 - np.floor(self.t /0.04))*0.04 < self.dt_min/2:
             self.t += self.dt
         elif (abs((self.t + self.dt)/0.04 - np.floor((self.t + self.dt)/0.04)) <
               abs(self.t/0.04 - np.floor(self.t/0.04))):
