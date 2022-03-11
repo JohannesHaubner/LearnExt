@@ -39,11 +39,23 @@ class Context(object):
     def check_termination(self):
         return (not self.t <= self.T)
 
+    def choose_t(self):
+        if abs((self.t + self.dt)/0.04 - np.floor((self.t + self.dt)/0.04)) < self.dt_min/2 or \
+                abs(self.t/0.04 - np.floor(self.t /0.04)) < self.dt_min/2:
+            self.t += self.dt
+        elif (abs((self.t + self.dt)/0.04 - np.floor((self.t + self.dt)/0.04)) <
+              abs(self.t/0.04 - np.floor(self.t/0.04))):
+            t_new = np.floor((self.t + self.dt)/0.04)*0.04
+            self.dt = float(t_new - self.t) #without float self.dt is a numpy.float which causes problems
+            self.t = t_new
+        else:
+            self.t += self.dt
+
     def advance_time(self):
         """
         update of time variables and boundary conditions
         """
-        self.t += self.dt
+        self.choose_t()
         self.bc.t = self.t
         print('update time: t = ', self.t)
 

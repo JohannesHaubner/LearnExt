@@ -12,8 +12,7 @@ def trafo_weights(init_weights, posfunc):
         if "bias" in weight:
             #i += 1
             bias = weight["bias"]
-            weights_trafo.append(Constant(posfunc(bias.values()).reshape(bias.ufl_shape)))
-            #weights_trafo.append(Constant(np.concatenate([[posfunc(bias.values()[0])], bias.values()[1:]]).reshape(bias.ufl_shape)))
+            weights_trafo.append(Constant(bias.values().reshape(bias.ufl_shape)))
     return weights_trafo
 
 
@@ -76,11 +75,7 @@ def trafo_weights_chainrule(df, init_weights, posfunc_der):
         df_cr.append(Constant((a*b).reshape(w.ufl_shape)))
         if "bias" in weight:
             i = i+1
-            bi = weight["bias"]
-            a = posfunc_der(bi.values()[:])
-            #a = np.concatenate([[posfunc_der(bi.values()[0])], bi.values()[1:]])
-            b = df[i].values()
-            df_cr.append(Constant((a*b).reshape(bi.ufl_shape)))
+            df_cr.append(df[i])
     return df_cr
 
 def flatten(list):
