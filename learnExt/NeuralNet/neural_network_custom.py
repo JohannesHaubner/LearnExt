@@ -13,6 +13,7 @@ import sys
 sys.path.insert(0, str(here.parent))
 sys.path.append(here.parent)
 
+# original code: https://github.com/sebastkm/hybrid-fem-nn
 
 class ANN(object):
     def __new__(cls, *args, **kwargs):
@@ -83,10 +84,10 @@ class ANN(object):
         return state
 
     def __call__(self, *args):
-        if self.plot_antider:
-            return NN(args, self.weights, self.sigma)
-        else:
-            return NN(args, self.weights, self.sigma, self.sigma_derivative)
+        #if self.plot_antider:
+        #    return NN(args, self.weights, self.sigma)
+        #else:
+        return NN(args, self.weights, self.sigma, self.sigma_derivative)
 
     def weights_flat(self):
         ctrls = self.weights_ctrls()
@@ -142,7 +143,7 @@ def generate_weights(layers, bias, init_method="normal"):
         weight["weight"] = Constant(value.reshape(layers[i+1], layers[i]))
 
         if bias[i]:
-            b = Constant(np.zeros(layers[i+1]) + randn(layers[i+1]))
+            b = Constant(np.zeros(layers[i+1]))# + randn(layers[i+1]))
             weight["bias"] = b
         weights.append(weight)
     return weights
