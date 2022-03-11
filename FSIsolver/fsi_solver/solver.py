@@ -162,6 +162,7 @@ class FSI(Context):
         if self.savedir == None:
             pass
         else:
+            print('Check if snapshot is saved for t = ', self.t)
             t_frac = abs(self.t / 0.04 - round(self.t / 0.04))*0.04  # make a snapshot every 1/25 s
             if abs(t_frac) < self.dt_min * 0.5:
                 print('save snapshot...', self.t)
@@ -206,17 +207,20 @@ class FSI(Context):
                     ALE.move(self.FSI_params["solid_mesh"], usi, annotate=False)
                 except:
                     ALE.move(self.FSI_params["solid_mesh"], usi)
+            else:
+                print('Snapshot is not stored for t = ', self.t,
+                      ' since it only taken close to every multiple of 1/25s.')
 
 
     def save_displacement(self, u, save_det=False):
         try:
             self.displacement.append(u(self.FSI_params["displacement_point"])[1])
-            self.times.append(self.t)
             np.savetxt(self.displacement_filename, self.displacement)
-            np.savetxt(self.times_filename, self.times)
         except:
             print('Displacement can not be saved. Does FSI_params contain displacement_point?'
                   ' Does folder exist where .txt-file should be saved to?')
+        self.times.append(self.t)
+        np.savetxt(self.times_filename, self.times)
         try:
             if save_det == True:
                 V = VectorFunctionSpace(u.function_space().mesh(), "CG", 1)
@@ -428,6 +432,7 @@ class FSIsolver(Solver):
         self.extension_operator = extension_operator
 
         if warmstart == True:
+            self.ws_path = self.FSI_params["save_directory"]
             self.FSI_params["save_directory"] += "/warmstarted"
 
         self.warmstart = warmstart
@@ -459,6 +464,9 @@ class FSIsolver(Solver):
             zero = interpolate(Constant((0., 0., 0.)), vp.function_space())
             u.assign(self.FSI.get_deformation(zero, zero, u, b_old=u_))
             vp.assign(self.FSI.solve_system(vp_, u, u_, 1))
+            self.FSI.displacement = np.loadtxt(self.ws_path + "/displacementy.txt").tolist()[:-1]
+            self.FSI.determinant_deformation = np.loadtxt(self.ws_path + "/determinant.txt").tolist()[:-1]
+            self.FSI.times = np.loadtxt(self.ws_path + "/times.txt").tolist()[:-1]
 
         while not self.FSI.check_termination():
             self.FSI.save_snapshot(vp, u)
