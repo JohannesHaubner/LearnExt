@@ -40,11 +40,9 @@ class Context(object):
         return (not self.t <= self.T)
 
     def choose_t(self):
-        if abs((self.t + self.dt)/0.04 - np.floor((self.t + self.dt)/0.04))*0.04 < self.dt_min/2 or \
-                abs(self.t/0.04 - np.floor(self.t /0.04))*0.04 < self.dt_min/2:
+        if abs(self.t/0.04 - np.floor(self.t /0.04))*0.04 < self.dt_min/2:
             self.t += self.dt
-        elif (abs((self.t + self.dt)/0.04 - np.floor((self.t + self.dt)/0.04)) <
-              abs(self.t/0.04 - np.floor(self.t/0.04))):
+        elif np.floor((self.t + self.dt)/0.04) > np.floor(self.t/0.04):
             t_new = np.floor((self.t + self.dt)/0.04)*0.04
             self.dt = float(t_new - self.t) #without float self.dt is a numpy.float which causes problems
             self.t = t_new
@@ -61,7 +59,7 @@ class Context(object):
 
     def check_timestep_success(self):
         print('check_timestep_sucess', self.dt, self.success)
-        return (self.dt < self.dt_min) or self.success == True
+        return (self.dt < 2/3*self.dt_min) or self.success == True
 
     def adapt_dt(self):
         if self.success:
