@@ -470,13 +470,13 @@ class FSIsolver(Solver):
         #u__ = Function(self.U)
 
         if self.warmstart:
+            self.FSI.displacement = np.loadtxt(self.ws_path + "/displacementy.txt").tolist()[:-1]
+            self.FSI.determinant_deformation = np.loadtxt(self.ws_path + "/determinant.txt").tolist()[:-1]
+            self.FSI.times = np.loadtxt(self.ws_path + "/times.txt").tolist()[:-1]
             u, u_, vp, vp_ = self.FSI.load_states(u, u_, vp, vp_)
             zero = interpolate(Constant((0., 0., 0.)), vp.function_space())
             u.assign(self.FSI.get_deformation(zero, zero, u, b_old=u_))
             vp.assign(self.FSI.solve_system(vp_, u, u_, 1))
-            self.FSI.displacement = np.loadtxt(self.ws_path + "/displacementy.txt").tolist()[:-1]
-            self.FSI.determinant_deformation = np.loadtxt(self.ws_path + "/determinant.txt").tolist()[:-1]
-            self.FSI.times = np.loadtxt(self.ws_path + "/times.txt").tolist()[:-1]
 
         while not self.FSI.check_termination():
             self.FSI.save_snapshot(vp, u)

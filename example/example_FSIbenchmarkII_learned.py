@@ -101,8 +101,8 @@ class LearnExtension(extension.ExtensionOperator):
             if displacementy == None:
                 Warning("displacementy == None; set trafo to False")
                 trafo = False
-            elif displacementy <= 0.001:
-                print('displacementy <= 0.01: displacementy = ', displacementy)
+            elif abs(displacementy) <= 0.001:
+                print('displacementy <= 0.001: displacementy = ', displacementy)
                 trafo = False
             else:
                 trafo = True
@@ -155,7 +155,7 @@ class LearnExtension(extension.ExtensionOperator):
 extension_operator = LearnExtension(fluid_domain)
 
 # save options
-FSI_param['save_directory'] = str('./../Output/FSIbenchmarkII_1103_oldnet/warmstarted') #no save if set to None
+FSI_param['save_directory'] = str('./../Output/FSIbenchmarkII_1203') #no save if set to None
 #FSI_param['save_every_N_snapshot'] = 4 # save every 8th snapshot
 
 # initialize FSI solver
