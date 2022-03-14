@@ -19,7 +19,7 @@ class Biharmonic(ExtensionOperator):
         T = VectorElement("CG", self.mesh.ufl_cell(), 2)
         self.FS = FunctionSpace(self.mesh, MixedElement(T, T))
 
-    def extend(self, boundary_conditions):
+    def extend(self, boundary_conditions, params=None):
         """ biharmonic extension of boundary_conditions (Function on self.mesh) to the interior """
 
         uz = TrialFunction(self.FS)

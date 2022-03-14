@@ -32,7 +32,7 @@ class Context(object):
         self.T = params["T"]
         self.dt = params["deltat"]
         self.dt_max = params["deltat"]
-        self.dt_min = 1/32 * self.dt_max
+        self.dt_min = 1/128 * self.dt_max
         self.bc = params["boundary_cond"]
         self.success = False
 
@@ -258,7 +258,8 @@ class FSI(Context):
 
         params = {}
         params["b_old"] = b_old
-        try: ##Todo fix for warmstart
+        params["t"] = self.t
+        try:
             params["displacementy"] = self.displacement[-1]
         except:
             pass
