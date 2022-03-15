@@ -41,21 +41,28 @@ solid_domain = MeshView.create(domains, params["solid"])
 
 # function space
 T = VectorElement("CG", fluid_domain.ufl_cell(), 2)
-FS = FunctionSpace(fluid_domain, MixedElement(T, T))
+FS = FunctionSpace(fluid_domain, T)
 
 # read data
 xdmf_input = XDMFFile("../Output/Extension/Data/input.xdmf")
 xdmf_output = XDMFFile("../Output/Extension/Data/output.xdmf")
+
+ifile = File("../Output/Extension/input_func.pvd")
+ofile = File("../Output/Extension/output_func.pvd")
 
 input = Function(FS)
 output = Function(FS)
 
 i = 0
 error = False
-while not error:
+while i < 20 and not error:
     try:
         xdmf_input.read_checkpoint(input, "input", i)
+        ifile << input
         xdmf_output.read_checkpoint(output, "output", i)
+        ofile << output
         i = i+1
-    except:
+        print(i)
+    except Exception as e:
+        print(e)
         error = True
