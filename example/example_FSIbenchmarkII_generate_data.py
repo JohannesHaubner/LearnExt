@@ -55,7 +55,7 @@ FSI_param['nyf'] = 1.0e-3
 
 FSI_param['t'] = 0.0
 FSI_param['deltat'] = 0.0025 # 0.01
-FSI_param['T'] = 15.0
+FSI_param['T'] = 17.0
 
 FSI_param['displacement_point'] = Point((0.6, 0.2))
 
@@ -72,10 +72,11 @@ class Biharmonic_DataGeneration(extension.ExtensionOperator):
 
         T = VectorElement("CG", self.mesh.ufl_cell(), 2)
         self.FS = FunctionSpace(self.mesh, MixedElement(T, T))
+        self.iter = -1
 
         # Create time series
-        self.xdmf_input = XDMFFile("../../Output/Extension/Data/input.xdmf")
-        self.xdmf_output = XDMFFile("../../Output/Extension/Data/output.xdmf")
+        self.xdmf_input = XDMFFile("../Output/Extension/Data/input.xdmf")
+        self.xdmf_output = XDMFFile("../Output/Extension/Data/output.xdmf")
 
     def extend(self, boundary_conditions, params):
         """ biharmonic extension of boundary_conditions (Function on self.mesh) to the interior """
@@ -106,8 +107,9 @@ class Biharmonic_DataGeneration(extension.ExtensionOperator):
             file << u_
 
         if t > 11:
-            self.xdmf_input.write_checkpoint(boundary_conditions, "input", 0, XDMFFile.Encoding.HDF5, append=True)
-            self.xdmf_output.write_checkpoint(u_, "output", 0, XDMFFile.Encoding.HDF5, append=True)
+            self.iter +=1
+            self.xdmf_input.write_checkpoint(boundary_conditions, "input", self.iter, XDMFFile.Encoding.HDF5, append=True)
+            self.xdmf_output.write_checkpoint(u_, "output", self.iter, XDMFFile.Encoding.HDF5, append=True)
 
         return u_
 
@@ -118,6 +120,6 @@ FSI_param['save_directory'] = str('./../Output/FSIbenchmarkII_generate_data') #n
 #FSI_param['save_every_N_snapshot'] = 4 # save every 8th snapshot
 
 # initialize FSI solver
-fsisolver = solver.FSIsolver(mesh, boundaries, domains, params, FSI_param, extension_operator, warmstart=False)
+fsisolver = solver.FSIsolver(mesh, boundaries, domains, params, FSI_param, extension_operator, warmstart=True)
 fsisolver.solve()
 
