@@ -229,7 +229,7 @@ class FSI(Context):
         except:
             print('Displacement can not be saved. Does FSI_params contain displacement_point?'
                   ' Does folder exist where .txt-file should be saved to?')
-        self.times.append(self.t)
+        self.times.append(float(self.t))
         np.savetxt(self.times_filename, self.times)
         try:
             if save_det == True:
