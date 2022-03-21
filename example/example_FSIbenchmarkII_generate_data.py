@@ -75,8 +75,8 @@ class Biharmonic_DataGeneration(extension.ExtensionOperator):
         self.iter = -1
 
         # Create time series
-        self.xdmf_input = XDMFFile("../Output/Extension/Data/input.xdmf")
-        self.xdmf_output = XDMFFile("../Output/Extension/Data/output.xdmf")
+        self.xdmf_input = XDMFFile("../Output/Extension/Data/input_.xdmf")
+        self.xdmf_output = XDMFFile("../Output/Extension/Data/output_.xdmf")
 
     def extend(self, boundary_conditions, params):
         """ biharmonic extension of boundary_conditions (Function on self.mesh) to the interior """

@@ -8,7 +8,7 @@ import sys
 sys.path.insert(0, str(here.parent))
 from FSIsolver.extension_operator.extension import *
 sys.path.insert(1, '../learnExt')
-from learnext import LearnExt
+from learnext_hybridPDENN import LearnExt
 
 # load mesh
 mesh = Mesh()
@@ -52,15 +52,63 @@ params["def_boundary_parts"] = ["interface"]
 params["zero_boundary_parts"] = ["no_slip"]
 
 V_mesh = VectorFunctionSpace(mesh, "CG", 2)
-deformation = Function(V_mesh)
-def_file_name = "../Output/files/harmonic_notrafo/states.xdmf" # "./Mesh/deformation.xdmf"
-with XDMFFile(def_file_name) as infile:
-    infile.read_checkpoint(deformation, "u_")
+
+option_data_0 = True
+option_data = True
+
+# read data
+if option_data_0:
+    deformation = Function(V_mesh)
+    def_file_name = "../Output/files/supervised_learn/standard/states.xdmf" # "./Mesh/deformation.xdmf"
+    with XDMFFile(def_file_name) as infile:
+        infile.read_checkpoint(deformation, "u")
+    # biharmonic extension
+    Biharmonic = Biharmonic(fluid_domain)
+    ext_deformation = Biharmonic.extend(deformation)
+    deformation = [deformation]
+    ext_deformation = [ext_deformation]
+else:
+    deformation = []
+    ext_deformation = []
+
+if option_data:
+    # function space
+    T = VectorElement("CG", fluid_domain.ufl_cell(), 2)
+    FS = FunctionSpace(fluid_domain, T)
+
+    xdmf_input = XDMFFile("../Output/Extension/Data/input.xdmf")
+    xdmf_output = XDMFFile("../Output/Extension/Data/output.xdmf")
+
+    ifile = File("../Output/Extension/input_func.pvd")
+    ofile = File("../Output/Extension/output_func.pvd")
+
+    i = 0
+    error = False
+    while not error:
+        try:
+            input = Function(FS)
+            output = Function(FS)
+            xdmf_input.read_checkpoint(input, "input", i)
+            ifile << input
+            xdmf_output.read_checkpoint(output, "output", i)
+            ofile << output
+            if i%40 == 0:
+                deformation.append(project(input, FS))
+                ext_deformation.append(project(output, FS))
+            i = i+1
+            print(i)
+        except Exception as e:
+            #print(e)
+            error = True
+
+data = {}
+data["input"] = deformation
+data["output"] = ext_deformation
 
 output_path = "../Output/learnExt/results/"
 
-threshold = 0.0
+threshold = 0.0005
 
 learnExt = LearnExt(fluid_domain, boundaries, params, output_path, 2)
 
-learnExt.learn(deformation, threshold)
+learnExt.learn(data, threshold)

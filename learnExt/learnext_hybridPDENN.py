@@ -15,46 +15,69 @@ import matplotlib.pyplot as plt
 
 from NeuralNet.tools import *
 
-import moola
+#import moola
 
 class Custom_Reduced_Functional(object):
     def __init__(self, posfunc, posfunc_der, net, normgradtraf, b_opt, init_weights, threshold,
-                 mesh, boundaries, deformation, params, order, output_path):
+                 mesh, boundaries, data, params, order, output_path):
         self.posfunc = posfunc
         self.posfunc_der = posfunc_der
         self.net = net
         self.normgradtraf = normgradtraf
         self.b_opt = b_opt
         self.threshold = threshold
+        self.ufile = File(output_path + "/custom_function_checks.pvd")
 
         V = VectorFunctionSpace(mesh, "CG", order)
 
+        g = []
+        uref = []
+        try:
+            output_flag = data["output"] != None
+        except:
+            output_flag = False
+
+        # input data
+        for i in range(len(data["input"])):
+            g.append(data["input"][i])
+            if output_flag:
+                uref.append(data["output"][i])
+
+        # objective
+        J = 0
         # boundary deformation
-        g = deformation
         zero = Constant(("0.0", "0.0"))
-        # boundary conditions
-        bc = []
-        for i in params["def_boundary_parts"]:
-            bc.append(DirichletBC(V, g, boundaries, params[i]))
-        for i in params["zero_boundary_parts"]:
-            bc.append(DirichletBC(V, zero, boundaries, params[i]))
 
-        # learned extension
-        u = Function(V)
-        v = TestFunction(V)
-        E = inner(self.NN_der(threshold, inner(grad(u), grad(u)), net) * grad(u), grad(v)) * dx
-        solve(E == 0, u, bc)
+        for j in range(len(g)):
+            # boundary conditions
+            bc = []
+            gj = project(g[j], V, annotate=False)
+            for i in params["def_boundary_parts"]:
+                bc.append(DirichletBC(V, gj, boundaries, params[i]))
+            for i in params["zero_boundary_parts"]:
+                bc.append(DirichletBC(V, zero, boundaries, params[i]))
 
-        self.ufile = File(output_path + "/comparison_ml_vs_harmonic_new.pvd")
-        self.ufile << u
+            # learned extension
+            u = Function(V)
+            v = TestFunction(V)
+            E = inner(self.NN_der(threshold, inner(grad(u), grad(u)), net) * grad(u), grad(v)) * dx
+            solve(E == 0, u, bc)
 
-        ds = Measure('ds', domain=mesh, subdomain_data=boundaries)
+            self.ufile << u
+            self.ufile << gj
 
-        J = assemble(pow((1.0 / (det(Identity(2) + grad(u))) + det(Identity(2) + grad(u))), 2) * ds(2)
-                     + inner(grad(det(Identity(2) + grad(u))), grad(det(Identity(2) + grad(u)))) * ds(2)
-                     + pow((1.0 / (det(Identity(2) + grad(u))) + det(Identity(2) + grad(u))), 2) * dx
-                     + inner(grad(det(Identity(2) + grad(u))), grad(det(Identity(2) + grad(u)))) * dx
-                     )
+            ds = Measure('ds', domain=mesh, subdomain_data=boundaries)
+
+            if output_flag:
+                urefj = project(uref[j], u.function_space(), annotate=False)
+                J += assemble(inner(u - urefj, u - urefj)*dx + inner(grad(u - urefj), grad(u - urefj))*dx
+                              + inner(u - urefj, u - urefj)*ds)
+            else:
+                J += assemble(pow((1.0 / (det(Identity(2) + grad(u))) + det(Identity(2) + grad(u))), 2) * ds(2)
+                             + inner(grad(det(Identity(2) + grad(u))), grad(det(Identity(2) + grad(u)))) * ds(2)
+                             + pow((1.0 / (det(Identity(2) + grad(u))) + det(Identity(2) + grad(u))), 2) * dx
+                             + inner(grad(det(Identity(2) + grad(u))), grad(det(Identity(2) + grad(u)))) * dx
+                             )
         Jhat = ReducedFunctional(J, net.weights_ctrls())
         self.Jhat = Jhat
         self.controls = Enlist(net.weights_ctrls())
@@ -177,14 +200,14 @@ class LearnExt:
 
         self.net_coeff = interpolate(Constant(0.0), self.Vs)
 
-        self.ufile = File(self.output_path + "/comparison_ml_vs_harmonic_new.pvd")
+        self.ufile = File(self.output_path + "/comparison_ml_vs_harmonic_ref.pvd")
 
 
-    def learn(self, deformation, threshold):
-        self.machine_learning(deformation, threshold)
-        self.visualize(deformation, threshold)
+    def learn(self, data, threshold):
+        self.machine_learning(data, threshold)
+        self.visualize(data, threshold)
 
-    def machine_learning(self, deformation, threshold=0):
+    def machine_learning(self, data, threshold=0):
         self.threshold = threshold
         if self.b_opt == None or self.normgradtraf == None:
             b_opt = Function(self.Vs)
@@ -204,8 +227,8 @@ class LearnExt:
         set_working_tape(Tape())
 
         # neural net for coefficient
-        layers = [1, 5, 1]
-        bias = [True, False]
+        layers = [1, 5, 5, 1]
+        bias = [True, True, False]
         x, y = SpatialCoordinate(self.mesh)
         net = ANN(layers, bias=bias, mesh=mesh) #, init_method="fixed")
 
@@ -222,10 +245,14 @@ class LearnExt:
         init_weights = list_to_weights(init_weights1, init_weights)
         net.weights = init_weights
 
+        rf = Custom_Reduced_Functional(posfunc, posfunc_der, net, normgradtraf, b_opt, init_weights, threshold,
+                                       self.mesh, self.boundaries, data, self.params, self.order, self.output_path)
+
         try:
             rf = Custom_Reduced_Functional(posfunc, posfunc_der, net, normgradtraf, b_opt, init_weights, threshold,
-                                       self.mesh, self.boundaries, deformation, self.params, self.order, self.output_path)
-        except:
+                                       self.mesh, self.boundaries, data, self.params, self.order, self.output_path)
+        except Exception as e:
+            print(e)
             breakpoint()
 
         taylortest = False
@@ -234,8 +261,8 @@ class LearnExt:
             exit(0)
         rfn = ReducedFunctionalNumPy(rf)
 
-        opt_theta = minimize(rfn, options={"disp": True, "gtol": 1e-5, "ftol": 1e-5,
-                                           "maxiter": 20})  # minimize(Jhat, method= "L-BFGS-B") #
+        opt_theta = minimize(rfn, options={"disp": True, "gtol": 1e-8, "ftol": 1e-8,
+                                           "maxiter": 100})  # minimize(Jhat, method= "L-BFGS-B") #
 
         transformed_opt_theta = trafo_weights(list_to_weights(opt_theta, init_weights), posfunc)
         net.set_weights(transformed_opt_theta)
@@ -245,7 +272,7 @@ class LearnExt:
         self.net = net
         pass
 
-    def visualize(self, deformation, threshold=None):
+    def visualize(self, data, threshold=None):
         if threshold == None and self.threshold != None:
             threshold = self.threshold
         elif self.threshold == None:
@@ -257,42 +284,54 @@ class LearnExt:
             net = self.net
 
         # boundary deformation
-        g = deformation
-        zero = Constant(("0.0", "0.0"))
-        # boundary conditions
-        bc = []
-        for i in self.params["def_boundary_parts"]:
-            bc.append(DirichletBC(self.V, g, self.boundaries, self.params[i]))
-        for i in self.params["zero_boundary_parts"]:
-            bc.append(DirichletBC(self.V, zero, self.boundaries, self.params[i]))
+        for j in range(len(data["input"])):
+            g = data["input"][j]
+            zero = Constant(("0.0", "0.0"))
+            # boundary conditions
+            bc = []
+            for i in self.params["def_boundary_parts"]:
+                bc.append(DirichletBC(self.V, g, self.boundaries, self.params[i]))
+            for i in self.params["zero_boundary_parts"]:
+                bc.append(DirichletBC(self.V, zero, self.boundaries, self.params[i]))
 
-        ufile = self.ufile
+            ufile = self.ufile
 
-        # harmonic extension
-        u = Function(self.V)
-        v = TestFunction(self.V)
-        E = inner(grad(u), grad(v)) * dx
-        solve(E == 0, u, bc)
+            # harmonic extension
+            u = Function(self.V)
+            v = TestFunction(self.V)
+            E = inner(grad(u), grad(v)) * dx
+            solve(E == 0, u, bc)
 
-        up = project(u, self.V)
-        upi = project(-1.0 * u, self.V)
-        ALE.move(self.mesh, up, annotate=False)
-        ufile << up
-        ALE.move(self.mesh, upi, annotate=False)
+            up = project(u, self.V)
+            upi = project(-1.0 * u, self.V)
+            ALE.move(self.mesh, up, annotate=False)
+            ufile << up
+            ALE.move(self.mesh, upi, annotate=False)
 
 
-        # learned extension
-        u = Function(self.V)
-        cro = Custom_Reduced_Functional
-        E = inner(cro.NN_der(threshold, inner(grad(u), grad(u)), net) * grad(u), grad(v)) * dx
-        solve(E == 0, u, bc, solver_parameters={"nonlinear_solver": "newton", "newton_solver":
-            {"maximum_iterations": 200}})
+            # learned extension
+            u = Function(self.V)
+            cro = Custom_Reduced_Functional
+            E = inner(cro.NN_der(threshold, inner(grad(u), grad(u)), net) * grad(u), grad(v)) * dx
+            solve(E == 0, u, bc, solver_parameters={"nonlinear_solver": "newton", "newton_solver":
+                {"maximum_iterations": 200}})
 
-        up = project(u, self.V)
-        upi = project(-1.0 * u, self.V)
-        ALE.move(self.mesh, up, annotate=False)
-        ufile << up
-        ALE.move(self.mesh, upi, annotate=False)
+            up = project(u, self.V)
+            upi = project(-1.0 * u, self.V)
+            ALE.move(self.mesh, up, annotate=False)
+            ufile << up
+            ALE.move(self.mesh, upi, annotate=False)
+
+            # reference - if available
+            try:
+                output_flag = data["output"] != None
+            except:
+                output_flag = False
+            if output_flag:
+                ui = project(-1.0 * data["output"][j], self.V, annotate=False)
+                ALE.move(self.mesh, data["output"][j], annotate=False)
+                ufile << data["output"][j]
+                ALE.move(self.mesh, ui, annotate=False)
 
         pass
 

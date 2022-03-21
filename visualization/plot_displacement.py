@@ -52,8 +52,8 @@ def plot_timestep(times, str, colors, foldernames):
     pl.close()
 
 if __name__ == "__main__":
-    foldernames = ["biharmonic", "harmonic_notrafo", "harmonic_trafo", "learn_hybrid_0903"] #, "learning"]
-    names= ["biharmonic", "harmonic", "harmonic incremental", "learned incremental"]
+    foldernames = ["biharmonic",   "harmonic_notrafo", "supervised_learn/incremental", "supervised_learn/standard"] #, "learning"]
+    names= ["biharmonic",   "harmonic", "learned/incremental", "learned/standard"]
 
     times_list = []
     displacement_list = []
