@@ -76,11 +76,11 @@ class LearnExtension(extension.ExtensionOperator):
         T2 = VectorElement("CG", self.mesh.ufl_cell(), 2)
         self.FS = FunctionSpace(self.mesh, T)
         self.FS2 = FunctionSpace(self.mesh, T2)
-        self.incremental = True
-        self.incremental_correct = True
+        self.incremental = False
+        self.incremental_correct = False
         self.bc_old = Function(self.FS)
         output_directory = str("../example/learned_networks/")
-        self.net = ANN(output_directory + "trained_network.pkl")
+        self.net = ANN(output_directory + "trained_network_supervised.pkl")
 
     def extend(self, boundary_conditions, params = None):
         """ harmonic extension of boundary_conditions (Function on self.mesh) to the interior """
@@ -101,8 +101,8 @@ class LearnExtension(extension.ExtensionOperator):
             if displacementy == None:
                 Warning("displacementy == None; set trafo to False")
                 trafo = False
-            elif abs(displacementy) <= 0.001:
-                print('displacementy <= 0.001: displacementy = ', displacementy)
+            elif abs(displacementy) <= 0.005:
+                print('displacementy <= 0.005: displacementy = ', displacementy)
                 trafo = False
             else:
                 trafo = True
@@ -155,10 +155,10 @@ class LearnExtension(extension.ExtensionOperator):
 extension_operator = LearnExtension(fluid_domain)
 
 # save options
-FSI_param['save_directory'] = str('./../Output/FSIbenchmarkII_1203') #no save if set to None
+FSI_param['save_directory'] = str('./../Output/FSIbenchmarkII_supervised') #no save if set to None
 #FSI_param['save_every_N_snapshot'] = 4 # save every 8th snapshot
 
 # initialize FSI solver
-fsisolver = solver.FSIsolver(mesh, boundaries, domains, params, FSI_param, extension_operator, warmstart=True)
+fsisolver = solver.FSIsolver(mesh, boundaries, domains, params, FSI_param, extension_operator, warmstart=False)
 fsisolver.solve()
 
