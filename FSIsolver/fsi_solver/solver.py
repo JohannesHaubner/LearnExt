@@ -477,6 +477,8 @@ class FSIsolver(Solver):
             u, u_, vp, vp_ = self.FSI.load_states(u, u_, vp, vp_)
             zero = interpolate(Constant((0., 0., 0.)), vp.function_space())
             u.assign(self.FSI.get_deformation(zero, zero, u, b_old=u_))
+            file_test = File(self.ws_path + '/test_u.pvd')
+            file_test << u
             vp.assign(self.FSI.solve_system(vp_, u, u_, 1))
 
         while not self.FSI.check_termination():

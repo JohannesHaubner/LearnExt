@@ -10,6 +10,9 @@ import solver
 sys.path.insert(1, '../learnExt')
 from NeuralNet.neural_network_custom import ANN, generate_weights
 from coeff_machine_learning import NN_der
+import numpy as np
+import pygmsh, meshio
+
 
 # create mesh: first create mesh by running ./create_mesh/create_mesh_FSI.py
 
@@ -53,16 +56,52 @@ ofile = File("../Output/Extension/output_func.pvd")
 input = Function(FS)
 output = Function(FS)
 
-i = 0
-error = False
-while i < 20 and not error:
-    try:
-        xdmf_input.read_checkpoint(input, "input", i)
-        ifile << input
-        xdmf_output.read_checkpoint(output, "output", i)
-        ofile << output
-        i = i+1
-        print(i)
-    except Exception as e:
-        print(e)
-        error = True
+##
+meshfile = XDMFFile("../Output/Mesh_Generation/mesh.xdmf")
+meshfile.write(fluid_domain)
+
+mesh = Mesh()
+with meshfile as meshfile:
+    meshfile.read(mesh)
+V = VectorFunctionSpace(mesh, "CG", 1)
+
+xdmf_input_sm = XDMFFile("../Output/Extension/Data/input_submesh.xdmf")
+xdmf_output_sm = XDMFFile("../Output/Extension/Data/output_submesh.xdmf")
+
+def project_data():
+    i = 0
+    error = False
+    while i < 200000 and not error:
+        try:
+            xdmf_input.read_checkpoint(input, "input", i)
+            input_proj = project(input, V)
+            ifile << input
+            xdmf_output.read_checkpoint(output, "output", i)
+            output_proj = project(output, V)
+            ofile << output
+            i = i + 1
+            print(i)
+            xdmf_input_sm.write_checkpoint(input_proj, "input", i, XDMFFile.Encoding.HDF5,
+                                             append=True)
+            xdmf_output_sm.write_checkpoint(output_proj, "output", i, XDMFFile.Encoding.HDF5, append=True)
+        except Exception as e:
+            print(e)
+            error = True
+
+def read_data():
+    i = 0
+    error = False
+    while i < 20 and not error:
+        try:
+            xdmf_input.read_checkpoint(input, "input", i)
+            ifile << input
+            xdmf_output.read_checkpoint(output, "output", i)
+            ofile << output
+            i = i+1
+            print(i)
+        except Exception as e:
+            print(e)
+            error = True
+
+
+project_data()
