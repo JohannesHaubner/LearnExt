@@ -14,6 +14,7 @@ from learn import threshold
 from coeff_machine_learning import NN_der
 import coeff_opt_control_new as opt_cont
 import coeff_machine_learning_new as opt_ml
+import os
 
 # create mesh: first create mesh by running ./create_mesh/create_mesh_FSI.py
 
@@ -98,7 +99,7 @@ zero_boundary_parts = ["no_slip"]
 
 # extension operator
 class LearnExtension(extension.ExtensionOperator):
-    def __init__(self, mesh, def_boundary_parts, zero_boundary_parts, params, boundaries):
+    def __init__(self, mesh, def_boundary_parts, zero_boundary_parts, params, boundaries, output_path):
         super().__init__(mesh)
 
         self.flag = False
@@ -113,11 +114,13 @@ class LearnExtension(extension.ExtensionOperator):
         T2 = VectorElement("CG", self.mesh.ufl_cell(), 2)
         self.FS = FunctionSpace(self.mesh, T)
         self.FS2 = FunctionSpace(self.mesh, T2)
-        output_directory = str("../Output/learnExt/results")
+        self.output_directory = output_path + "/learn"
+        import os
+        if not os.path.exists(self.output_directory):
+            os.mkdir(self.output_directory)
         self.counter = 0
         self.learned = False
         self.net = None
-        self.output_directory = output_directory
         self.NN_x = np.linspace(0, 15, 100)
         np.savetxt(self.output_directory + "/NN_x.txt", self.NN_x)
         self.NN_y = []
@@ -131,28 +134,35 @@ class LearnExtension(extension.ExtensionOperator):
 
     def custom(self, FSI):
         """ set options such that extension operator is learned"""
-        if FSI.dt / 2 < FSI.dt_min and FSI.t != self.t_FSI:
+        if FSI.dt < FSI.dt_min and FSI.t != self.t_FSI:
+            FSI.t = FSI.t - FSI.dt
             self.t_FSI = FSI.t
             FSI.dt = FSI.dt_max # reset time_step
             self.flag = True
             self.NN_times.append(FSI.t)
             np.savetxt(self.output_directory + "/NN_times.txt", self.NN_times)
+            return True
 
 
     def learn_NN(self, boundary_conditions):
-        self.counter +=1
+        self.counter += 1
         threshold = 0.001
+        # save boundary conditions
+        bc_filename = self.output_directory + "/" + str(self.counter) + "_boundary_conditions.xdmf"
+        self.xdmf_bc = XDMFFile(bc_filename)
+        self.xdmf_bc.write_checkpoint(boundary_conditions, "bc", 0, XDMFFile.Encoding.HDF5, append=True)
         # learn NN
         opt_cont.compute_optimal_coefficient_new(self.mesh, self.V, self.Vs, self.params, boundary_conditions,
                                                  self.def_boundary_parts, self.zero_boundary_parts, self.boundaries,
-                                                 self.output_directory)
+                                                 self.output_directory, net=self.net, threshold=threshold)
         output_path = self.output_directory + "/neural_network_" + str(self.counter) + ".pkl"
+        net_old = self.net
         self.net = opt_ml.compute_machine_learning_new(self.mesh, self.Vs, self.output_directory,
-                                                       output_path, threshold, net=self.net, threshold=threshold)
+                                                       output_path, threshold, net=self.net)
 
         opt_ml.visualize(self.mesh, self.V, self.Vs, self.params, boundary_conditions, self.def_boundary_parts,
                          self.zero_boundary_parts, self.boundaries, self.output_directory,
-                         threshold, net=self.net, counter=self.counter)
+                         threshold, net=self.net, counter=self.counter, net_old=net_old)
 
         self.NN_y.append([project(self.net(Constant(i)), self.Vs).vector().get_local()[0] for i in self.NN_x])
 
@@ -193,13 +203,19 @@ class LearnExtension(extension.ExtensionOperator):
 
         return u
 
-extension_operator = LearnExtension(fluid_domain, def_boundary_parts, zero_boundary_parts, params_ext, boundaries_ext)
+warmstart = False
+
+output_path = str('./../Output/FSIbenchmarkII_learn_adaptive')
+if not os.path.exists(output_path):
+    os.mkdir(output_path)
+
+extension_operator = LearnExtension(fluid_domain, def_boundary_parts, zero_boundary_parts, params_ext, boundaries_ext,
+                                    output_path)
 
 # save options
-FSI_param['save_directory'] = str('./../Output/FSIbenchmarkII_learnnew_adaptive') #no save if set to None
-#FSI_param['save_every_N_snapshot'] = 4 # save every 8th snapshot
+FSI_param['save_directory'] = output_path
 
 # initialize FSI solver
-fsisolver = solver.FSIsolver(mesh, boundaries, domains, params, FSI_param, extension_operator, warmstart=False)
+fsisolver = solver.FSIsolver(mesh, boundaries, domains, params, FSI_param, extension_operator, warmstart=warmstart)
 fsisolver.solve()
 

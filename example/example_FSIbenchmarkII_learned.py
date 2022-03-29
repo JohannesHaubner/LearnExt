@@ -78,7 +78,7 @@ class LearnExtension(extension.ExtensionOperator):
         self.FS2 = FunctionSpace(self.mesh, T2)
         self.incremental = False
         self.incremental_correct = False
-        self.bc_old = Function(self.FS)
+        self.bc_old = Function(self.FS2)
         output_directory = str("../example/learned_networks/")
         self.net = ANN(output_directory + "trained_network_supervised.pkl")
 
@@ -127,8 +127,10 @@ class LearnExtension(extension.ExtensionOperator):
 
         dx = Measure('dx', domain=self.mesh, metadata={'quadrature_degree': 4})
 
-        E = inner(crf.NN_der(threshold, inner(grad(self.bc_old), grad(self.bc_old)), self.net) * grad(u), grad(v)) * dx
-
+        if trafo:
+            E = inner(crf.NN_der(threshold, inner(grad(self.bc_old), grad(self.bc_old)), self.net) * grad(u), grad(v)) * dx
+        else:
+            E = inner(crf.NN_der(threshold, inner(grad(u), grad(u)), self.net) * grad(u), grad(v)) * dx
 
         # solve PDE
         if trafo:
@@ -155,10 +157,10 @@ class LearnExtension(extension.ExtensionOperator):
 extension_operator = LearnExtension(fluid_domain)
 
 # save options
-FSI_param['save_directory'] = str('./../Output/FSIbenchmarkII_supervised') #no save if set to None
+FSI_param['save_directory'] = str('./../Output/FSIbenchmarkII_supervised_230322') #no save if set to None
 #FSI_param['save_every_N_snapshot'] = 4 # save every 8th snapshot
 
 # initialize FSI solver
-fsisolver = solver.FSIsolver(mesh, boundaries, domains, params, FSI_param, extension_operator, warmstart=False)
+fsisolver = solver.FSIsolver(mesh, boundaries, domains, params, FSI_param, extension_operator, warmstart=True)
 fsisolver.solve()
 

@@ -53,14 +53,15 @@ params["zero_boundary_parts"] = ["no_slip"]
 
 V_mesh = VectorFunctionSpace(mesh, "CG", 2)
 
-option_data = 1
+option_data = True
+option_data_1 = True
 # 0 one measurement
 # 1 several measurements
 
 # read data
-if option_data == 0:
+if option_data_1:
     deformation = Function(V_mesh)
-    def_file_name = "../Output/files/learn_trafo_part3/states.xdmf" # "./Mesh/deformation.xdmf"
+    def_file_name = "../Output/Extension/Data/states.xdmf" # "./Mesh/deformation.xdmf"
     with XDMFFile(def_file_name) as infile:
         infile.read_checkpoint(deformation, "u")
     # biharmonic extension
@@ -68,7 +69,10 @@ if option_data == 0:
     ext_deformation = Biharmonic.extend(deformation)
     deformation = [deformation]
     ext_deformation = [ext_deformation]
-elif option_data == 1:
+else:
+    deformation = []
+    ext_deformation = []
+if option_data:
     # function space
     T = VectorElement("CG", fluid_domain.ufl_cell(), 2)
     FS = FunctionSpace(fluid_domain, T)
@@ -78,9 +82,6 @@ elif option_data == 1:
 
     ifile = File("../Output/Extension/input_func.pvd")
     ofile = File("../Output/Extension/output_func.pvd")
-
-    deformation = []
-    ext_deformation = []
 
     i = 0
     error = False
