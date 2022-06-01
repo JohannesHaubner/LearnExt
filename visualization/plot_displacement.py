@@ -7,53 +7,58 @@ import numpy as np
 #pl.axis([0,15, -0.1, 0.1])
 #pl.savefig('./displacement_plot.png')
 
-colors = [np.asarray([0, 101, 189])*1./255,
-            np.asarray([227, 114, 34])*1./255]
-         #np.asarray([218, 215, 213])*1./255]#,
-         # np.asarray([227, 114, 34])*1./255,
-         # np.asarray([0, 0, 0])*1./255
-         #]
+colors = [np.asarray([218, 215, 213])*1./255,
+          np.asarray([0, 101, 189])*1./255,
+          np.asarray([0, 0, 0])*1./255,
+          np.asarray([227, 114, 34])*1./255
+          ]
 
 def plot_displacement(list, times, str, colors, foldernames):
-    if len(list)>2:
+    if False: #len(list)>2:
         colors = [(len(list)-i)/(len(list))*colors[0] + i/(len(list))*colors[1] for i in range(len(list)+1)]
     for i in range(len(list)):
-        pl.plot(times[i], list[i], linewidth=0.6, label=foldernames[i])
-        #pl.plot(times[i], list[i], color = colors[i], linewidth=0.6)
+        #pl.plot(times[i], list[i], linewidth=0.6, label=foldernames[i])
+        pl.plot(times[i], list[i], color = colors[i], linewidth=0.6, label=foldernames[i])
     pl.axis([0, 15, -0.1, 0.1])
-    pl.legend()
+    pl.legend(loc='lower left')
+    pl.xlabel("time")
+    pl.ylabel("y-displacement of tip of the flap")
     pl.savefig(str)
     pl.close()
 
 def plot_determinant(list, times, str, colors, foldernames):
-    if len(list) > 2:
+    if False: #len(list) > 2:
         colors = [(len(list)-i)/(len(list))*colors[0] + i/(len(list))*colors[1] for i in range(len(list)+1)]
     for i in range(len(list)):
-        pl.plot(times[i], list[i], linewidth=0.6, label=foldernames[i])
-        # pl.plot(times[i], list[i], color = colors[i], linewidth=0.6)
+        #pl.plot(times[i], list[i], linewidth=0.6, label=foldernames[i])
+        pl.plot(times[i], list[i], color = colors[i], linewidth=0.6, label=foldernames[i])
     pl.axis([0, 15, -0.1, 1.1])
-    pl.legend()
+    pl.legend(loc='lower left')
+    pl.xlabel("time")
+    pl.ylabel("minimal determinant of deformation gradient")
     pl.savefig(str)
     pl.close()
 
 def plot_timestep(times, str, colors, foldernames):
-    if len(times) > 1:
+    if False: #len(times) > 1:
         colors = [(len(times) - i) / (len(times)) * colors[0] + i / (len(times)) * colors[1] for i in
                   range(len(times)+1)]
     times_max = times[0][0] # assume that first time step of first simulation is the maximal timestep
     for i in range(len(times)):
         times_diff = [times[i][k+1] - times[i][k] for k in range(len(times[i])-1)]
         times_mid = [0.5*(times[i][k+1] + times[i][k]) for k in range(len(times[i])-1)]
-        pl.plot(times_mid, times_diff, linewidth=0.6, label=foldernames[i])
-        #pl.plot(times_mid, times_diff, color=colors[i], linewidth=0.6)
+        #pl.plot(times_mid, times_diff, linewidth=0.6, label=foldernames[i])
+        pl.plot(times_mid, times_diff, color=colors[i], linewidth=0.6, label=foldernames[i])
         pl.axis([0, 15, 0.0, 0.011])
-    pl.legend()
+    pl.legend(loc='lower left')
+    pl.xlabel("time")
+    pl.ylabel("time-step size")
     pl.savefig(str)
     pl.close()
 
 if __name__ == "__main__":
-    foldernames = ["biharmonic",   "harmonic_notrafo", "supervised_learn/incremental", "supervised_learn/standard"] #, "learning"]
-    names= ["biharmonic",   "harmonic", "learned/incremental", "learned/standard"]
+    foldernames = ["biharmonic", "supervised_learn/standard", "supervised_learn/incremental", "supervised_learn/lintraf_correct"] # ["biharmonic", "harmonic_trafo", "harmonic_notrafo"] #
+    names=  ["biharmonic", "learned", "learned linear incremental", "learned linear incremental corrected"] #["biharmonic", "harmonic incremental", "harmonic"]
 
     times_list = []
     displacement_list = []

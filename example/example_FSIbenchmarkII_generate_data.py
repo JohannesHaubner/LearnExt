@@ -113,7 +113,15 @@ class Biharmonic_DataGeneration(extension.ExtensionOperator):
 
         return u_
 
-extension_operator = Biharmonic_DataGeneration(fluid_domain)
+# hacky solution:
+meshfile = XDMFFile("../Output/Mesh_Generation/mesh.xdmf")
+mesh = Mesh()
+with meshfile as meshfile:
+    meshfile.read(mesh)
+
+extension_operator = Biharmonic_DataGeneration(mesh)
+
+breakpoint()
 
 # save options
 FSI_param['save_directory'] = str('./../Output/FSIbenchmarkII_generate_data') #no save if set to None

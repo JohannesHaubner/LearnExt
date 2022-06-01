@@ -75,15 +75,24 @@ class Harmonic(extension.ExtensionOperator):
         T2 = VectorElement("CG", self.mesh.ufl_cell(), 2)
         self.FS = FunctionSpace(self.mesh, T)
         self.FS2 = FunctionSpace(self.mesh, T2)
+        self.trafo = True
+        if self.trafo:
+            self.bc_old = Function(self.FS2)
         output_directory = str("../Output/learnExt/results/")
 
-    def extend(self, boundary_conditions):
+    def extend(self, boundary_conditions, params=None):
         """ harmonic extension of boundary_conditions (Function on self.mesh) to the interior """
 
         save_ext = True
         if save_ext:
             file = File('../Output/Extension/function.pvd')
             file << boundary_conditions
+
+        if self.trafo:
+            self.bc_old = boundary_conditions
+            up = project(self.bc_old, self.FS2)
+            upi = project(-1.0*up, self.FS2)
+            ALE.move(self.mesh, up, annotate=False)
 
         u = Function(self.FS2)
         v = TestFunction(self.FS2)
@@ -100,13 +109,15 @@ class Harmonic(extension.ExtensionOperator):
 
         if save_ext:
             file << u
+        if self.trafo:
+            ALE.move(self.mesh, upi, annotate=False)
 
         return u
 
-extension_operator = LearnExtension(fluid_domain)
+extension_operator = Harmonic(fluid_domain)
 
 # save options
-FSI_param['save_directory'] = str('./../Output/FSIbenchmarkII_learnnew_adaptive') #no save if set to None
+FSI_param['save_directory'] = str('./../Output/FSIbenchmarkII_harmonic_trafo_adaptive_t') #no save if set to None
 #FSI_param['save_every_N_snapshot'] = 4 # save every 8th snapshot
 
 # initialize FSI solver

@@ -70,8 +70,8 @@ class Custom_Reduced_Functional(object):
 
             if output_flag:
                 urefj = project(uref[j], u.function_space(), annotate=False)
-                J += assemble(inner(u - urefj, u - urefj)*dx + inner(grad(u - urefj), grad(u - urefj))*dx
-                              + inner(u - urefj, u - urefj)*ds)
+                J += assemble(inner(u - urefj, u - urefj)*dx + inner(grad(u - urefj), grad(u - urefj))*dx)
+                #              + inner(u - urefj, u - urefj)*ds)
             else:
                 J += assemble(pow((1.0 / (det(Identity(2) + grad(u))) + det(Identity(2) + grad(u))), 2) * ds(2)
                              + inner(grad(det(Identity(2) + grad(u))), grad(det(Identity(2) + grad(u)))) * ds(2)
