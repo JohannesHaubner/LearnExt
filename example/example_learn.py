@@ -62,8 +62,11 @@ option_data_1 = True
 if option_data_1:
     deformation = Function(V_mesh)
     def_file_name = "../Output/Extension/Data/output_.xdmf" # "./Mesh/deformation.xdmf"
-    with XDMFFile(def_file_name) as infile:
-        infile.read_checkpoint(deformation, "output")
+    try:
+        with XDMFFile(def_file_name) as infile:
+            infile.read_checkpoint(deformation, "output")
+    except ImportError:
+        print("run example_FSIbenchmarkII_generate_data.py first")
     # biharmonic extension
     Biharmonic = Biharmonic(fluid_domain)
     ext_deformation = Biharmonic.extend(deformation)
