@@ -10,7 +10,7 @@ sys.path.insert(1, '../learnExt')
 
 from NeuralNet.neural_network_custom import ANN, generate_weights, NN
 #from NeuralNet.neural_network_orig import NN as NN_orig
-from learnext import LearnExt
+from learnext_hybridPDENN import LearnExt
 from learnext_hybridPDENN import Custom_Reduced_Functional as crf
 
 sys.path.insert(1, '../example')
