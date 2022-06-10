@@ -3,7 +3,7 @@
 # LearnExt
 
 Code repository for the manuscript
-> J. Haubner, M. Kuchta: Learning a Mesh Motion Technique with Application to Fluid-Structure Interaction and Shape Optimization
+> J. Haubner, M. Kuchta: Learning a Mesh Motion Technique with Application to Fluid-Structure Interaction and Shape Optimization, arXiv preprint arXiv:2206.02217
 
 ## Usage/Examples
 
