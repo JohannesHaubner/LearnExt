@@ -12,9 +12,7 @@ RUN apt-get update \
 # http://www.coin-or.org/Ipopt/documentation/node10.html
 ##################
 RUN wget http://www.coin-or.org/download/source/Ipopt/Ipopt-3.12.6.tgz && \
-    gunzip Ipopt-3.12.6.tgz && \
-    tar -xvf Ipopt-3.12.6.tar && \
-    rm -rf Ipopt-3.12.6.tar && \
+    tar zxvf Ipopt-3.12.6.tgz && \
     mv Ipopt-3.12.6 CoinIpopt && \
     cd CoinIpopt && \
 # Downloading BLAS, LPACK, and ASL
@@ -25,9 +23,13 @@ RUN wget http://www.coin-or.org/download/source/Ipopt/Ipopt-3.12.6.tgz && \
     cd ../Lapack && \
         ./get.Lapack && \
     cd ../Mumps && \
+        sed -i "s/http:\/\/mumps.enseeiht.fr/ https:\/\/src.fedoraproject.org\/lookaside\/extras\/MUMPS\/MUMPS_4.10.0.tar.gz\/959e9981b606cd574f713b8422ef0d9f/g" get.Mumps && \
         ./get.Mumps && \
 # Get METIS
     cd ../Metis && \
+        sed -i "s/http:\/\/glaros.dtc.umn.edu\/gkhome\/fetch\/sw\/metis\/OLD\/metis-4.0.3.tar.gz/https:\/\/src.fedoraproject.org\/lookaside\/pkgs\/metis\/metis-5.1.0.tar.gz\/5465e67079419a69e0116de24fce58fe\/metis-5.1.0.tar.gz/g" get.Metis && \
+        sed -i "s/metis-4.0.3/metis-5.1.0/g" get.Metis && \
+        sed -i "s/metis-4.0/metis-5.1/g" get.Metis && \
         ./get.Metis && \
 ##################
 # Compile ipoptr
