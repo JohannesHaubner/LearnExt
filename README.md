@@ -23,7 +23,7 @@ docker run -it ghcr.io/johanneshaubner/learnext:release
 
 The code in learnExt/NeuralNet builds on https://github.com/sebastkm/hybrid-fem-nn. The code in example/example_turtleFSI.py builds on the example presented in https://github.com/KVSlab/turtleFSI.
 
-Install the required version of FEniCS and dolfin-adjoint and run the commands
+In the Docker container, run the commands
 
 ```
 cd example
