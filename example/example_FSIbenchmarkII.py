@@ -1,6 +1,6 @@
 from dolfin import *
 import numpy as np
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 
 import sys
 sys.path.insert(1, '../FSIsolver/extension_operator')
