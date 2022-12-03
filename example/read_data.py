@@ -9,7 +9,7 @@ sys.path.insert(1, '../FSIsolver/fsi_solver')
 import solver
 sys.path.insert(1, '../learnExt')
 from NeuralNet.neural_network_custom import ANN, generate_weights
-from coeff_machine_learning import NN_der
+
 import numpy as np
 import pygmsh, meshio
 

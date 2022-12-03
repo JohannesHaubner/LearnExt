@@ -2,7 +2,7 @@ from fenics import *
 from fenics_adjoint import *
 import ufl
 import numpy as np
-from IPython import embed
+#from IPython import embed
 from numpy.random import randn, random, seed
 #seed(10)
 import dill as pickle
