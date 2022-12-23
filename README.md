@@ -1,4 +1,4 @@
-[![MIT License](https://img.shields.io/apm/l/atomic-design-ui.svg?style=plastic)](https://choosealicense.com/licenses/mit/)
+[![MIT License](https://img.shields.io/github/license/JohannesHaubner/LearnExt)](https://choosealicense.com/licenses/mit/)
 
 # LearnExt
 
