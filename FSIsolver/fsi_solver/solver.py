@@ -288,23 +288,34 @@ class FSI(Context):
         return u
 
     def solve_system(self, vp, vp_, u, u_, option):
-        if not hasattr(self, 'nvs_solver'):
+        if not hasattr(self, 'nvs_solver0'):
             print('compile self.nvs_solver')
             vp.vector()[:] = vp_.vector()[:]
             psi = TestFunction(vp_.function_space())
 
             bc = self.get_boundary_conditions(vp_.function_space())
-            F = self.get_weak_form(vp, vp_, u, u_, psi, option)
-            Jac = derivative(F, vp)
-            nv_problem = NonlinearVariationalProblem(F, vp, bc, J=Jac)
-            self.nvs_solver = NonlinearVariationalSolver(nv_problem)
+            F0 = self.get_weak_form(vp, vp_, u, u_, psi, 0)
+            F1 = self.get_weak_form(vp, vp_, u, u_, psi, 1)
+            Jac0 = derivative(F0, vp)
+            Jac1 = derivative(F1, vp)
+            nv_problem0 = NonlinearVariationalProblem(F0, vp, bc, J=Jac0)
+            nv_problem1 = NonlinearVariationalProblem(F1, vp, bc, J=Jac1)
+            self.nvs_solver0 = NonlinearVariationalSolver(nv_problem0)
+            self.nvs_solver1 = NonlinearVariationalSolver(nv_problem1)
             solver_parameters = {"nonlinear_solver": "newton", "newton_solver": {"maximum_iterations": 10}}
-            self.nvs_solver.parameters.update(solver_parameters)
+            self.nvs_solver0.parameters.update(solver_parameters)
+            self.nvs_solver1.parameters.update(solver_parameters)
             print('solve nonlinear system')
-            self.nvs_solver.solve()
+            if option == 0:
+                self.nvs_solver0.solve()
+            elif option == 1:
+                self.nvs_solver1.solve()
         else:
             print('solve nonlinear system')
-            self.nvs_solver.solve()
+            if option == 0:
+                self.nvs_solver0.solve()
+            elif option == 1:
+                self.nvs_solver1.solve()
         return vp
 
     def get_boundary_conditions(self, VP):
