@@ -127,6 +127,26 @@ class FSI(Context):
         self.dxf = dx(self.param["fluid"])
         self.dxs = dx(self.param["solid"])
 
+        # define projectors
+        # initialize projectors
+        class Projector():
+            def __init__(self, V):
+                self.v = TestFunction(V)
+                u = TrialFunction(V)
+                form = inner(u, self.v)*dx
+                self.A = assemble(form)
+                self.solver = LUSolver(self.A)
+                self.uh = Function(V)
+            def project(self, f):
+                L = inner(f, self.v)*dx
+                b = assemble(L)
+                self.solver.solve(self.uh.vector(), b)
+                return self.uh
+
+        self.projectorP = Projector(FunctionSpace(mesh, "CG", 1))
+        self.projectorV = Projector(VectorFunctionSpace(mesh, "CG", 1))
+        self.projectorV0 = Projector(FunctionSpace(mesh, "DG", 0))
+        self.projectorU = Projector(VectorFunctionSpace(mesh, "CG", 2))
 
     def warmstart(self, t):
         self.warmstart = True
@@ -160,7 +180,7 @@ class FSI(Context):
         assign(vp_.sub(1), p_)
         t = np.load(self.time_load)
         self.warmstart(t)
-        ui = project(-1.0*u, u.function_space())
+        ui = self.projectorU.project(-1.0*u)
         ALE.move(self.mesh, u, annotate=False)
         file = File(self.savedir + '/test.pvd')
         file << vp
@@ -191,7 +211,7 @@ class FSI(Context):
                     ALE.move(self.mesh, u, annotate=False)
                 except:
                     ALE.move(self.mesh, u)
-                pp = project(p - pmed / vol * Constant("1.0"), p.function_space())
+                pp = self.projectorP.project(p - pmed / vol * Constant("1.0"))
                 v.rename("velocity", "velocity")
                 p.rename("pressure", "pressure")
                 self.pfile << p
@@ -235,8 +255,8 @@ class FSI(Context):
             if save_det == True:
                 V = VectorFunctionSpace(u.function_space().mesh(), "CG", 1)
                 V0 = FunctionSpace(u.function_space().mesh(), "DG", 0)
-                up = project(u, V)
-                det_u = project(det(Identity(2) + grad(up)), V0)
+                up = self.projectorV.project(u)
+                det_u = self.projectorV0.project(det(Identity(2) + grad(up)))
                 self.determinant_deformation.append(det_u.vector().min())
                 np.savetxt(self.determinant_filename, self.determinant_deformation)
         except:
@@ -269,17 +289,25 @@ class FSI(Context):
         return u
 
     def solve_system(self, vp_, u, u_, option):
-        vp = Function(vp_.function_space())
-        vp.vector()[:] = vp_.vector()[:]
-        psi = TestFunction(vp_.function_space())
+        if not hasattr(self, 'nvs_solver'):
+            print('compile self.nvs_solver')
+            self.vp = Function(vp_.function_space())
+            self.vp.vector()[:] = vp_.vector()[:]
+            psi = TestFunction(vp_.function_space())
 
-        bc = self.get_boundary_conditions(vp_.function_space())
-        F = self.get_weak_form(vp, vp_, u, u_, psi, option)
-
-        solve(F == 0, vp, bc, solver_parameters={"nonlinear_solver": "newton", "newton_solver":
-            {"maximum_iterations": 20}})
-
-        return vp
+            bc = self.get_boundary_conditions(vp_.function_space())
+            F = self.get_weak_form(self.vp, vp_, u, u_, psi, option)
+            Jac = derivative(F, self.vp)
+            nv_problem = NonlinearVariationalProblem(F, self.vp, bc, J=Jac)
+            self.nvs_solver = NonlinearVariationalSolver(nv_problem)
+            solver_parameters = {"nonlinear_solver": "newton", "newton_solver": {"maximum_iterations": 10}}
+            self.nvs_solver.parameters.update(solver_parameters)
+            print('solve nonlinear system')
+            self.nvs_solver.solve()
+        else:
+            print('solve nonlinear system')
+            self.nvs_solver.solve()
+        return self.vp
 
     def get_boundary_conditions(self, VP):
         """

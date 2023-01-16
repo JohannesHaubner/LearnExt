@@ -3,6 +3,9 @@ from ogs5py import OGS
 import pygmsh, meshio
 import h5py
 
+from pathlib import Path
+here = Path(__file__).parent.resolve()
+
 # resolution
 resolution = 0.025  #0.05 #1 # 0.005 #0.1
 
@@ -43,8 +46,8 @@ geom_prop = {"barycenter_hold_all_domain": [0.5*L, 0.5*H],
              "heigth_pipe": H,
              "barycenter_obstacle": [ c[0], c[1]],
              }
-np.save('../../Output/Mesh_Generation/params.npy', params)
-np.save('../../Output/Mesh_Generation/geom_prop.npy', geom_prop)
+np.save(str(here.parent.parent) + '/Output/Mesh_Generation/params.npy', params)
+np.save(str(here.parent.parent) + '/Output/Mesh_Generation/geom_prop.npy', geom_prop)
 
 # Initialize empty geometry using the build in kernel in GMSH
 geometry = pygmsh.geo.Geometry()
@@ -105,27 +108,28 @@ model.add_physical([plane_surface2], "solid") # mark solid domain with 7
 
 geometry.generate_mesh(dim=2)
 import gmsh
-gmsh.write("../../Output/Mesh_Generation/mesh.msh")
+gmsh.write(str(here.parent.parent) + "/Output/Mesh_Generation/mesh.msh")
 gmsh.clear()
 geometry.__exit__()
 
 import meshio
-mesh_from_file = meshio.read("../../Output/Mesh_Generation/mesh.msh")
+mesh_from_file = meshio.read(str(here.parent.parent) + "/Output/Mesh_Generation/mesh.msh")
 
 import numpy
-def create_mesh(mesh, cell_type, prune_z=False):
+def create_mesh(mesh: meshio.Mesh, cell_type: str, data_name: str = "name_to_read",
+                prune_z: bool = False):
     cells = mesh.get_cells_type(cell_type)
     cell_data = mesh.get_cell_data("gmsh:physical", cell_type)
-    out_mesh = meshio.Mesh(points=mesh.points, cells={cell_type: cells}, cell_data={"name_to_read":[cell_data]})
-    if prune_z:
-        out_mesh.prune_z_0()
-    return out_mesh
+    points = mesh.points[:, :2] if prune_z else mesh.points
+    out_mesh = meshio.Mesh(points=points, cells={cell_type: cells}, cell_data={
+                           data_name: [cell_data]})
+    return out_mesh #https://fenicsproject.discourse.group/t/what-is-wrong-with-my-mesh/7504/8
 
 line_mesh = create_mesh(mesh_from_file, "line", prune_z=True)
-meshio.write("../../Output/Mesh_Generation/facet_mesh.xdmf", line_mesh)
+meshio.write(str(here.parent.parent) + "/Output/Mesh_Generation/facet_mesh.xdmf", line_mesh)
 
 triangle_mesh = create_mesh(mesh_from_file, "triangle", prune_z=True)
-meshio.write("../../Output/Mesh_Generation/mesh_triangles.xdmf", triangle_mesh)
+meshio.write(str(here.parent.parent) + "/Output/Mesh_Generation/mesh_triangles.xdmf", triangle_mesh)
 
 #mesh = line_mesh
 #mesh_boundary = meshio.Mesh(points=mesh.points,
