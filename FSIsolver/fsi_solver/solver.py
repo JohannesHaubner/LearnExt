@@ -263,8 +263,7 @@ class FSI(Context):
             print('Maximum determinant value can not be saved.')
 
 
-    def get_deformation(self, vp, vp_, u_, b_old=None):
-        u = Function(u_.function_space())
+    def get_deformation(self, vp, vp_, u, u_, b_old=None):
         (v_, p_) = vp_.split(deepcopy=True)
         (v, p) = vp.split(deepcopy=True)
         u.vector()[:] = u_.vector()[:] + self.dt*((1-self.theta)*v_.vector()[:] + self.theta*v.vector()[:])
@@ -288,17 +287,16 @@ class FSI(Context):
         u = transfer_subfunction_to_parent(unew, u)
         return u
 
-    def solve_system(self, vp_, u, u_, option):
+    def solve_system(self, vp, vp_, u, u_, option):
         if not hasattr(self, 'nvs_solver'):
             print('compile self.nvs_solver')
-            self.vp = Function(vp_.function_space())
-            self.vp.vector()[:] = vp_.vector()[:]
+            vp.vector()[:] = vp_.vector()[:]
             psi = TestFunction(vp_.function_space())
 
             bc = self.get_boundary_conditions(vp_.function_space())
-            F = self.get_weak_form(self.vp, vp_, u, u_, psi, option)
-            Jac = derivative(F, self.vp)
-            nv_problem = NonlinearVariationalProblem(F, self.vp, bc, J=Jac)
+            F = self.get_weak_form(vp, vp_, u, u_, psi, option)
+            Jac = derivative(F, vp)
+            nv_problem = NonlinearVariationalProblem(F, vp, bc, J=Jac)
             self.nvs_solver = NonlinearVariationalSolver(nv_problem)
             solver_parameters = {"nonlinear_solver": "newton", "newton_solver": {"maximum_iterations": 10}}
             self.nvs_solver.parameters.update(solver_parameters)
@@ -307,7 +305,7 @@ class FSI(Context):
         else:
             print('solve nonlinear system')
             self.nvs_solver.solve()
-        return self.vp
+        return vp
 
     def get_boundary_conditions(self, VP):
         """
@@ -483,21 +481,17 @@ class FSIsolver(Solver):
 
         self.U = VectorFunctionSpace(mesh, "CG", 2)
 
+        # velocity and pressure
+        self.vp = Function(self.VP)
+        self.vp_ = Function(self.VP) # previous time-step
+        # deformation
+        self.u = Function(self.U)
+        self.u_ = Function(self.U)  # previous time-step
+
         # FSI
         self.FSI = FSI(self.mesh, self.boundaries, self.domains, self.param, self.FSI_params, self.extension_operator)
 
     def solve(self):
-        # velocity and pressure
-        vp = Function(self.VP)
-        vp_ = Function(self.VP)    # previous time-step
-
-        # deformation
-        u = Function(self.U)
-        u_ = Function(self.U)      # previous time-step
-
-        #vp__ = Function(self.VP)
-        #u__ = Function(self.U)
-
         if self.warmstart:
             self.FSI.displacement = np.loadtxt(self.ws_path + "/displacementy.txt").tolist()[:-1]
             self.FSI.determinant_deformation = np.loadtxt(self.ws_path + "/determinant.txt").tolist()[:-1]
@@ -507,26 +501,26 @@ class FSIsolver(Solver):
             u.assign(self.FSI.get_deformation(zero, zero, u, b_old=u_))
             #file_test = File(self.ws_path + '/test_u.pvd')
             #file_test << u
-            vp.assign(self.FSI.solve_system(vp_, u, u_, 1))
+            vp.assign(self.FSI.solve_system(self.vp_, self.u, self.u_, 1))
 
         while not self.FSI.check_termination():
-            self.FSI.save_snapshot(vp, u)
-            self.FSI.save_displacement(u, save_det=True)
+            self.FSI.save_snapshot(self.vp, self.u)
+            self.FSI.save_displacement(self.u, save_det=True)
 
-            self.FSI.save_states(u, u_, vp, vp_)
+            self.FSI.save_states(self.u, self.u_, self.vp, self.vp_)
 
             #u__.assign(u_)
             #vp__.assign(vp_)
-            u_.assign(u)
-            vp_.assign(vp)
+            self.u_.assign(self.u)
+            self.vp_.assign(self.vp)
 
             while not self.FSI.check_timestep_success():
                 self.FSI.advance_time()
                 print(self.FSI.t, self.FSI.dt)
                 try:
-                    vp.assign(self.FSI.solve_system(vp_, u, u_, 0))   #u = u_ here in this system
-                    u.assign(self.FSI.get_deformation(vp, vp_, u_))
-                    vp.assign(self.FSI.solve_system(vp_, u, u_, 1))
+                    self.vp.assign(self.FSI.solve_system(self.vp, self.vp_, self.u, self.u_, 0))   #u = u_ here in this system
+                    self.u.assign(self.FSI.get_deformation(self.vp, self.vp_, self.u, self.u_))
+                    self.vp.assign(self.FSI.solve_system(self.vp, self.vp_, self.u, self.u_, 1))
                     self.FSI.timestep_success()
                     self.FSI.adapt_dt()
                 except Exception as e:
@@ -534,7 +528,7 @@ class FSIsolver(Solver):
                     self.FSI.adapt_dt()
                     flag = self.extension_operator.custom(self.FSI)
                     if flag == True:
-                        u_.assign(self.FSI.get_deformation(vp, vp_, u_))
+                        self.u_.assign(self.FSI.get_deformation(self.vp, self.vp_, self.u_))
 
             if self.FSI.success == False:
                 raise ValueError('System not solvable with minimal time-step size.')
