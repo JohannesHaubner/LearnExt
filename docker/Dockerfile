@@ -117,10 +117,9 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
 
 RUN /bin/bash -l -c "pip3 install --upgrade numpy"
 RUN /bin/bash -l -c "pip3 install h5py --no-binary=h5py"
-RUN /bin/bash -l -c "pip install --upgrade --user setuptools==58.3.0"
 
 # Install Python packages (via pip)
-RUN python3 -m pip install --upgrade pip setuptools
+RUN python3 -m pip install --upgrade pip setuptools=58.3.0
 RUN python3 -m pip install pytest pkgconfig
 RUN python3 -m pip install --no-cache-dir mpi4py
 
