@@ -2,10 +2,10 @@ from dolfin import *
 from dolfin_adjoint import *
 from pathlib import Path
 
-from optimization_custom.ipopt_solver import IPOPTSolver_, IPOPTProblem_
-from optimization_custom.preprocessing import Preprocessing
+from .optimization_custom.ipopt_solver import IPOPTSolver_, IPOPTProblem_
+from .optimization_custom.preprocessing import Preprocessing
 
-from NeuralNet.neural_network_custom import ANN, generate_weights
+from .NeuralNet.neural_network_custom import ANN, generate_weights
 import numpy as np
 from pyadjoint.enlisting import Enlist
 from pyadjoint.reduced_functional_numpy import ReducedFunctionalNumPy
@@ -13,7 +13,7 @@ import scipy.sparse as sps
 
 import matplotlib.pyplot as plt
 
-from NeuralNet.tools import *
+from .NeuralNet.tools import *
 
 #import moola
 
