@@ -309,6 +309,7 @@ RUN python3 -m pip --no-cache-dir install torch-tensorrt==v1.3.0 \
     -f https://github.com/pytorch/TensorRT/releases/expanded_assets/v1.3.0
 
 RUN python3 -m pip --no-cache-dir install ogs5py
+RUN python3 -m pip --no-cache-dir install dill
 
 
 
