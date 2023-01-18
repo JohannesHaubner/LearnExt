@@ -1,3 +1,4 @@
+
 import sympy as sym
 from dolfin import *
 import numpy as np
@@ -83,27 +84,6 @@ class FSI(Context):
         self.dxf = dx(self.param["fluid"])
         self.dxs = dx(self.param["solid"])
 
-        # define projectors
-        # initialize projectors
-        class Projector():
-            def __init__(self, V):
-                self.v = TestFunction(V)
-                u = TrialFunction(V)
-                form = inner(u, self.v)*dx
-                self.A = assemble(form)
-                self.solver = LUSolver(self.A)
-                self.uh = Function(V)
-            def project(self, f):
-                L = inner(f, self.v)*dx
-                b = assemble(L)
-                self.solver.solve(self.uh.vector(), b)
-                return self.uh
-
-        self.projectorP = Projector(FunctionSpace(mesh, "CG", 1))
-        self.projectorV = Projector(VectorFunctionSpace(mesh, "CG", 1))
-        self.projectorV0 = Projector(FunctionSpace(mesh, "DG", 0))
-        self.projectorU = Projector(VectorFunctionSpace(mesh, "CG", 2))
-
     def save_snapshot(self, vpu):
         if self.savedir == None:
             pass
@@ -115,7 +95,7 @@ class FSI(Context):
 
                 # save velocity and pressure
                 (v, p, u) = vpu.split(deepcopy=True)
-                u = self.projectorU.project(u) 
+                u = project(u, u.function_space())
                 # save displacement
                 u.rename("displacement", "displacement")
                 self.dfile << u
@@ -127,7 +107,7 @@ class FSI(Context):
                     ALE.move(self.mesh, u, annotate=False)
                 except:
                     ALE.move(self.mesh, u)
-                pp = self.projectorP.project(p- pmed/vol*Constant(1.0)) 
+                pp = project(p - pmed / vol * Constant("1.0"), p.function_space())
                 v.rename("velocity", "velocity")
                 p.rename("pressure", "pressure")
                 self.pfile << p
@@ -165,31 +145,24 @@ class FSI(Context):
                   ' Does folder exist where .txt-file should be saved to?')
         try:
             if save_det == True:
-                det_u = self.projectorP.project(det(Identity(2) + grad(u)))
+                V = FunctionSpace(u.function_space().mesh(), "CG", 1)
+                det_u = project(det(Identity(2) + grad(u)), V)
                 self.determinant_deformation.append(det_u.vector().min())
                 np.savetxt(self.determinant_filename, self.determinant_deformation)
         except:
             print('Maximum determinant value can not be saved.')
 
 
-    def solve_system(self, vpu, vpu_):
-        if not hasattr(self, 'nvs_solver0'):
-            print('compile self.nvs_solver')
-            vpu.vector()[:] = vpu_.vector()[:]
-            psi = TestFunction(vpu_.function_space())
+    def solve_system(self, vpu_):
+        vpu = Function(vpu_.function_space())
+        vpu.vector()[:] = vpu_.vector()[:]
+        psi = TestFunction(vpu_.function_space())
 
-            bc = self.get_boundary_conditions(vpu_.function_space())
-            F = self.get_weak_form(vpu, vpu_, psi)
-            Jac = derivative(F, vpu)
-            nv_problem = NonlinearVariationalProblem(F, vpu, bc, J=Jac)
-            self.nvs_solver = NonlinearVariationalSolver(nv_problem)
-            solver_parameters = {"nonlinear_solver": "newton", "newton_solver": {"maximum_iterations": 10}}
-            self.nvs_solver.parameters.update(solver_parameters)
-            print('solve nonlinear system')
-            self.nvs_solver.solve()
-        else:
-            print('solve nonlinear system')
-            self.nvs_solver.solve()
+        bc = self.get_boundary_conditions(vpu_.function_space())
+        F = self.get_weak_form(vpu, vpu_, psi)
+
+        solve(F == 0, vpu, bc, solver_parameters={"nonlinear_solver": "newton", "newton_solver":
+            {"maximum_iterations": 20}})
 
         return vpu
 
@@ -353,11 +326,11 @@ class FSIsolver(Solver):
 
             # save u_ as xdmf, in order to be able to 'learn' extension from here
             (v, p, u) = vpu.split(deepcopy=True)
-            u2 = self.FSI.projectorU.project(u)
-            self.xdmf.write_checkpoint(u2, "u", 0, append=True)
+            u = project(u, u.function_space())
+            self.xdmf.write_checkpoint(u, "u", 0, append=True)
 
             vpu_.assign(vpu)
-            vpu.assign(self.FSI.solve_system(vpu, vpu_))
+            vpu.assign(self.FSI.solve_system(vpu_))
 
 
 
