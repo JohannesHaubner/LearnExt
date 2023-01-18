@@ -163,7 +163,7 @@ class FSI(Context):
         self.xdmf_states.write_checkpoint(p, "p", 0, XDMFFile.Encoding.HDF5, append=True)
         self.xdmf_states.write_checkpoint(p_, "p_", 0, XDMFFile.Encoding.HDF5, append=True)
         np.save(self.time_save, self.t)
-        return u, u_, vp, vp_
+        pass
 
     def load_states(self, u, u_, vp, vp_):
         v, p = vp.split(deepcopy=True)
@@ -181,12 +181,18 @@ class FSI(Context):
         t = np.load(self.time_load)
         self.warmstart(t)
         ui = self.projectorU.project(-1.0*u)
-        ALE.move(self.mesh, u, annotate=False)
+        try: 
+            ALE.move(self.mesh, u, annotate=False)
+        except:
+            ALE.move(self.mesh, u)
         file = File(self.savedir + '/test.pvd')
         file << vp
         file << v
-        ALE.move(self.mesh, ui, annotate=False)
-        return u, u_, vp, vp_
+        try:
+            ALE.move(self.mesh, ui, annotate=False)
+        except:
+            ALE.move(self.mesh, ui)
+        pass
 
     def save_snapshot(self, vp, u):
         if self.savedir == None:
@@ -499,6 +505,10 @@ class FSIsolver(Solver):
         self.u = Function(self.U)
         self.u_ = Function(self.U)  # previous time-step
 
+        # backup
+        self.vp__ = Function(self.vp.function_space()) 
+        self.u__ = Function(self.u.function_space())
+
         # FSI
         self.FSI = FSI(self.mesh, self.boundaries, self.domains, self.param, self.FSI_params, self.extension_operator)
 
@@ -507,12 +517,12 @@ class FSIsolver(Solver):
             self.FSI.displacement = np.loadtxt(self.ws_path + "/displacementy.txt").tolist()[:-1]
             self.FSI.determinant_deformation = np.loadtxt(self.ws_path + "/determinant.txt").tolist()[:-1]
             self.FSI.times = np.loadtxt(self.ws_path + "/times.txt").tolist()[:-1]
-            u, u_, vp, vp_ = self.FSI.load_states(u, u_, vp, vp_)
-            zero = interpolate(Constant((0., 0., 0.)), vp.function_space())
-            u.assign(self.FSI.get_deformation(zero, zero, u, b_old=u_))
+            self.FSI.load_states(self.u, self.u_, self.vp, self.vp_)
+            zero = interpolate(Constant((0., 0., 0.)), self.vp.function_space())
+            self.u.assign(self.FSI.get_deformation(zero, zero, self.u, self.u, b_old=self.u_))
             #file_test = File(self.ws_path + '/test_u.pvd')
             #file_test << u
-            vp.assign(self.FSI.solve_system(self.vp_, self.u, self.u_, 1))
+            self.vp.assign(self.FSI.solve_system(self.vp, self.vp_, self.u, self.u_, 1))
 
         while not self.FSI.check_termination():
             self.FSI.save_snapshot(self.vp, self.u)
@@ -528,6 +538,8 @@ class FSIsolver(Solver):
             while not self.FSI.check_timestep_success():
                 self.FSI.advance_time()
                 print(self.FSI.t, self.FSI.dt)
+                self.vp__.assign(self.vp)
+                self.u__.assign(self.u)
                 try:
                     self.vp.assign(self.FSI.solve_system(self.vp, self.vp_, self.u, self.u_, 0))   #u = u_ here in this system
                     self.u.assign(self.FSI.get_deformation(self.vp, self.vp_, self.u, self.u_))
@@ -536,6 +548,8 @@ class FSIsolver(Solver):
                     self.FSI.adapt_dt()
                 except Exception as e:
                     print(e)
+                    self.vp.assign(self.vp__)
+                    self.u.assign(self.u__)
                     self.FSI.adapt_dt()
                     flag = self.extension_operator.custom(self.FSI)
                     if flag == True:
