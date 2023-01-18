@@ -83,7 +83,7 @@ class Biharmonic_DataGeneration(extension.ExtensionOperator):
         v = TestFunction(self.F)
 
         a = inner(grad(uh), grad(v))*dx
-        L = Constant(0.0) * v *dx
+        L = Constant((0.0,0.0)) * v *dx
         A = assemble(a)
         
         bc = DirichletBC(self.F, Constant((0.,0.)), 'on_boundary')
@@ -99,7 +99,7 @@ class Biharmonic_DataGeneration(extension.ExtensionOperator):
         (psiu, psiz) = split(puz)
 
         a = inner(grad(z), grad(psiu)) * dx + inner(z, psiz) * dx - inner(grad(u), grad(psiz)) * dx
-        L = Constant(0.0) * psiu[0] * dx
+        L = Constant((0.0, 0.0)) * psiu[0] * dx
         A = assemble(a)
 
         bc = DirichletBC(self.FS.sub(0), Constant((0.,0.)), 'on_boundary')
