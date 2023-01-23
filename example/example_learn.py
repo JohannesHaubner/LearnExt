@@ -3,27 +3,29 @@ from dolfin_adjoint import *
 import numpy as np
 from pyadjoint.overloaded_type import create_overloaded_object
 from pathlib import Path
-here = Path(__file__).parent
-import sys
+
+
+from pathlib import Path
+here = Path(__file__).parent.resolve()
+import sys, os
 sys.path.insert(0, str(here.parent))
 from FSIsolver.extension_operator.extension import *
-sys.path.insert(1, '../learnExt')
-from learnext_hybridPDENN import LearnExt
+from learnExt.learnext_hybridPDENN import LearnExt
 
 # load mesh
 mesh = Mesh()
-with XDMFFile("./../Output/Mesh_Generation/mesh_triangles.xdmf") as infile:
+with XDMFFile(str(here.parent) + "/Output/Mesh_Generation/mesh_triangles.xdmf") as infile:
     infile.read(mesh)
 mvc = MeshValueCollection("size_t", mesh, 2)
 mvc2 = MeshValueCollection("size_t", mesh, 2)
-with XDMFFile("./../Output/Mesh_Generation/facet_mesh.xdmf") as infile:
+with XDMFFile(str(here.parent) + "/Output/Mesh_Generation/facet_mesh.xdmf") as infile:
     infile.read(mvc, "name_to_read")
-with XDMFFile("./../Output/Mesh_Generation/mesh_triangles.xdmf") as infile:
+with XDMFFile(str(here.parent) + "/Output/Mesh_Generation/mesh_triangles.xdmf") as infile:
     infile.read(mvc2, "name_to_read")
 #boundaries = cpp.mesh.MeshFunctionSizet(mesh, mvc)
 domains = cpp.mesh.MeshFunctionSizet(mesh, mvc2)
 
-params = np.load('./../Output/Mesh_Generation/params.npy', allow_pickle='TRUE').item()
+params = np.load(str(here.parent) + '/Output/Mesh_Generation/params.npy', allow_pickle='TRUE').item()
 
 # subdomains
 fluid_domain = MeshView.create(domains, params["fluid"])
@@ -61,7 +63,7 @@ option_data_1 = True
 # read data
 if option_data_1:
     deformation = Function(V_mesh)
-    def_file_name = "../Output/Extension/Data/output_.xdmf" # "./Mesh/deformation.xdmf"
+    def_file_name = str(here.parent) + "/Output/Extension/Data/output_.xdmf" # "./Mesh/deformation.xdmf"
     try:
         with XDMFFile(def_file_name) as infile:
             infile.read_checkpoint(deformation, "output")
@@ -80,11 +82,11 @@ if option_data:
     T = VectorElement("CG", fluid_domain.ufl_cell(), 2)
     FS = FunctionSpace(fluid_domain, T)
 
-    xdmf_input = XDMFFile("../Output/Extension/Data/input.xdmf")
-    xdmf_output = XDMFFile("../Output/Extension/Data/output.xdmf")
+    xdmf_input = XDMFFile(str(here.parent) + "/Output/Extension/Data/input.xdmf")
+    xdmf_output = XDMFFile(str(here.parent) + "/Output/Extension/Data/output.xdmf")
 
-    ifile = File("../Output/Extension/input_func.pvd")
-    ofile = File("../Output/Extension/output_func.pvd")
+    ifile = File(str(here.parent) + "/Output/Extension/input_func.pvd")
+    ofile = File(str(here.parent) + "/Output/Extension/output_func.pvd")
 
     i = 0
     error = False
@@ -109,7 +111,7 @@ data = {}
 data["input"] = deformation
 data["output"] = ext_deformation
 
-output_path = "../Output/learnExt/results/"
+output_path = str(here.parent) + "/Output/learnExt/results/"
 
 threshold = 0.0005
 

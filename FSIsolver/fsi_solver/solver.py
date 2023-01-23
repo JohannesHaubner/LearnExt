@@ -513,7 +513,3 @@ class FSIsolver(Solver):
             else:
                 self.FSI.reset_success()
 
-
-
-
-

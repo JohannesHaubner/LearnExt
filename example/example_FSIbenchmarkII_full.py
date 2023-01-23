@@ -2,33 +2,34 @@ from dolfin import *
 import numpy as np
 import matplotlib.pyplot as plt
 
-import sys
-sys.path.insert(1, '../FSIsolver/extension_operator')
-import extension
-sys.path.insert(1, '../FSIsolver/fsi_solver')
-import solver_full as solver
+from pathlib import Path
+here = Path(__file__).parent.resolve()
+import sys, os
+sys.path.insert(0, str(here.parent))
+import FSIsolver.extension_operator.extension as extension
+import FSIsolver.fsi_solver.solver_full as solver
 
 # create mesh: first create mesh by running ./create_mesh/create_mesh_FSI.py
 
 # load mesh
 mesh = Mesh()
-with XDMFFile("./../Output/Mesh_Generation/mesh_triangles.xdmf") as infile:
+with XDMFFile(str(here.parent) + "/Output/Mesh_Generation/mesh_triangles.xdmf") as infile:
     infile.read(mesh)
 mvc = MeshValueCollection("size_t", mesh, 2)
 mvc2 = MeshValueCollection("size_t", mesh, 2)
-with XDMFFile("./../Output/Mesh_Generation/facet_mesh.xdmf") as infile:
+with XDMFFile(str(here.parent) + "/Output/Mesh_Generation/facet_mesh.xdmf") as infile:
     infile.read(mvc, "name_to_read")
-with XDMFFile("./../Output/Mesh_Generation/mesh_triangles.xdmf") as infile:
+with XDMFFile(str(here.parent) + "/Output/Mesh_Generation/mesh_triangles.xdmf") as infile:
     infile.read(mvc2, "name_to_read")
 boundaries = cpp.mesh.MeshFunctionSizet(mesh, mvc)
 domains = cpp.mesh.MeshFunctionSizet(mesh,mvc2)
-bdfile = File("./../Output/Mesh_Generation/boundary.pvd")
+bdfile = File(str(here.parent) + "/Output/Mesh_Generation/boundary.pvd")
 bdfile << boundaries
-bdfile = File("./../Output/Mesh_Generation/domains.pvd")
+bdfile = File(str(here.parent) + "/Output/Mesh_Generation/domains.pvd")
 bdfile << domains
 
 # boundary parts
-params = np.load('../Output/Mesh_Generation/params.npy', allow_pickle='TRUE').item()
+params = np.load(str(here.parent) + '/Output/Mesh_Generation/params.npy', allow_pickle='TRUE').item()
 
 params["no_slip_ids"] = ["noslip", "obstacle_fluid", "obstacle_solid"]
 
@@ -64,7 +65,7 @@ FSI_param['boundary_cond'] = Expression(("(t < 2)?(1.5*Ubar*4.0*x[1]*(0.41 -x[1]
 
 
 # save options
-FSI_param['save_directory'] = str('./../Output/FSIbenchmarkII_full') #no save if set to None
+FSI_param['save_directory'] = str(here.parent) + '/Output/FSIbenchmarkII_full' #no save if set to None
 FSI_param['save_every_N_snapshot'] = 1 # save every 8th snapshot
 
 # initialize FSI solver
