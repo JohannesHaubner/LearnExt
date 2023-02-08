@@ -1,7 +1,8 @@
 from dolfin import *
-import nn_atlas.nn_extensions.p1net as nn
+import p1net_ as nn
 import numpy as np
 import matplotlib.pyplot as plt
+import torch
 
 from pathlib import Path
 here = Path(__file__).parent.resolve()
@@ -40,12 +41,14 @@ fluid_domain = MeshView.create(domains, params["fluid"])
 solid_domain = MeshView.create(domains, params["solid"])
 
 # function in FEniCS
-V = VectorFunctionSpace(fluid_domain, 'CG', 1)
-f = Expression(('-3*x[0]*x[1] +4*x[1]', 'x[1]*x[0]'), degree=2)
+V = FunctionSpace(fluid_domain, 'CG', 1)
+f = Expression(('+3*x[0]*x[1] +4*x[1] + x[0]'), degree=2)
 fh = interpolate(f, V)
 
 # function as NN
-nnV = nn.VectorP1FunctionSpace(fluid_domain)
-nnV.set_from_coefficients(np.array(fh.vector()[:]))
-plot(fh)
-plt.savefig('./test.png')
+nnV = nn.ScalarP1FunctionSpace(fluid_domain)
+nnV.set_from_coefficients(fh.vector().get_local())
+
+# 
+a = nnV.forward(torch.tensor([[[.21,1.]]]))
+print(a)
