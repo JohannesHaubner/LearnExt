@@ -36,7 +36,7 @@ def CG1_vector_plus_grad_to_array(u: df.Function, du: df.Function) -> np.ndarray
 
 def CG1_vector_plus_grad_to_array_w_coords(u: df.Function, du: df.Function) -> np.ndarray:
     """ 
-        Layout: Columns ``(u_x, u_y, d_x u_x, d_y u_x, d_x u_y, d_y u_y)``
+        Layout: Columns ``(x, y, u_x, u_y, d_x u_x, d_y u_x, d_x u_y, d_y u_y)``
 
         `u` is a CG1 function. `du` is a CG1 function over same 
         mesh as `u`, and a clement interpolant as given by 
@@ -91,20 +91,15 @@ def poisson_mask_custom(V: df.FunctionSpace, f_str: str, normalize: bool = False
 
     return uh
 
+
 class TorchExtension(extension.ExtensionOperator):
 
-
-    def __init__(self, mesh, model: nn.Module):
+    def __init__(self, mesh, model: nn.Module, T_switch: float = 0.0, mask_rhs: str | None = None):
         super().__init__(mesh)
 
         T = df.VectorElement("CG", self.mesh.ufl_cell(), 2)
-        self.FS = df.FunctionSpace(self.mesh, df.MixedElement(T, T))
         self.F = df.FunctionSpace(self.mesh, T)
         self.iter = -1
-
-        # Create time series
-        self.xdmf_input = df.XDMFFile(str(here.parent) + "/TorchOutput/Extension/Data/input_.xdmf")
-        self.xdmf_output = df.XDMFFile(str(here.parent) + "/TorchOutput/Extension/Data/output_.xdmf")
 
         # harmonic extension 
         uh = df.TrialFunction(self.F)
@@ -127,28 +122,26 @@ class TorchExtension(extension.ExtensionOperator):
 
         # Pytorch model
         self.model = model
-        model.double()
         model.eval()
 
         # mask for adjusting pytorch correction
         V_scal = df.FunctionSpace(self.mesh, "CG", 1)
-        poisson_mask_f = "2.0 * (x[0]+1.0) * (1-x[0]) * exp( -3.5*pow(x[0], 7) ) + 0.1"
-        poisson_mask = poisson_mask_custom(V_scal, poisson_mask_f, normalize=True)
+        if mask_rhs is None:
+            mask_rhs = "2.0 * (x[0]+1.0) * (1-x[0]) * exp( -3.5*pow(x[0], 7) ) + 0.1"
+        poisson_mask = poisson_mask_custom(V_scal, mask_rhs, normalize=True)
         self.mask_np = poisson_mask.vector().get_local().reshape(-1,1)
+        # Mask needs to have shape (num_vertices, 1) to broadcast correctly in
+        # multiplication with correction of shape (num_vertices, 2).
 
-        # Time to switch from harmonic to pytorch extension
-        self.T_switch = 0.01
-        # Time to record
-        self.T_record = 0.0
-
+        # # Time to switch from harmonic to torch-corrected extension
+        self.T_switch = T_switch
 
         return
 
     def extend(self, boundary_conditions, params):
-        """ biharmonic extension of boundary_conditions (Function on self.mesh) to the interior """
+        """ Torch-corrected extension of boundary_conditions (Function on self.mesh) to the interior """
 
         t = params["t"]
-        dx = df.Measure('dx', domain=self.mesh)
 
         # harmonic extension
         bc = df.DirichletBC(self.F, boundary_conditions, 'on_boundary')
@@ -164,29 +157,49 @@ class TorchExtension(extension.ExtensionOperator):
             harmonic_cg1 = df.interpolate(uh, self.F_cg1)
 
             qh_harm = df.interpolate(harmonic_cg1, self.Q)
-            gh_harm = clement_interpolate(df.grad(qh_harm))
+            gh_harm = clement_interpolate(df.grad(qh_harm)) # TODO: Reuse clement interpolant?
 
             harmonic_plus_grad_w_coords_np = CG1_vector_plus_grad_to_array_w_coords(harmonic_cg1, gh_harm)
-            harmonic_plus_grad_w_coords_torch = torch.tensor(harmonic_plus_grad_w_coords_np, dtype=torch.float64).reshape(1,-1,8)
+            harmonic_plus_grad_w_coords_torch = torch.tensor(harmonic_plus_grad_w_coords_np, dtype=torch.float32)#.reshape(1,-1,8)
 
             with torch.no_grad():
-                corr_np = self.model(harmonic_plus_grad_w_coords_torch).detach().numpy().reshape(-1,2)
+                corr_np = self.model(harmonic_plus_grad_w_coords_torch).detach().double().numpy().reshape(-1,2)
                 corr_np = corr_np * self.mask_np
 
-            corr_cg1 = df.Function(self.F_cg1)
-            new_dofs = np.zeros_like(corr_cg1.vector().get_local())
-            new_dofs[0::2] = corr_np[:,0]
-            new_dofs[1::2] = corr_np[:,1]
-            corr_cg1.vector().set_local(new_dofs)
+            u_cg1 = df.Function(self.F_cg1) # TODO: Change to only using one of harmonic_cg1 and u_cg1.
+            new_dofs = harmonic_cg1.vector().get_local()
+            new_dofs[0::2] += corr_np[:,0]
+            new_dofs[1::2] += corr_np[:,1]
+            u_cg1.vector().set_local(new_dofs)
 
-            u_ = df.interpolate(corr_cg1, self.F)
-            new_dofs = np.copy(u_.vector().get_local())
-            new_dofs += uh.vector().get_local()
-            u_.vector().set_local(new_dofs)
+            u_ = df.interpolate(u_cg1, self.F)
+            bc.apply(u_.vector())
 
-        if t > self.T_record:
+        # Store extensions for optional post-step processing by subclass.
+        self.uh = uh
+        self.u_ = u_
+
+        return u_
+
+class TorchExtensionRecord(TorchExtension):
+    def __init__(self, mesh, model, T_switch=0.0, mask_rhs = None, T_record=0.0, run_name="Data0"):
+        super().__init__(mesh, model, T_switch=T_switch, mask_rhs=mask_rhs)
+
+        # Time to start recording
+        self.T_record = T_record
+
+        # Create time series
+        self.xdmf_input = df.XDMFFile(str(here.parent) + f"/TorchOutput/Extension/{run_name}/harm.xdmf")
+        self.xdmf_output = df.XDMFFile(str(here.parent) + f"/TorchOutput/Extension/{run_name}/torch.xdmf")
+
+        return
+
+    def extend(self, boundary_conditions, params):
+        u_ = super().extend(boundary_conditions, params)
+
+        if params["t"] > self.T_record:
             self.iter +=1
-            self.xdmf_input.write_checkpoint(uh, "input_harmonic_ext", self.iter, df.XDMFFile.Encoding.HDF5, append=True)
-            self.xdmf_output.write_checkpoint(u_, "output_pytorch_ext", self.iter, df.XDMFFile.Encoding.HDF5, append=True)
+            self.xdmf_input.write_checkpoint(self.uh, "input_harmonic_ext", self.iter, df.XDMFFile.Encoding.HDF5, append=True)
+            self.xdmf_output.write_checkpoint(self.u_, "output_pytorch_ext", self.iter, df.XDMFFile.Encoding.HDF5, append=True)
 
         return u_

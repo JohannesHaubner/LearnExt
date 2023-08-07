@@ -1,4 +1,3 @@
-# from dolfin import *
 import dolfin as df
 import numpy as np
 import matplotlib.pyplot as plt
@@ -7,7 +6,6 @@ from pathlib import Path
 here = Path(__file__).parent.resolve()
 import sys, os
 sys.path.insert(0, str(here.parent))
-import FSIsolver.extension_operator.extension as extension
 import FSIsolver.fsi_solver.solver as solver
 
 
@@ -54,9 +52,10 @@ FSI_param['rhof'] = 1.0e3
 FSI_param['nyf'] = 1.0e-3
 
 FSI_param['t'] = 0.0
-FSI_param['deltat'] = 0.0025 # 0.01
-FSI_param['T'] = 17.0
-# FSI_param['T'] = 0.1
+# FSI_param['deltat'] = 0.0025 # 0.01
+FSI_param['deltat'] = 0.04
+# FSI_param['T'] = 17.0
+FSI_param['T'] = 1.0
 
 FSI_param['displacement_point'] = df.Point((0.6, 0.2))
 
@@ -67,26 +66,21 @@ FSI_param['boundary_cond'] = df.Expression(("(t < 2)?(1.5*Ubar*4.0*x[1]*(0.41 -x
                                         Ubar=Ubar, t=FSI_param['t'], degree=2)
 
 
-from torch_extension.extension import TorchExtension
-
+from torch_extension.extension import TorchExtension, TorchExtensionRecord
 import torch
 import torch.nn as nn
-from torch_extension.networks import MLP_BN
+from torch_extension.loading import ModelLoader
+net: nn.Sequential = ModelLoader("torch_extension/models/yankee")
+net.eval()
 
-widths = [8] + [64]*10 + [2]
-mlp = MLP_BN(widths, activation=nn.ReLU())
-mlp.load_state_dict(torch.load("torch_extension/model/sierra/mlp_state_dict.pt"))
-mlp.double()
-mlp.eval()
+net(torch.rand((3935, 8))) # Check everything works before run.
 
-
-print(mlp(torch.rand((1,3935, 8), dtype=torch.float64)))
-
-
-extension_operator = TorchExtension(fluid_domain, mlp)
+# extension_operator = TorchExtension(fluid_domain, net, T_switch=0.0)
+extension_operator = TorchExtensionRecord(fluid_domain, net, T_switch=0.0, T_record=0.0, run_name="Data4")
 
 # save options
-FSI_param['save_directory'] = str(str(here.parent) + '/TorchOutput/FSIbenchmarkII_generate_data') #no save if set to None
+# FSI_param['save_directory'] = str(str(here.parent) + '/TorchOutput/FSIbenchmarkII_generate_data') #no save if set to None
+FSI_param['save_directory'] = None
 
 fsisolver = solver.FSIsolver(mesh, boundaries, domains, params, FSI_param, extension_operator, warmstart=False) #warmstart needs to be set to False for the first run
 fsisolver.solve()

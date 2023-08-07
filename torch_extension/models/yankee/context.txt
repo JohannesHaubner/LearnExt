@@ -1,0 +1,46 @@
+Network: MaskNet(
+  (network): Sequential(
+    (0): PrependModule()
+    (1): Normalizer()
+    (2): MLP(
+      (activation): ReLU()
+      (layers): Sequential(
+        (0): Linear(in_features=8, out_features=128, bias=True)
+        (1): ReLU()
+        (2): Linear(in_features=128, out_features=128, bias=True)
+        (3): ReLU()
+        (4): Linear(in_features=128, out_features=128, bias=True)
+        (5): ReLU()
+        (6): Linear(in_features=128, out_features=128, bias=True)
+        (7): ReLU()
+        (8): Linear(in_features=128, out_features=128, bias=True)
+        (9): ReLU()
+        (10): Linear(in_features=128, out_features=128, bias=True)
+        (11): ReLU()
+        (12): Linear(in_features=128, out_features=2, bias=True)
+      )
+    )
+  )
+  (base): TrimModule()
+  (mask): TensorModule()
+) 
+Cost function: L1Loss()
+Validation Cost function: L1Loss()
+Optimizer: AdamW (
+Parameter Group 0
+    amsgrad: False
+    betas: (0.9, 0.999)
+    capturable: False
+    differentiable: False
+    eps: 1e-08
+    foreach: None
+    fused: None
+    lr: 2.44140625e-07
+    maximize: False
+    weight_decay: 0.01
+)
+Scheduler: ReduceLROnPlateau: 
+	{'factor': 0.5, 'min_lrs': [0], 'patience': 10, 'verbose': False, 'cooldown': 0, 'cooldown_counter': 0, 'mode': 'min', 'threshold': 0.0001, 'threshold_mode': 'rel', 'best': 6.105330066930037e-05, 'num_bad_epochs': 2, 'mode_worse': inf, 'eps': 1e-08, 'last_epoch': 500, '_last_lr': [2.44140625e-07]}
+Final train loss: 0.0004615130073943874
+Final val loss: 6.109987771196757e-05
+Final lr: 2.44140625e-07

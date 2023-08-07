@@ -97,19 +97,21 @@ class FSI(Context):
         self.savedir = FSI_params["save_directory"]
         #self.N = FSI_params["save_every_N_snapshot"]
 
-        self.displacement_filename = self.savedir + "/displacementy.txt"
-        self.determinant_filename = self.savedir + "/determinant.txt"
-        self.times_filename = self.savedir + "/times.txt"
+        if self.savedir is not None:
+            self.displacement_filename = self.savedir + "/displacementy.txt"
+            self.determinant_filename = self.savedir + "/determinant.txt"
+            self.times_filename = self.savedir + "/times.txt"
         self.displacement = []
         self.determinant_deformation = []
         self.times = []
 
         # files for warmstart
-        output_directory = self.FSI_params["save_directory"]
-        self.xdmf_states = XDMFFile(output_directory + "/warmstart/states.xdmf")
-        self.xdmf_load = XDMFFile(output_directory[:-2] + "/states.xdmf")
-        self.time_save = str(output_directory + "/warmstart/t.npy")
-        self.time_load = str(output_directory[:-2] + "/t.npy")
+        if self.savedir is not None:
+            output_directory = self.FSI_params["save_directory"]
+            self.xdmf_states = XDMFFile(output_directory + "/warmstart/states.xdmf")
+            self.xdmf_load = XDMFFile(output_directory[:-2] + "/states.xdmf")
+            self.time_save = str(output_directory + "/warmstart/t.npy")
+            self.time_load = str(output_directory[:-2] + "/t.npy")
 
         if not self.savedir == None:
             velocity_filename = self.savedir + "/velocity.pvd"
@@ -482,10 +484,11 @@ class FSIsolver(Solver):
             vp.assign(self.FSI.solve_system(vp_, u, u_, 1))
 
         while not self.FSI.check_termination():
-            self.FSI.save_snapshot(vp, u)
-            self.FSI.save_displacement(u, save_det=True)
+            if self.FSI.savedir is not None:
+                self.FSI.save_snapshot(vp, u)
+                self.FSI.save_displacement(u, save_det=True)
 
-            self.FSI.save_states(u, u_, vp, vp_)
+                self.FSI.save_states(u, u_, vp, vp_)
 
             #u__.assign(u_)
             #vp__.assign(vp_)
