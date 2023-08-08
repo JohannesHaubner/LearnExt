@@ -53,8 +53,8 @@ FSI_param['nyf'] = 1.0e-3
 
 FSI_param['t'] = 0.0
 # FSI_param['deltat'] = 0.0025 # 0.01
-FSI_param['deltat'] = 0.04
-# FSI_param['T'] = 17.0
+FSI_param['deltat'] = 0.01
+FSI_param['T'] = 17.0
 FSI_param['T'] = 1.0
 
 FSI_param['displacement_point'] = df.Point((0.6, 0.2))
@@ -76,11 +76,11 @@ net.eval()
 net(torch.rand((3935, 8))) # Check everything works before run.
 
 # extension_operator = TorchExtension(fluid_domain, net, T_switch=0.0)
-extension_operator = TorchExtensionRecord(fluid_domain, net, T_switch=0.0, T_record=0.0, run_name="Data4")
+extension_operator = TorchExtensionRecord(fluid_domain, net, T_switch=0.0, T_record=5.0, run_name="Data0")
 
 # save options
 # FSI_param['save_directory'] = str(str(here.parent) + '/TorchOutput/FSIbenchmarkII_generate_data') #no save if set to None
 FSI_param['save_directory'] = None
-
+df.set_log_active(False)
 fsisolver = solver.FSIsolver(mesh, boundaries, domains, params, FSI_param, extension_operator, warmstart=False) #warmstart needs to be set to False for the first run
 fsisolver.solve()

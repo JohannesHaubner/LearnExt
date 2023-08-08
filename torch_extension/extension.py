@@ -118,7 +118,12 @@ class TorchExtension(extension.ExtensionOperator):
         # For clement interpolation
         T_cg1 = df.VectorElement("CG", self.mesh.ufl_cell(), 1)
         self.F_cg1 = df.FunctionSpace(self.mesh, T_cg1)
-        self.Q = df.VectorFunctionSpace(self.mesh, "DG", 1, 2)
+
+        # u_cg1 is referred to in the clement_interpolate internals, so it has to 
+        # be carried through in the simulation and the dofs updated with the 
+        # harmonic extension at each time step.
+        self.u_cg1 = df.Function(self.F_cg1)
+        _, self.clement_interpolater = clement_interpolate(df.grad(self.u_cg1), with_CI=True)
 
         # Pytorch model
         self.model = model
@@ -127,6 +132,7 @@ class TorchExtension(extension.ExtensionOperator):
         # mask for adjusting pytorch correction
         V_scal = df.FunctionSpace(self.mesh, "CG", 1)
         if mask_rhs is None:
+            # Masking function custom made for specific domain.
             mask_rhs = "2.0 * (x[0]+1.0) * (1-x[0]) * exp( -3.5*pow(x[0], 7) ) + 0.1"
         poisson_mask = poisson_mask_custom(V_scal, mask_rhs, normalize=True)
         self.mask_np = poisson_mask.vector().get_local().reshape(-1,1)
@@ -154,25 +160,27 @@ class TorchExtension(extension.ExtensionOperator):
         
         else:
             print("Torch-corrected extension")
-            harmonic_cg1 = df.interpolate(uh, self.F_cg1)
 
-            qh_harm = df.interpolate(harmonic_cg1, self.Q)
-            gh_harm = clement_interpolate(df.grad(qh_harm)) # TODO: Reuse clement interpolant?
+            harmonic_cg1 = df.interpolate(uh, self.F_cg1)
+            self.u_cg1.vector().set_local(harmonic_cg1.vector().get_local())
+
+            gh_harm = self.clement_interpolater()
 
             harmonic_plus_grad_w_coords_np = CG1_vector_plus_grad_to_array_w_coords(harmonic_cg1, gh_harm)
-            harmonic_plus_grad_w_coords_torch = torch.tensor(harmonic_plus_grad_w_coords_np, dtype=torch.float32)#.reshape(1,-1,8)
+            harmonic_plus_grad_w_coords_torch = torch.tensor(harmonic_plus_grad_w_coords_np, dtype=torch.float32)
 
             with torch.no_grad():
-                corr_np = self.model(harmonic_plus_grad_w_coords_torch).detach().double().numpy().reshape(-1,2)
+                corr_np = self.model(harmonic_plus_grad_w_coords_torch).detach().double().numpy()
                 corr_np = corr_np * self.mask_np
 
-            u_cg1 = df.Function(self.F_cg1) # TODO: Change to only using one of harmonic_cg1 and u_cg1.
             new_dofs = harmonic_cg1.vector().get_local()
             new_dofs[0::2] += corr_np[:,0]
             new_dofs[1::2] += corr_np[:,1]
-            u_cg1.vector().set_local(new_dofs)
+            harmonic_cg1.vector().set_local(new_dofs)
 
-            u_ = df.interpolate(u_cg1, self.F)
+            u_ = df.interpolate(harmonic_cg1, self.F)
+            # Apply the harmonic extension boundary condition to ensure fluid-solid extension matches at all
+            # dof locations, not just vertices.
             bc.apply(u_.vector())
 
         # Store extensions for optional post-step processing by subclass.
