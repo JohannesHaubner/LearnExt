@@ -96,24 +96,36 @@ class FSI(Context):
 
         self.savedir = FSI_params["save_directory"]
         #self.N = FSI_params["save_every_N_snapshot"]
+        try:
+            self.save_snapshot_on = FSI_params["save_snapshot_on"]
+        except:
+            self.save_snapshot_on = False
+        try:
+            self.save_data_on = FSI_params["save_data_on"]
+        except:
+            self.save_data_on = False
+        try:
+            self.save_states_on = FSI_params["save_states_on"]
+        except:
+            self.save_states_on = False
 
-        if self.savedir is not None:
+        if self.savedir is not None and self.save_data_on:
             self.displacement_filename = self.savedir + "/displacementy.txt"
             self.determinant_filename = self.savedir + "/determinant.txt"
             self.times_filename = self.savedir + "/times.txt"
-        self.displacement = []
-        self.determinant_deformation = []
-        self.times = []
+            self.displacement = []
+            self.determinant_deformation = []
+            self.times = []
 
         # files for warmstart
-        if self.savedir is not None:
+        if self.savedir is not None and self.save_states_on:
             output_directory = self.FSI_params["save_directory"]
             self.xdmf_states = XDMFFile(output_directory + "/warmstart/states.xdmf")
             self.xdmf_load = XDMFFile(output_directory[:-2] + "/states.xdmf")
             self.time_save = str(output_directory + "/warmstart/t.npy")
             self.time_load = str(output_directory[:-2] + "/t.npy")
 
-        if not self.savedir == None:
+        if not self.savedir == None and self.save_states_on:
             velocity_filename = self.savedir + "/velocity.pvd"
             charfunc_filename = self.savedir + "/char.pvd"
             pressure_filename = self.savedir + "/pressure.pvd"
@@ -485,10 +497,12 @@ class FSIsolver(Solver):
 
         while not self.FSI.check_termination():
             if self.FSI.savedir is not None:
-                self.FSI.save_snapshot(vp, u)
-                self.FSI.save_displacement(u, save_det=True)
-
-                self.FSI.save_states(u, u_, vp, vp_)
+                if self.FSI.save_snapshot_on:
+                    self.FSI.save_snapshot(vp, u)
+                if self.FSI.save_data_on:
+                    self.FSI.save_displacement(u, save_det=True)
+                if self.FSI.save_states_on:
+                    self.FSI.save_states(u, u_, vp, vp_)
 
             #u__.assign(u_)
             #vp__.assign(vp_)
