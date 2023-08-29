@@ -64,7 +64,7 @@ ext_deformation = []
 ifile = File(str(here.parent) + "/Output/Extension/input_func.pvd")
 ofile = File(str(here.parent) + "/Output/Extension/output_func.pvd")
 
-for num in range(4):
+for num in range(6):
 
     xdmf_input = XDMFFile(str(here.parent) + "/Output/working_space/harmonic" + str(num + 1) + ".xdmf")
     xdmf_output = XDMFFile(str(here.parent) + "/Output/working_space/biharmonic" + str(num + 1) + ".xdmf")
@@ -84,7 +84,7 @@ for num in range(4):
             xdmf_output.read_checkpoint(output, "u_biharm_cg1", i)
             output_FS.assign(project(output, FS))
             ofile << output_FS
-            if i%20 == 0:
+            if i%10 == 0:
                 deformation.append(input_FS)
                 ext_deformation.append(output_FS)
             i = i+1
