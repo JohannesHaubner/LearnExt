@@ -26,7 +26,7 @@ net3 = ANN(output_directory + "trained_network.pkl")
 mesh = UnitSquareMesh(5, 5)
 Vs = FunctionSpace(mesh, "CG", 1)
 
-x = np.linspace(0, 4000.0, 100)
+x = np.linspace(0, 1.0, 100)
 y = [project(crf.NN_der(threshold, i, net), Vs).vector().get_local()[0] for i in x]
 #y2 = [project(crf.NN_der(threshold, i, net2), Vs).vector().get_local()[0] for i in x]
 #y4 = [project(crf.NN_der(threshold, i, net4), Vs).vector().get_local()[0] for i in x]
