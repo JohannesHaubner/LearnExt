@@ -58,33 +58,35 @@ FS = FunctionSpace(fluid_mesh, T)
 
 # collect data
 
-xdmf_input = XDMFFile(str(here.parent) + "/Output/working_space/harmonic5.xdmf")
-xdmf_output = XDMFFile(str(here.parent) + "/Output/working_space/biharmonic5.xdmf")
+deformation = []
+ext_deformation = []
 
 ifile = File(str(here.parent) + "/Output/Extension/input_func.pvd")
 ofile = File(str(here.parent) + "/Output/Extension/output_func.pvd")
 
-deformation = []
-ext_deformation = []
+for num in range(4):
 
-i = 0
-error = False
-while not error:
-    try:
-        input = Function(FS)
-        output = Function(FS)
-        xdmf_input.read_checkpoint(input, "u_harm_cg1", i)
-        ifile << input
-        xdmf_output.read_checkpoint(output, "u_biharm_cg1", i)
-        ofile << output
-        if i%5 == 0:
-            deformation.append(project(input, FS))
-            ext_deformation.append(project(output, FS))
-        i = i+1
-        print(i)
-    except Exception as e:
-        #print(e)
-        error = True
+    xdmf_input = XDMFFile(str(here.parent) + "/Output/working_space/harmonic" + str(num + 1) + ".xdmf")
+    xdmf_output = XDMFFile(str(here.parent) + "/Output/working_space/biharmonic" + str(num + 1) + ".xdmf")
+
+    i = 0
+    error = False
+    while not error:
+        try:
+            input = Function(FS)
+            output = Function(FS)
+            xdmf_input.read_checkpoint(input, "u_harm_cg1", i)
+            ifile << input
+            xdmf_output.read_checkpoint(output, "u_biharm_cg1", i)
+            ofile << output
+            if i%20 == 0:
+                deformation.append(project(input, FS))
+                ext_deformation.append(project(output, FS))
+            i = i+1
+            print(i)
+        except Exception as e:
+            #print(e)
+            error = True
 
 data = {}
 data["input"] = deformation

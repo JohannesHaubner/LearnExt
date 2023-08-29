@@ -20,13 +20,13 @@ output_directory = str("./example/learned_networks/")
 net2 = ANN(output_directory + "trained_network.pkl")
 net = ANN(output_directory + "trained_network_supervised.pkl")
 net4 = ANN(output_directory + "trained_network_1103.pkl")
-output_directory = str("./example/learned_networks/artificial/")
+output_directory = str("./Output/learnExt/results/")
 net3 = ANN(output_directory + "trained_network.pkl")
 
 mesh = UnitSquareMesh(5, 5)
 Vs = FunctionSpace(mesh, "CG", 1)
 
-x = np.linspace(0, 1.0, 50)
+x = np.linspace(0, 4000.0, 100)
 y = [project(crf.NN_der(threshold, i, net), Vs).vector().get_local()[0] for i in x]
 #y2 = [project(crf.NN_der(threshold, i, net2), Vs).vector().get_local()[0] for i in x]
 #y4 = [project(crf.NN_der(threshold, i, net4), Vs).vector().get_local()[0] for i in x]
