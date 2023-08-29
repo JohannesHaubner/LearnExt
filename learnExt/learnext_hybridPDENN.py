@@ -243,7 +243,7 @@ class LearnExt:
         rfn = ReducedFunctionalNumPy(rf)
 
         opt_theta = minimize(rfn, options={"disp": True, "gtol": 1e-8, "ftol": 1e-8,
-                                           "maxiter": 100})  # minimize(Jhat, method= "L-BFGS-B") #
+                                           "maxiter": 25})  # minimize(Jhat, method= "L-BFGS-B") #
 
         transformed_opt_theta = trafo_weights(list_to_weights(opt_theta, init_weights), posfunc)
         net.set_weights(transformed_opt_theta)

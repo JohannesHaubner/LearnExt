@@ -77,7 +77,7 @@ while not error:
         ifile << input
         xdmf_output.read_checkpoint(output, "u_biharm_cg1", i)
         ofile << output
-        if i%2 == 0:
+        if i%5 == 0:
             deformation.append(project(input, FS))
             ext_deformation.append(project(output, FS))
         i = i+1
