@@ -6,12 +6,11 @@ from pathlib import Path
 here = Path(__file__).parent
 import sys
 sys.path.insert(0, str(here.parent))
-sys.path.insert(1, '../learnExt')
 
-from NeuralNet.neural_network_custom import ANN, generate_weights, NN
+from learnExt.NeuralNet.neural_network_custom import ANN, generate_weights, NN
 #from NeuralNet.neural_network_orig import NN as NN_orig
-from learnext_hybridPDENN import LearnExt
-from learnext_hybridPDENN import Custom_Reduced_Functional as crf
+from learnExt.learnext_hybridPDENN import LearnExt
+from learnExt.learnext_hybridPDENN import Custom_Reduced_Functional as crf
 
 sys.path.insert(1, '../example')
 
@@ -23,7 +22,7 @@ output_directory = str("../example/learned_networks/")
 net2 = ANN(output_directory + "trained_network.pkl")
 net = ANN(output_directory + "trained_network_supervised.pkl")
 net4 = ANN(output_directory + "trained_network_1103.pkl")
-output_directory = str("../Output/learnExt/results/")
+output_directory = str("../example/learned_networks/artificial/")
 net3 = ANN(output_directory + "trained_network.pkl")
 
 mesh = UnitSquareMesh(5, 5)
