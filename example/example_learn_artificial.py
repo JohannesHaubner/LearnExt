@@ -53,7 +53,7 @@ params["def_boundary_parts"] = ["interface"]
 params["zero_boundary_parts"] = ["no_slip"]
 
 # function space
-T = VectorElement("CG", fluid_mesh.ufl_cell(), 2)
+T = VectorElement("CG", fluid_mesh.ufl_cell(), 1)
 FS = FunctionSpace(fluid_mesh, T)
 
 # collect data
