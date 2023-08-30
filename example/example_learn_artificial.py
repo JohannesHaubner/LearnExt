@@ -53,38 +53,45 @@ params["def_boundary_parts"] = ["interface"]
 params["zero_boundary_parts"] = ["no_slip"]
 
 # function space
-T = VectorElement("CG", fluid_mesh.ufl_cell(), 2)
+T = VectorElement("CG", fluid_mesh.ufl_cell(), 1)
 FS = FunctionSpace(fluid_mesh, T)
 
 # collect data
 
-xdmf_input = XDMFFile(str(here.parent) + "/Output/working_space/harmonic5.xdmf")
-xdmf_output = XDMFFile(str(here.parent) + "/Output/working_space/biharmonic5.xdmf")
+deformation = []
+ext_deformation = []
 
 ifile = File(str(here.parent) + "/Output/Extension/input_func.pvd")
 ofile = File(str(here.parent) + "/Output/Extension/output_func.pvd")
 
-deformation = []
-ext_deformation = []
+for num in range(6):
 
-i = 0
-error = False
-while not error:
-    try:
-        input = Function(FS)
-        output = Function(FS)
-        xdmf_input.read_checkpoint(input, "u_harm_cg1", i)
-        ifile << input
-        xdmf_output.read_checkpoint(output, "u_biharm_cg1", i)
-        ofile << output
-        if i%2 == 0:
-            deformation.append(project(input, FS))
-            ext_deformation.append(project(output, FS))
-        i = i+1
-        print(i)
-    except Exception as e:
-        #print(e)
-        error = True
+    xdmf_input = XDMFFile(str(here.parent) + "/Output/working_space/harmonic" + str(num + 1) + ".xdmf")
+    xdmf_output = XDMFFile(str(here.parent) + "/Output/working_space/biharmonic" + str(num + 1) + ".xdmf")
+
+    input = Function(FS, name = "input")
+    output = Function(FS, name = "output")
+    input_FS = Function(FS, name = "input")
+    output_FS = Function(FS, name = "output")
+
+    i = 0
+    error = False
+    while not error:
+        try:
+            xdmf_input.read_checkpoint(input, "u_harm_cg1", i)
+            input_FS.assign(project(input, FS))
+            ifile << input_FS
+            xdmf_output.read_checkpoint(output, "u_biharm_cg1", i)
+            output_FS.assign(project(output, FS))
+            ofile << output_FS
+            if i%10 == 0:
+                deformation.append(input_FS)
+                ext_deformation.append(output_FS)
+            i = i+1
+            print(i)
+        except Exception as e:
+            #print(e)
+            error = True
 
 data = {}
 data["input"] = deformation

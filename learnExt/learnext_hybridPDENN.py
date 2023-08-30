@@ -59,7 +59,7 @@ class Custom_Reduced_Functional(object):
             u = Function(V)
             v = TestFunction(V)
             E = inner(self.NN_der(threshold, inner(grad(u), grad(u)), net) * grad(u), grad(v)) * dx
-            solve(E == 0, u, bc)
+            solve(E == 0, u, bc, solver_parameters={"newton_solver":{"relative_tolerance":1e-8}})
 
             self.ufile << u
             self.ufile << gj
@@ -242,7 +242,7 @@ class LearnExt:
             exit(0)
         rfn = ReducedFunctionalNumPy(rf)
 
-        opt_theta = minimize(rfn, options={"disp": True, "gtol": 1e-8, "ftol": 1e-8,
+        opt_theta = minimize(rfn, method= "L-BFGS-B", options={"disp": True, "gtol": 1e-8, "ftol": 1e-8,
                                            "maxiter": 100})  # minimize(Jhat, method= "L-BFGS-B") #
 
         transformed_opt_theta = trafo_weights(list_to_weights(opt_theta, init_weights), posfunc)
