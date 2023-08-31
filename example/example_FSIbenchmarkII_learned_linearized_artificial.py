@@ -75,7 +75,7 @@ class LearnExtension(extension.ExtensionOperator):
         T2 = VectorElement("CG", self.mesh.ufl_cell(), 2)
         self.FS = FunctionSpace(self.mesh, T)
         self.FS2 = FunctionSpace(self.mesh, T2)
-        self.incremental = True
+        self.incremental = False
         self.incremental_correct = True
         self.bc_old = Function(self.FS)
         output_directory = str(str(here.parent) + "/example/learned_networks/artificial/")
@@ -118,7 +118,8 @@ class LearnExtension(extension.ExtensionOperator):
 
         if trafo:
             up = project(self.bc_old, self.FS)
-            upi = project(-1.0*up, self.FS)
+            upi = Function(self.FS)
+            upi.vector().axpy(-1.0, up.vector())
             ALE.move(self.mesh, up, annotate=False)
 
         u = Function(self.FS2)

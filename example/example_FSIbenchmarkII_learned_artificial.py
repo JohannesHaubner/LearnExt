@@ -119,7 +119,8 @@ class LearnExtension(extension.ExtensionOperator):
 
         if trafo:
             up = project(self.bc_old, self.FS)
-            upi = project(-1.0*up, self.FS)
+            upi = Function(self.FS)
+            upi.vector().axpy(-1.0, up.vector())
             ALE.move(self.mesh, up, annotate=False)
 
         u = Function(self.FS2)
