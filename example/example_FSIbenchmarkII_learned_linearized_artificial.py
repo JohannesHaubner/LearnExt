@@ -108,13 +108,14 @@ class LearnExtension(extension.ExtensionOperator):
         else:
             trafo = False
 
-        save_ext = True
+        save_ext = False
         if save_ext:
             file = File('./../Output/Extension/function.pvd')
             file << boundary_conditions
 
         if b_old != None:
             self.bc_old = project(b_old, self.FS)
+            self.bc_old.set_allow_extrapolation(True)
 
         if trafo:
             up = project(self.bc_old, self.FS)
