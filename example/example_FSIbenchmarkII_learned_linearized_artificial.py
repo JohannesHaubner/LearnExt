@@ -75,7 +75,7 @@ class LearnExtension(extension.ExtensionOperator):
         T2 = VectorElement("CG", self.mesh.ufl_cell(), 2)
         self.FS = FunctionSpace(self.mesh, T)
         self.FS2 = FunctionSpace(self.mesh, T2)
-        self.incremental = False
+        self.incremental = True
         self.incremental_correct = True
         self.bc_old = Function(self.FS)
         output_directory = str(str(here.parent) + "/example/learned_networks/artificial/")
