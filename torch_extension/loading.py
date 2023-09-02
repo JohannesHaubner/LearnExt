@@ -73,6 +73,6 @@ def load_model(model_dir: PathLike, load_state_dict: bool = True,
     model = build_model(model_dict)
 
     if load_state_dict:
-        model.load_state_dict(torch.load(model_dir / "state_dict.pt"))
+        model.load_state_dict(torch.load(model_dir / "state_dict.pt", map_location=torch.device("cpu")))
 
     return model

@@ -1,6 +1,0 @@
-Note:
-    This model was by mistake trained using an L1 training-cost function
-    and L2 validation-cost function. This is also reflected in the 
-    convergence plot, the validation line shows L2 errors and is therefore
-    much lower than for other networks trained on L1, who show the L1
-    validation cost.

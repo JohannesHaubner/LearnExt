@@ -69,8 +69,8 @@ FSI_param['boundary_cond'] = df.Expression(("(t < 2)?(1.5*Ubar*4.0*x[1]*(0.41 -x
 from torch_extension.extension import TorchExtension, TorchExtensionRecord
 import torch
 import torch.nn as nn
-from torch_extension.loading import ModelLoader
-net: nn.Sequential = ModelLoader("torch_extension/models/yankee")
+from torch_extension.loading import load_model
+net = load_model("torch_extension/models/yankee")
 net.eval()
 
 net(torch.rand((3935, 8))) # Check everything works before run.
@@ -79,9 +79,11 @@ net(torch.rand((3935, 8))) # Check everything works before run.
 extension_operator = TorchExtensionRecord(fluid_domain, net, T_switch=0.0, T_record=18.0, run_name="Data0")
 
 # save options
-FSI_param['save_directory'] = str(str(here.parent) + '/TorchOutput/dataanalysis') #no save if set to None
+FSI_param['save_directory'] = str(str(here.parent) + '/TorchOutput/dataanalysis/learnext_dataset/yankee') #no save if set to None
 FSI_param["save_data_on"] = True
 # FSI_param['save_directory'] = None
 df.set_log_active(False)
 fsisolver = solver.FSIsolver(mesh, boundaries, domains, params, FSI_param, extension_operator, warmstart=False) #warmstart needs to be set to False for the first run
 fsisolver.solve()
+
+print("Solver complete")

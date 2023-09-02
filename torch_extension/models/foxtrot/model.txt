@@ -1,0 +1,28 @@
+MaskNet(
+  (network): Sequential(
+    (0): PrependModule()
+    (1): Sequential(
+      (0): Normalizer()
+      (1): MLP(
+        (activation): ReLU()
+        (layers): Sequential(
+          (0): Linear(in_features=8, out_features=128, bias=True)
+          (1): ReLU()
+          (2): Linear(in_features=128, out_features=128, bias=True)
+          (3): ReLU()
+          (4): Linear(in_features=128, out_features=128, bias=True)
+          (5): ReLU()
+          (6): Linear(in_features=128, out_features=128, bias=True)
+          (7): ReLU()
+          (8): Linear(in_features=128, out_features=128, bias=True)
+          (9): ReLU()
+          (10): Linear(in_features=128, out_features=128, bias=True)
+          (11): ReLU()
+          (12): Linear(in_features=128, out_features=2, bias=True)
+        )
+      )
+    )
+  )
+  (base): TrimModule()
+  (mask): TensorModule()
+)
