@@ -2,8 +2,8 @@
 
 # LearnExt
 
-Code repository for the manuscript
-> J. Haubner, M. Kuchta: Learning a Mesh Motion Technique with Application to Fluid-Structure Interaction and Shape Optimization, arXiv preprint arXiv:2206.02217
+Code repository for FSI experiments on neural network-corrected harmonic extensions from the manuscript
+> J. Haubner, O. Hellan, M. Zeinhofer, M. Kuchta: Learning Mesh Motion Techniques with Application to Fluid-Structure Interaction, arXiv preprint arXiv:2206.02217
 
 ## Usage/Examples
 
