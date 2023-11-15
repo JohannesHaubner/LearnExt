@@ -12,6 +12,7 @@ def transfer_subfunction_to_parent(f, f_full):
     """
     Transfers a function from a MeshView submesh to its parent mesh
     keeps f_full on the other subpart of the mesh unchanged
+    # TODO write this in parallel
     """
 
     # Extract meshes
@@ -37,48 +38,45 @@ def transfer_subfunction_to_parent(f, f_full):
 
 
 if __name__ == "__main__":
+    from pathlib import Path
+    here = Path(__file__).parent.parent.parent.resolve()
     # load mesh
     mesh = Mesh()
-    with XDMFFile("../../Output/Mesh_Generation/mesh_triangles.xdmf") as infile:
+    with XDMFFile(str(here) + "/Output/Mesh_Generation/mesh_triangles.xdmf") as infile:
         infile.read(mesh)
     mvc = MeshValueCollection("size_t", mesh, 2)
     mvc2 = MeshValueCollection("size_t", mesh, 2)
-    with XDMFFile("../../Output/Mesh_Generation/facet_mesh.xdmf") as infile:
+    with XDMFFile(str(here) + "/Output/Mesh_Generation/facet_mesh.xdmf") as infile:
         infile.read(mvc, "name_to_read")
-    with XDMFFile("../../Output/Mesh_Generation/mesh_triangles.xdmf") as infile:
+    with XDMFFile(str(here) + "/Output/Mesh_Generation/mesh_triangles.xdmf") as infile:
         infile.read(mvc2, "name_to_read")
     boundaries = cpp.mesh.MeshFunctionSizet(mesh, mvc)
     domains = cpp.mesh.MeshFunctionSizet(mesh, mvc2)
-    bdfile = File("../../Output/Mesh_Generation/boundary.pvd")
+    bdfile = File(str(here) + "/Output/Mesh_Generation/boundary.pvd")
     bdfile << boundaries
-    bdfile = File("../../Output/Mesh_Generation/domains.pvd")
+    bdfile = File(str(here) + "/Output/Mesh_Generation/domains.pvd")
     bdfile << domains
 
     # boundary parts
-    params = np.load('../../Output/Mesh_Generation/params.npy', allow_pickle='TRUE').item()
+    params = np.load(str(here) + '/Output/Mesh_Generation/params.npy', allow_pickle='TRUE').item()
 
     # subdomains
     fluid_domain = MeshView.create(domains, params["fluid"])
     solid_domain = MeshView.create(domains, params["solid"])
 
     # function on whole domain
-    V = FunctionSpace(mesh, "CG", 1)
+    V = FunctionSpace(mesh, "CG", 2)
     v = interpolate(Expression("x[0]*x[1]", degree=2), V)
     v.rename("function", "function")
 
     file = File('../../Output/Tools/function.pvd')
     file << v
 
-    Vf = FunctionSpace(fluid_domain, "CG", 1)
+    Vf = FunctionSpace(fluid_domain, "CG", 2)
     vf = interpolate(v, Vf)
     vf.rename("function", "function")
     file << vf
 
-    bmesh_fluid = BoundaryMesh(fluid_domain, "exterior")
-    Vbf = FunctionSpace(bmesh_fluid, "CG", 1)
-    vbf = interpolate(v, Vbf)
-    vbf.rename("function", "function")
-    file << vbf
 
     f = interpolate(Constant(1.0), V)
     ff = transfer_subfunction_to_parent(vf, f)
