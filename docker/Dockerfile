@@ -18,7 +18,7 @@ ARG DOLFIN_CMAKE_CXX_FLAGS="-O2"
 
 ########################################
 
-FROM ubuntu:22.04 as fenics-base
+FROM nvidia/cuda:12.0.0-devel-ubuntu22.04 as fenics-base
 # Usage of pip setuptools
 ENV DEB_PYTHON_INSTALL_LAYOUT=deb_system
 
