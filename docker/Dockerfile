@@ -1,20 +1,12 @@
-# Based on: 
-# https://github.com/sinzlab/pytorch-docker/blob/master/Dockerfile
-# and
-# https://github.com/JohannesHaubner/ShapeOpt/tree/main/docker
-
 # Dependency versions
 ARG PYBIND11_VERSION=2.10.1
-ARG PETSC_VERSION=3.18.2
-ARG SLEPC_VERSION=3.18.1
-ARG UFL_BRANCH="2021.1.0"
-#ARG DOLFIN_BRANCH="master" -> replaced by custom
+ARG PETSC_VERSION=3.18.6
+ARG SLEPC_VERSION=3.18.3
+ARG UFL_BRANCH="ufl_legacy"
+ARG DOLFIN_BRANCH="master"
 ARG FFC_BRANCH="master"
 ARG DIJITSO_BRANCH="master"
 ARG FIAT_BRANCH="master"
-
-# disable cache 
-ARG CACHEBUST=0123
 
 # Flags to pass to ninja build system.
 ARG MAKEFLAGS
@@ -25,20 +17,8 @@ ARG DOLFIN_CMAKE_BUILD_TYPE="RelWithDebInfo"
 ARG DOLFIN_CMAKE_CXX_FLAGS="-O2"
 
 ########################################
-FROM nvidia/cuda:12.0.0-devel-ubuntu22.04 as fenics-base
-#FROM ubuntu:22.04 as fenics-base
 
-# Deal with pesky Python 3 encoding issue
-ENV LANG C.UTF-8
-ENV DEBIAN_FRONTEND noninteractive
-ENV MPLLOCALFREETYPE 1
-
-RUN apt-get update && apt-get -y upgrade && apt-get install -y software-properties-common
-
-# Add Python ppa
-RUN add-apt-repository ppa:deadsnakes/ppa
-
-
+FROM ubuntu:22.04 as fenics-base
 # Usage of pip setuptools
 ENV DEB_PYTHON_INSTALL_LAYOUT=deb_system
 
@@ -47,8 +27,6 @@ ENV PETSC_DIR=/usr/local/petsc
 ENV PETSC_ARCH=linux-gnu-real-32
 # SLEPC vars
 ENV SLEPC_DIR=/usr/local/slepc
-# IPOPT vars
-ENV IPOPT_PATH=/usr/local/Ipopt
 
 # Arguments that can be overridden by a user building the docker image
 # Compiler optimisation flags for SLEPc and PETSc, all languages.
@@ -75,15 +53,11 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     apt-get -qq update && \
     apt-get -yq --with-new-pkgs -o Dpkg::Options::="--force-confold" upgrade && \
     apt-get -y install \
-    build-essential \
-    ca-certificates \
     clang \
     cmake \
-    curl \
     g++ \
     git \
     gfortran \
-    graphviz \
     libboost-dev \
     libboost-filesystem-dev \
     libboost-iostreams-dev \
@@ -96,30 +70,24 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     libhdf5-${MPI}-dev \
     liblapack-dev \
     lib${MPI}-dev \
-    libpng-dev \
     libopenblas-dev \
-    lsb-release \
     ninja-build \
     pkg-config \
     python3-dev \
     python3-pip \
     python3-setuptools \
-    python3-tk \
     python3-numpy \
     python3-matplotlib \
     python3-scipy \
-    unzip \
-    wget \
-    zip && \
-    curl -sL https://deb.nodesource.com/setup_19.x | bash - &&\
+    python3-venv \
+    wget && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-RUN /bin/bash -l -c "pip3 install --upgrade numpy"
-RUN /bin/bash -l -c "pip3 install h5py --no-binary=h5py"
 
 # Install Python packages (via pip)
-RUN python3 -m pip install --upgrade pip setuptools==58.3.0
+RUN python3 -m pip install --upgrade pip setuptools
+RUN python3 -m pip install Cython==0.29.32
 RUN python3 -m pip install pytest pkgconfig
 RUN python3 -m pip install --no-cache-dir mpi4py
 
@@ -215,7 +183,7 @@ ENV ENV DEB_PYTHON_INSTALL_LAYOUT=deb_system
 RUN git clone --branch ${FIAT_BRANCH} --single-branch  https://github.com/FEniCS/fiat.git && \
     git clone --branch ${FFC_BRANCH} --single-branch https://bitbucket.com/fenics-project/ffc.git && \
     git clone --branch ${UFL_BRANCH} --single-branch https://github.com/FEniCS/ufl.git && \
-    git clone --single-branch https://JohannesHaubner@bitbucket.org/JohannesHaubner/dolfin_23.git && \
+    git clone --branch ${DOLFIN_BRANCH} --single-branch https://bitbucket.com/fenics-project/dolfin.git && \
     git clone --branch ${DIJITSO_BRANCH} --single-branch https://bitbucket.com/fenics-project/dijitso.git
 
 RUN cd fiat && python3 -m pip install --no-cache-dir . && \
@@ -224,11 +192,11 @@ RUN cd fiat && python3 -m pip install --no-cache-dir . && \
     cd ../ffc && python3 -m pip install --no-cache-dir . && \
     cd ../ && python3 -m pip install --no-cache-dir ipython
 
-RUN cd dolfin_23 && \
+RUN cd dolfin && \
     cmake -G Ninja -DCMAKE_BUILD_TYPE=${DOLFIN_CMAKE_BUILD_TYPE} -DCMAKE_CXX_FLAGS=${DOLFIN_CMAKE_CXX_FLAGS} -B build . && \
     ninja ${MAKEFLAGS} install -C build
 
-RUN python3 -m pip install --no-dependencies ./dolfin_23/python
+RUN python3 -m pip install --no-dependencies ./dolfin/python
 
 WORKDIR /root
 RUN rm -rf /src
