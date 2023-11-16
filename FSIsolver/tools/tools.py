@@ -31,15 +31,15 @@ def transfer_subfunction_to_parent(f, f_full):
     dofmap = V.dofmap()
     dofmap_full = V_full.dofmap()
 
+
     d_full = []
     d = []
     imin, imax = dofmap_full.ownership_range()
-    iminl, imaxl = dofmap.ownership_range()
 
     # Transfer dofs
     for c in cells(submesh):
-        d_full.append(dofmap_full.cell_dofs(cell_map[c.index()])+imin)
-        d.append(dofmap.cell_dofs(c.index())+iminl)  
+        d_full.append([dofmap_full.local_to_global_index(i) for i in dofmap_full.cell_dofs(cell_map[c.index()])])
+        d.append([dofmap.local_to_global_index(i) for i in dofmap.cell_dofs(c.index())])  
         #f_f.vector().set_local(dofmap_full.cell_dofs(cell_map[c.index()])) = f.vector()[dofmap.cell_dofs(c.index())]
 
 
@@ -59,12 +59,8 @@ def transfer_subfunction_to_parent(f, f_full):
 
     f_f_vec = f_f.vector().gather(range(f_full.vector().size()))
     f_vec = f.vector().gather(range(f.vector().size()))
+    f_f_vec[data[:,0]] = f_vec[data[:,1]]
 
-    for i in range(len(data[:,1])):
-        try:
-            f_f_vec[data[i,0]] = f_vec[data[i,1]]
-        except:
-            print('i')
 
     f_f.vector().set_local(f_f_vec[imin:imax])
     f_f.vector().apply("")
