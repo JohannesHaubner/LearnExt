@@ -1,6 +1,8 @@
 from dolfin import *
 import numpy as np
 import mpi4py as MPI
+comm = MPI.MPI.COMM_WORLD
+id = comm.Get_rank()
 
 def transfer_to_subfunc(f, Vbf):
     """
@@ -13,7 +15,6 @@ def transfer_subfunction_to_parent(f, f_full):
     """
     Transfers a function from a MeshView submesh to its parent mesh
     keeps f_full on the other subpart of the mesh unchanged
-    # TODO write this in parallel
     """
 
     # Extract meshes
@@ -70,9 +71,6 @@ def transfer_subfunction_to_parent(f, f_full):
 
 if __name__ == "__main__":
     from pathlib import Path
-    comm = MPI.MPI.COMM_WORLD
-    id = comm.Get_rank()
-
     here = Path(__file__).parent.parent.parent.resolve()
     # load mesh
     mesh = Mesh()
