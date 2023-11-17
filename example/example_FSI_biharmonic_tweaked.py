@@ -11,6 +11,7 @@ import FSIsolver.fsi_solver.solver as solver
 from FSIsolver.tools.subdomains import SubMeshCollection
 
 parameters["ghost_mode"] = "shared_facet"
+parameters["allow_extrapolation"] = True
 
 # create mesh: first create mesh by running ./create_mesh/create_mesh_FSI.py
 
