@@ -92,9 +92,46 @@ if __name__ == "__main__":
     # boundary parts
     params = np.load(str(here) + '/Output/Mesh_Generation/params.npy', allow_pickle='TRUE').item()
 
-    # subdomains
-    fluid_domain = MeshView.create(domains, params["fluid"])
-    solid_domain = MeshView.create(domains, params["solid"])
+    version = 0
+
+    if version == 1:
+
+        # subdomains
+        fluid_domain = MeshView.create(domains, params["fluid"])
+        solid_domain = MeshView.create(domains, params["solid"])
+
+    else:
+        from subdomains import SubMeshCollection
+        # dictionary of tags for the boundaries/facets
+        boundary_labels = {
+            "inflow": 1,
+            "outflow": 2,
+            "walls": 3,
+            "obstacle_fluid": 5,
+            "obstacle_solid": 4,
+            "interface": 6,
+        }
+
+        # dictionary of tags for the subdomains
+        subdomain_labels = {
+            "fluid": 7,
+            "solid": 8,
+        }
+
+        # Dictionary with facet-labels from the boundary of each subdomain
+        subdomain_boundaries = {
+            "fluid": ("inflow", "outflow", "walls", "obstacle_fluid", "interface"),
+            "solid": ("interface", "obstacle_solid"),
+        }
+
+        #  call SubMeshCollection
+        meshes = SubMeshCollection(domains, boundaries, subdomain_labels, boundary_labels, subdomain_boundaries)
+
+        markers_fluid = meshes.subdomains["fluid"].boundaries
+        markers_solid = meshes.subdomains["solid"].boundaries
+
+        fluid_domain = markers_fluid.mesh()
+        solid_domain = markers_solid.mesh()
 
     # function on whole domain
     V = FunctionSpace(mesh, "CG", 2)
