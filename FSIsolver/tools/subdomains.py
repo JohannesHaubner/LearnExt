@@ -25,10 +25,11 @@ class FacetView(Mesh):
 
 class SubdomainView(Mesh):
     def __init__(self, subdomains: MeshFunctionSizet, name: str, value: int):
-        super().__init__(MeshView.create(subdomains, value))
+        self.mesh = MeshView.create(subdomains, value)
+        super().__init__(self.mesh)
         self.rename(name, "")
         self.value = value
-        self.boundaries = MeshFunction('size_t', self, self.topology().dim()-1, 0)
+        self.boundaries = MeshFunction('size_t', self.mesh, self.topology().dim()-1, 0)
         
     def mark_boundaries(self, boundarymeshes: List[FacetView]):
         for bdry in boundarymeshes:

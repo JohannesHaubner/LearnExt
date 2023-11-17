@@ -1,8 +1,10 @@
 from dolfin import *
 
 class ExtensionOperator(object):
-    def __init__(self, mesh):
+    def __init__(self, mesh, marker, ids):
         self.mesh = mesh
+        self.marker = marker
+        self.ids = ids
 
     def extend(self, boundary_conditions, params=None):
         """extend the boundary_conditions to the interior of the mesh"""
@@ -13,8 +15,8 @@ class ExtensionOperator(object):
         return False
 
 class Biharmonic(ExtensionOperator):
-    def __init__(self, mesh):
-        super().__init__(mesh)
+    def __init__(self, mesh, marker=None, ids=None):
+        super().__init__(mesh, marker, ids)
 
         T = VectorElement("CG", self.mesh.ufl_cell(), 2)
         self.FS = FunctionSpace(self.mesh, MixedElement(T, T))
@@ -32,7 +34,12 @@ class Biharmonic(ExtensionOperator):
         a = inner(grad(z), grad(psiu)) * dx + inner(z, psiz) * dx - inner(grad(u), grad(psiz)) * dx
         L = Constant(0.0) * psiu[0] * dx
 
-        bc = DirichletBC(self.FS.sub(0), boundary_conditions, 'on_boundary')
+        if self.marker == None:
+            bc = DirichletBC(self.FS.sub(0), boundary_conditions, 'on_boundary')
+        else:
+            bc = []
+            for i in self.ids:
+                bc.append(DirichletBC(self.FS.sub(0), boundary_conditions, self.marker, i))
 
         uz = Function(self.FS)
 

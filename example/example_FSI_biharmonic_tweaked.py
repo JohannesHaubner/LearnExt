@@ -38,10 +38,6 @@ params = np.load(str(here.parent) + '/Output/Mesh_Generation/params.npy', allow_
 
 params["no_slip_ids"] = ["noslip", "obstacle_fluid", "obstacle_solid"]
 
-# subdomains
-fluid_domain = create_meshview(domains, params["fluid"])
-solid_domain = create_meshview(domains, params["solid"])
-
 # dictionary of tags for the boundaries/facets
 boundary_labels = {
     "inflow": 1,
@@ -66,6 +62,10 @@ subdomain_boundaries = {
 
 #  call SubMeshCollection
 meshes = SubMeshCollection(domains, boundaries, subdomain_labels, boundary_labels, subdomain_boundaries)
+
+# subdomains
+fluid_domain = meshes.subdomains["fluid"].mesh
+solid_domain = meshes.subdomains["solid"].mesh
 
 markers_fluid = meshes.subdomains["fluid"].boundaries
 markers_solid = meshes.subdomains["solid"].boundaries
@@ -96,7 +96,8 @@ FSI_param['boundary_cond'] = Expression(("(t < 2)?(1.5*Ubar*4.0*x[1]*(0.41 -x[1]
 
 
 # extension operator
-extension_operator = extension.Biharmonic(fluid_domain, markers_fluid, subdomain_boundaries["fluid"])
+ids = [boundary_labels[i] for i in subdomain_boundaries["fluid"]]
+extension_operator = extension.Biharmonic(fluid_domain, markers_fluid, ids)
 
 # save options
 FSI_param['save_directory'] = str(here.parent)+ '/Output/FSIbenchmarkII_biharmonic_adaptive_n' #no save if set to None
