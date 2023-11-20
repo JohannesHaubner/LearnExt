@@ -9,7 +9,55 @@ def transfer_to_subfunc(f, Vbf):
     Transfer function that lives on the whole mesh to the function space Vbf, which lives on a subpart of the
 
     """
-    return interpolate(f, Vbf)
+    # Extract meshes
+    V_full = f.function_space()
+    f_f = Function(Vbf)
+
+    mesh = V_full.mesh()
+    submesh = Vbf.mesh()
+
+    # Build cell mapping between sub and parent meshes
+    cell_map = submesh.topology().mapping()[mesh.id()].cell_map()
+
+    # Get cell dofmaps
+    dofmap = Vbf.dofmap()
+    dofmap_full = V_full.dofmap()
+
+
+    d_full = []
+    d = []
+    imin, imax = dofmap_full.ownership_range()
+    iminl, imaxl = dofmap.ownership_range()
+
+    # Transfer dofs
+    for c in cells(submesh):
+        d_full.append([dofmap_full.local_to_global_index(i) for i in dofmap_full.cell_dofs(cell_map[c.index()])])
+        d.append([dofmap.local_to_global_index(i) for i in dofmap.cell_dofs(c.index())])  
+        #f_f.vector().set_local(dofmap_full.cell_dofs(cell_map[c.index()])) = f.vector()[dofmap.cell_dofs(c.index())]
+
+
+    d_f_a = np.asarray(d_full).flatten()
+    d_a = np.asarray(d).flatten()
+    d = np.column_stack((d_f_a, d_a))
+    reduced = np.asarray(list(set([tuple(i) for i in d.tolist()])), dtype='int')
+   
+    # gather data on process 0
+    data = comm.gather(reduced, root=0)
+    # send data to all processes
+    data = comm.bcast(data, root=0)
+    data = np.concatenate(data, axis=0)
+
+
+    #len data , data2
+
+    f_vec = f.vector().gather(range(f.vector().size()))
+    f_f_vec = f_f.vector().gather(range(f_f.vector().size()))
+    f_f_vec[data[:,1]] = f_vec[data[:,0]]
+
+
+    f_f.vector().set_local(f_f_vec[iminl:imaxl])
+    f_f.vector().apply("")
+    return f_f
 
 def transfer_subfunction_to_parent(f, f_full):
     """
@@ -151,3 +199,7 @@ if __name__ == "__main__":
     ff = transfer_subfunction_to_parent(vf, f)
     ff.rename("function", "function")
     file << ff
+
+    f = transfer_to_subfunc(ff, Vf)
+    f.rename("function", "function")
+    file << f
