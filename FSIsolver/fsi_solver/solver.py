@@ -344,11 +344,6 @@ class FSI(Context):
             sEhat = 0.5 * (sFhatt * sFhat - I)
             sJhat = det(sFhat)
 
-        # stress tensors
-        sigmafp = -p * I
-        sigmafv = rhof * nyf * (grad(v) * Fhati + Fhatti *grad(v).T)
-        sigmasv = inv(sJhat) * sFhat * (lambdas * tr(sEhat) * I + 2.0 * mys * sEhat) * sFhatt # STVK
-
         # variables for previous time-step
         Fhat_ = I + grad(u_)
         Fhatt_ = Fhat_.T
@@ -373,8 +368,30 @@ class FSI(Context):
             sEhat_ = 0.5 * (sFhatt_ * sFhat_ - I)
             sJhat_ = det(sFhat_)
 
+        # stress tensors
+        sigmafp = -p * I
+        sigmafv = rhof * nyf * (grad(v) * Fhati + Fhatti *grad(v).T)
         sigmafv_ = rhof * nyf * (grad(v_) * Fhati_ + Fhatti_ * grad(v_).T)
-        sigmasv_ = inv(sJhat_) * sFhat_ * (lambdas * tr(sEhat_) * I + 2.0 * mys * sEhat_) * sFhatt_ # STVK
+
+        if "material_model" in self.FSI_params.keys():
+            material = self.FSI_params["material_model"]
+            print("Choice for material model: ", self.FSI_params["material_model"])
+        else:
+            print("Default choice for material model: STVK")
+            material = "STVK"
+  
+        if material == "STVK":
+            sigmasv = inv(sJhat) * sFhat * (lambdas * tr(sEhat) * I + 2.0 * mys * sEhat) * sFhatt # STVK
+            sigmasv_ = inv(sJhat_) * sFhat_ * (lambdas * tr(sEhat_) * I + 2.0 * mys * sEhat_) * sFhatt_ # STVK
+            sigmasp = Constant(0.0)
+            imr = Constant(0.0)
+        elif material == "IMR": 
+            sigmasv = mys * sFhat * sFhatti + lambdas * sFhatti * sFhati
+            sigmasv_ = mys * sFhat_ * sFhatti_ + lambdas * sFhatti_ * sFhati_
+            sigmasp = -p * I
+            imr = Constant(1.0)
+        else:
+            print('Material not defined yet.')
 
         # weak form
 
@@ -388,12 +405,12 @@ class FSI(Context):
             A_T += -1.0/k * inner(rhof * Jhat * grad(v) * Fhati * (u - u_), psiv)*dxf
 
         # pressure terms
-        A_P = inner(Jhat * Fhati * sigmafp, grad(psiv).T) * dxf
-
+        A_P = inner(Jhat * Fhati * sigmafp, grad(psiv).T) * dxf + imr*inner(sJhat*sFhati*sigmasp, grad(psiv)) * dxs
 
         # implicit terms (e.g. incompressibility)
         A_I = (inner(tr(grad(Jhat * Fhati * v).T), psip) * dxf
-               + inner(self.aphat * grad(p),grad(psip)) * dxs
+               + (Constant(1.0) - imr) * inner(self.aphat * grad(p),grad(psip)) * dxs
+               + imr * inner(sJhat - Constant(1.0), psip) * dxs
                )
 
         # remaining explicit terms

@@ -10,8 +10,6 @@ import FSIsolver.extension_operator.extension as extension
 import FSIsolver.fsi_solver.solver as solver
 from FSIsolver.tools.subdomains import SubMeshCollection
 
-parameters["ghost_mode"] = "shared_facet"
-
 # create mesh: first create mesh by running ./create_mesh/create_mesh_FSI.py
 
 # load mesh
@@ -76,7 +74,7 @@ FSI_param = {}
 FSI_param['fluid_mesh'] = fluid_domain
 FSI_param['solid_mesh'] = solid_domain
 
-FSI_param['lambdas'] = 2.5e6
+FSI_param['lambdas'] = 2.0e6
 FSI_param['mys'] = 0.5e6
 FSI_param['rhos'] = 1.0e4
 FSI_param['rhof'] = 1.0e3
@@ -85,6 +83,8 @@ FSI_param['nyf'] = 1.0e-3
 FSI_param['t'] = 0.0
 FSI_param['deltat'] = 0.01 #0.0025
 FSI_param['T'] = 15.0
+
+FSI_param['material_model'] = "IMR"
 
 FSI_param['displacement_point'] = Point((0.6, 0.2))
 
