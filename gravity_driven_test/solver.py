@@ -39,8 +39,8 @@ class Solver:
         self.k = df.Constant(dt)
 
         self.time_stepping = time_stepping
-        self.get_weak_form = {
-            "explicit_euler": self.get_weak_form_explicit_euler
+        self.step = {
+            "explicit_euler": self.step_explicit_euler
         }[self.time_stepping]
 
         V_el = df.VectorElement("CG", self.mesh.ufl_cell(), self.order)
@@ -79,16 +79,9 @@ class Solver:
 
         return
     
-    def step(self):
 
-        lhs, rhs, bcs = self.get_weak_form()
-        w = df.Function(self.W)
-        df.solve(lhs == rhs, w, bcs)
-        self.u_, self.v_ = w.split()
-
-        return
-    
-    def get_weak_form_explicit_euler(self):
+    def step_explicit_euler(self):
+        
         u, v, y, z = self.u, self.v, self.y, self.z
         u_, v_ = self.u_, self.v_
 
@@ -112,7 +105,12 @@ class Solver:
         
         bc = df.DirichletBC(self.W.sub(0), df.Constant((0.0, 0.0)), self.boundaries, 4)
 
-        return lhs, rhs, [bc]
+        w = df.Function(self.W)
+        df.solve(lhs == rhs, w, [bc])
+        self.u_, self.v_ = w.split()
+
+        return
+    
     
 if __name__ == "__main__":
     problem = Problem(1.0)
