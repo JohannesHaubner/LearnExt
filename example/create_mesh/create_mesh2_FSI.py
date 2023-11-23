@@ -8,6 +8,7 @@ here = Path(__file__).parent.resolve()
 
 # resolution
 resolution = 0.0005  #0.05 #1 # 0.005 #0.1
+resolution2 = 0.0001
 
 # geometric properties
 L = 2.5 #2.5 #20            # length of channel
@@ -32,8 +33,8 @@ c = [0.01, 0.005, 0.]
 inflow = 1
 outflow = 2
 walls = 3
-noslipobstacle = 4
-obstacle = 5
+solid_left = 4
+solid_right = 5
 interface = 6
 fluid = 7
 solid = 8
@@ -41,8 +42,8 @@ solid = 8
 params = {"inflow" : inflow,
           "outflow": outflow,
           "noslip": walls,
-          "obstacle_solid": noslipobstacle,
-          "obstacle_fluid": obstacle,
+          "solid_left": solid_left,
+          "solid_right": solid_right,
           "interface": interface,
           "mesh_parts": True,
           "fluid": fluid,
@@ -70,7 +71,10 @@ model = geometry.__enter__()
 # Add points with finer resolution on left side
 points =  []
 for i in range(10):
-    points.append(model.add_point(d["c_"+ str(i+1)], mesh_size = resolution))
+    if i == 1 or i == 2 or i == 5 or i == 6: 
+        points.append(model.add_point(d["c_"+ str(i+1)], mesh_size = resolution2))
+    else:
+        points.append(model.add_point(d["c_"+ str(i+1)], mesh_size = resolution))
 model.add_point(c)
 
 # Add lines between all points creating the rectangle
@@ -107,12 +111,14 @@ model.synchronize()
 model.add_physical([channel_lines[4]], "inflow") # mark inflow boundary with 1
 model.add_physical([channel_lines[-1]], "outflow") # mark outflow boundary with 2
 wall_lines = []
-for i in [0, 1, 2, 3, 5, 6, 7, 8]:
+for i in [0, 1, 3, 5, 7, 8]:
     wall_lines.append(channel_lines[i])
 model.add_physical(wall_lines, "walls") # mark walls with 3
-model.add_physical(interface_lines, "interface") # mark interface with 5
-model.add_physical([plane_surface, plane_surface3], "fluid") # mark fluid domain with 6
-model.add_physical([plane_surface2], "solid") # mark solid domain with 7
+model.add_physical(channel_lines[2], "solid_left")
+model.add_physical(channel_lines[6], "solid_right")
+model.add_physical(interface_lines, "interface") # mark interface with 6
+model.add_physical([plane_surface, plane_surface3], "fluid") # mark fluid domain with 7
+model.add_physical([plane_surface2], "solid") # mark solid domain with 8
 
 geometry.generate_mesh(dim=2)
 import gmsh

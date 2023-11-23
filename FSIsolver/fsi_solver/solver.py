@@ -89,7 +89,13 @@ class FSI(Context):
         self.FSI_params = FSI_params
         self.extension_operator = extension_operator
 
-        self.theta = 0.5 + self.FSI_params["deltat"] # theta-time-stepping parameter
+        if "material_model" in self.FSI_params.keys():
+            if self.FSI_params["material_model"] == "IMR":
+                self.theta = 1.0
+            else:
+                self.theta = 0.5 + self.FSI_params["deltat"] # theta-time-stepping parameter
+        else:
+            self.theta = 0.5 + self.FSI_params["deltat"] # theta-time-stepping parameter
 
         # help variables
         self.aphat = 1e-9
@@ -123,9 +129,13 @@ class FSI(Context):
             self.dfile = File(deformation_filename)
 
         dx = Measure("dx", domain=self.mesh, subdomain_data=self.domains)
+        ds = Measure("ds", domain=self.mesh, subdomain_data=boundaries)
 
         self.dxf = dx(self.param["fluid"])
         self.dxs = dx(self.param["solid"])
+        self.ds = ds
+
+        self.bc_weak_form = []
 
 
     def warmstart(self, t):
@@ -286,8 +296,24 @@ class FSI(Context):
         :param VP: function space in which velocity and pressure live
         :return:
         """
+
+        if "bc_type" in self.FSI_params.keys():
+            bc_type = self.FSI_params["bc_type"]
+            print("Choice for boundary type: ", self.FSI_params["bc_type"])
+        else:
+            print("Default choice for boundary type: inflow")
+            bc_type = "inflow"
+
         bc = []
-        bc.append(DirichletBC(VP.sub(0), self.bc, self.boundaries, self.param["inflow"]))
+        if bc_type == "inflow":
+            bc.append(DirichletBC(VP.sub(0), self.bc, self.boundaries, self.param["inflow"]))
+        elif bc_type == "pressure":
+            id = self.param["inflow"]
+            self.bc_weak_form.append("F += -inner(self.bc* n, psiv)*ds(" + str(id) + ")")
+            #bc.append(DirichletBC(VP.sub(1), self.bc, self.boundaries, self.param["inflow"]))
+            #bc.append(DirichletBC(VP.sub(1), Constant(0.), self.boundaries, self.param["outflow"]))
+        else:
+            raise("Not Implemented")
 
         for i in self.param["no_slip_ids"]:
             bc.append(DirichletBC(VP.sub(0), Constant((0.0,0.0)), self.boundaries, self.param[i]))
@@ -309,6 +335,9 @@ class FSI(Context):
 
         dxf = self.dxf
         dxs = self.dxs
+        ds = self.ds
+        
+        n = FacetNormal(self.mesh)
 
         # split functions
         (v, p) = split(vp)
@@ -388,7 +417,7 @@ class FSI(Context):
         elif material == "IMR": 
             sigmasv = mys * sFhat * sFhatti + lambdas * sFhatti * sFhati
             sigmasv_ = mys * sFhat_ * sFhatti_ + lambdas * sFhatti_ * sFhati_
-            sigmasp = -p * I
+            sigmasp =  Constant(-1.0) * p * I 
             imr = Constant(1.0)
         else:
             print('Material not defined yet.')
@@ -409,7 +438,7 @@ class FSI(Context):
 
         # implicit terms (e.g. incompressibility)
         A_I = (inner(tr(grad(Jhat * Fhati * v).T), psip) * dxf
-               + (Constant(1.0) - imr) * inner(self.aphat * grad(p),grad(psip)) * dxs
+               + (Constant(1.0) - imr ) *inner(self.aphat * grad(p),grad(psip)) * dxs
                + imr * inner(sJhat - Constant(1.0), psip) * dxs
                )
 
@@ -432,6 +461,12 @@ class FSI(Context):
             A_E_rhs += inner(rhof * Jhat_ * grad(v_) * Fhati_ * v_, psiv) * dxf
 
         F = A_T + A_P + A_I + theta * A_E + (1 - theta)*A_E_rhs
+
+        # add boundary conditions that appear in weak form (get_boundary_conditions)
+        for i in self.bc_weak_form:
+            exec(i)
+
+
 
         return F
 
