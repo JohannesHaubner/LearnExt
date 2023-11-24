@@ -24,7 +24,7 @@ def get_S(E, mu: df.Constant, lambda_: df.Constant):
 class Solver:
 
     def __init__(self, problem: Problem, order: int = 2, dt: float = 1e-3, T: float = 0.1,
-                 time_stepping: Literal["explicit_euler", "IMEX", "step_implicit_euler"] = "explicit_euler"):
+                 time_stepping: Literal["explicit_euler", "IMEX", "step_implicit_euler"] = "implicit_euler"):
 
         self.problem = problem
 
@@ -147,9 +147,8 @@ class Solver:
 
     def step_implicit_euler(self):
 
-        # u, v, y, z = self.u, self.v, self.y, self.z
         uv = df.Function(self.W)
-        u, v = uv.split()
+        u, v = df.split(uv)
         y, z = self.y, self.z
         u_, v_ = self.u_, self.v_
 
@@ -166,22 +165,21 @@ class Solver:
 
         system = df.inner(u, y) * df.dx - k * df.inner(v, y) * df.dx + \
                  -df.inner(u_, y) * df.dx + \
-                 rho * df.inner(v, z) * df.dx - k * df.inner(P, df.grad(z)) * df.dx + \
+                 rho * df.inner(v, z) * df.dx + k * df.inner(P, df.grad(z)) * df.dx + \
                  -rho * k * df.inner(g, z) * df.dx - rho * df.inner(v_, z) * df.dx
 
         bc = df.DirichletBC(self.W.sub(0), df.Constant((0.0, 0.0)), self.boundaries, 4)
 
-        w = df.Function(self.W)
-        df.solve(system == 0, w, [bc], solver_parameters={"nonlinear_solver": "newton", "newton_solver":
+        df.solve(system == 0, uv, [bc], solver_parameters={"nonlinear_solver": "newton", "newton_solver":
             {"maximum_iterations": 20}})
-        self.u_, self.v_ = w.split()
+        self.u_, self.v_ = uv.split()
         
         return
     
 
 if __name__ == "__main__":
     problem = Problem(1.0)
-    solver = Solver(problem, order=1, dt=0.001, T=0.2, time_stepping="implicit_euler")
+    solver = Solver(problem, order=2, dt=0.02, T=1.0, time_stepping="implicit_euler")
     solver.solve("gravity_driven_test/data/test")
 
 
