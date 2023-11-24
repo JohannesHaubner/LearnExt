@@ -64,17 +64,36 @@ class Solver:
         if (save_dir / "solid.xdmf").exists():
             (save_dir / "solid.xdmf").unlink()
             (save_dir / "solid.h5").unlink()
+        if (save_dir / "fluid_harm.xdmf").exists():
+            (save_dir / "fluid_harm.xdmf").unlink()
+            (save_dir / "fluid_harm.h5").unlink()
         
         solid_file = df.XDMFFile(str(save_dir / "solid.xdmf"))
         solid_file.write(self.mesh)
+        fluid_file = df.XDMFFile(str(save_dir / "fluid_harm.xdmf"))
+        fluid_file.write(self.problem.fluid_mesh)
+        
         solid_file.write_checkpoint(self.u_, "uh", self.t, append=True)
+
+        solid_V = df.VectorFunctionSpace(self.mesh, "CG", self.order)
+        uh_solid = df.Function(solid_V)
+        uh_solid.interpolate(self.u_)
+
+        uh_fluid = self.extend_harmonic(uh_solid, order=self.order)
+        fluid_file.write_checkpoint(uh_fluid, "uh", self.t, append=True)
 
         while self.t < self.T:
             self.step()
             self.t += self.dt
+
             solid_file.write_checkpoint(self.u_, "uh", self.t, append=True)
 
+            uh_solid.interpolate(self.u_)
+            uh_fluid = self.extend_harmonic(uh_solid, order=self.order)
+            fluid_file.write_checkpoint(uh_fluid, "uh", self.t, append=True)
+
         solid_file.close()
+        fluid_file.close()
 
         return
 
@@ -109,10 +128,36 @@ class Solver:
         
         return
     
+    def extend_harmonic(self, uh: df.Function, order: int | None = None) -> df.Function:
+        from meshing import translate_function
+        if order is None:
+            order = self.order
+
+        uh_fluid = translate_function(from_u=uh,
+                                    from_facet_f=self.boundaries,
+                                    to_facet_f=self.problem.fluid_boundaries,
+                                    shared_tags=self.problem.interface_tags)
+
+        V = df.VectorFunctionSpace(self.problem.fluid_mesh, 'CG', order)
+        u, v = df.TrialFunction(V), df.TestFunction(V)
+
+        a = df.inner(df.grad(u), df.grad(v))*df.dx
+        L = df.inner(df.Constant((0, )*len(u)), v)*df.dx
+        # Those from solid
+        bcs = [df.DirichletBC(V, uh_fluid, self.problem.fluid_boundaries, tag) for tag in self.problem.interface_tags]
+        # The rest is fixed
+        null = df.Constant((0, )*len(u))
+        bcs.extend([df.DirichletBC(V, null, self.problem.fluid_boundaries, tag) for tag in self.problem.zero_displacement_tags])
+
+        uh_f = df.Function(V)
+        df.solve(a == L, uh_f, bcs)
+
+        return uh_f
+    
 
 if __name__ == "__main__":
     problem = Problem(1.0)
-    solver = Solver(problem, order=2, dt=0.02, T=1.0, time_stepping="implicit_euler")
+    solver = Solver(problem, order=1, dt=0.02, T=1.0, time_stepping="implicit_euler")
     solver.solve("gravity_driven_test/data/test")
 
 
