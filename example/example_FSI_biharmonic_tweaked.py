@@ -91,7 +91,7 @@ FSI_param['T'] = 5.0
 FSI_param['material_model'] = "IMR"
 FSI_param['bc_type'] = "pressure"
 
-FSI_param['displacement_point'] = Point((0.6, 0.2))
+FSI_param['displacement_point'] = Point((0.01, 0.005))
 
 # boundary conditions, need to be 0 at t = 0
 FSI_param['boundary_cond'] = Expression("5e6*t", t=FSI_param['t'], degree=2)
