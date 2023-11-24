@@ -44,7 +44,7 @@ boundary_labels = {
     "outflow": 2,
     "walls": 3,
     "solid_left": 4,
-    "solid_righ": 5,
+    "solid_right": 5,
     "interface": 6,
 }
 
@@ -85,7 +85,7 @@ FSI_param['rhof'] = 1.0e4
 FSI_param['nyf'] = 4e-3
 
 FSI_param['t'] = 0.0
-FSI_param['deltat'] = 0.01 #0.0025
+FSI_param['deltat'] = 0.001 #0.0025
 FSI_param['T'] = 5.0
 
 FSI_param['material_model'] = "IMR"
@@ -94,7 +94,7 @@ FSI_param['bc_type'] = "pressure"
 FSI_param['displacement_point'] = Point((0.6, 0.2))
 
 # boundary conditions, need to be 0 at t = 0
-FSI_param['boundary_cond'] = Expression("5e5*t", t=FSI_param['t'], degree=2)
+FSI_param['boundary_cond'] = Expression("5e3*t", t=FSI_param['t'], degree=2)
 
 
 # extension operator

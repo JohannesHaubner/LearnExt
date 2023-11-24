@@ -284,6 +284,7 @@ class FSI(Context):
         psi = TestFunction(vp_.function_space())
 
         bc = self.get_boundary_conditions(vp_.function_space())
+
         F = self.get_weak_form(vp, vp_, u, u_, psi, option)
 
         solve(F == 0, vp, bc, solver_parameters={"nonlinear_solver": "newton", "newton_solver":
@@ -297,6 +298,13 @@ class FSI(Context):
         :return:
         """
 
+        # pressure BC
+        class PressureB(SubDomain):
+            def inside(self, x, on_boundary):
+                return near(x[0], (0.1)) and near(x[1], (0.05))
+            
+        pressureb = PressureB()
+
         if "bc_type" in self.FSI_params.keys():
             bc_type = self.FSI_params["bc_type"]
             print("Choice for boundary type: ", self.FSI_params["bc_type"])
@@ -305,6 +313,7 @@ class FSI(Context):
             bc_type = "inflow"
 
         bc = []
+        bc.append(DirichletBC(VP.sub(1), Constant(0.0), pressureb, method='pointwise'))
         if bc_type == "inflow":
             bc.append(DirichletBC(VP.sub(0), self.bc, self.boundaries, self.param["inflow"]))
         elif bc_type == "pressure":
@@ -415,8 +424,8 @@ class FSI(Context):
             sigmasp = Constant(0.0)
             imr = Constant(0.0)
         elif material == "IMR": 
-            sigmasv = mys * sFhat * sFhatti + lambdas * sFhatti * sFhati
-            sigmasv_ = mys * sFhat_ * sFhatti_ + lambdas * sFhatti_ * sFhati_
+            sigmasv = mys * sFhat * sFhatt + lambdas * sFhatti * sFhati
+            sigmasv_ = mys * sFhat_ * sFhatt_ + lambdas * sFhatti_ * sFhati_
             sigmasp =  Constant(-1.0) * p * I 
             imr = Constant(1.0)
         else:
@@ -501,7 +510,7 @@ class FSIsolver(Solver):
         self.warmstart = warmstart
 
         # function space
-        V2 = VectorElement("CG", mesh.ufl_cell(), 2)
+        V2 = VectorElement("CG", mesh.ufl_cell(), 2) 
         S1 = FiniteElement("CG", mesh.ufl_cell(), 1)
         self.VP = FunctionSpace(mesh, MixedElement(V2, S1))
 
