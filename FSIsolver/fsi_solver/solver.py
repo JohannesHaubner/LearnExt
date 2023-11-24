@@ -317,10 +317,7 @@ class FSI(Context):
         if bc_type == "inflow":
             bc.append(DirichletBC(VP.sub(0), self.bc, self.boundaries, self.param["inflow"]))
         elif bc_type == "pressure":
-            id = self.param["inflow"]
-            self.bc_weak_form.append("F += -inner(self.bc* n, psiv)*ds(" + str(id) + ")")
-            #bc.append(DirichletBC(VP.sub(1), self.bc, self.boundaries, self.param["inflow"]))
-            #bc.append(DirichletBC(VP.sub(1), Constant(0.), self.boundaries, self.param["outflow"]))
+            pass
         else:
             raise("Not Implemented")
 
@@ -472,8 +469,8 @@ class FSI(Context):
         F = A_T + A_P + A_I + theta * A_E + (1 - theta)*A_E_rhs
 
         # add boundary conditions that appear in weak form (get_boundary_conditions)
-        for i in self.bc_weak_form:
-            exec(i)
+        if self.FSI_params["bc_type"] == "pressure":
+            F += -inner(self.bc* n, psiv)*ds(self.param["inflow"])
 
 
 
