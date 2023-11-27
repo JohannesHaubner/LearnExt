@@ -2,6 +2,7 @@ import dolfin as df
 import numpy as np
 
 import os
+import tqdm
 
 from problem import Problem
 from pathlib import Path
@@ -59,7 +60,7 @@ class Solver:
 
         return
     
-    def solve(self, save_dir: os.PathLike, fluid_order: int | None = None):
+    def solve(self, save_dir: os.PathLike, fluid_order: int | None = None, log_active=False):
         save_dir = Path(save_dir)
         save_dir.mkdir(parents=True, exist_ok=True)
         if (save_dir / "solid.xdmf").exists():
@@ -68,6 +69,8 @@ class Solver:
         if (save_dir / "fluid_harm.xdmf").exists():
             (save_dir / "fluid_harm.xdmf").unlink()
             (save_dir / "fluid_harm.h5").unlink()
+
+        df.set_log_active(log_active)
         
         solid_file = df.XDMFFile(str(save_dir / "solid.xdmf"))
         solid_file.write(self.mesh)
@@ -84,10 +87,15 @@ class Solver:
         uh_fluid = self.extend_harmonic(uh_solid, order=fluid_order)
         fluid_file.write_checkpoint(uh_fluid, "uh", self.it, append=True)
 
+        if log_active is False: 
+            pbar = tqdm.tqdm(total=self.T)
+            import warnings
+            warnings.filterwarnings("ignore", category=tqdm.TqdmWarning) # message="TqdmWarning: clamping frac to range [0, 1]"
         while self.t < self.T:
             self.step()
             self.t += self.dt
             self.it += 1
+            if log_active is False: pbar.update(self.dt)
 
             solid_file.write_checkpoint(self.u_, "uh", self.it, append=True)
 
@@ -97,6 +105,9 @@ class Solver:
 
         solid_file.close()
         fluid_file.close()
+        if log_active is False:
+            pbar.close()
+            warnings.filterwarnings("default", category=tqdm.TqdmWarning)
 
         return
 
@@ -159,8 +170,8 @@ class Solver:
     
 
 if __name__ == "__main__":
-    problem = Problem(3.0)
+    problem = Problem(2.5)
     solver = Solver(problem, order=2, dt=0.02, T=1.0, time_stepping="implicit_euler")
-    solver.solve("gravity_driven_test/data/test", fluid_order=1)
+    solver.solve("gravity_driven_test/data/test", fluid_order=2)
 
 
