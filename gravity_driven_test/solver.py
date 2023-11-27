@@ -60,7 +60,8 @@ class Solver:
 
         return
     
-    def solve(self, save_dir: os.PathLike, fluid_order: int | None = None, log_active=False):
+    def solve(self, save_dir: os.PathLike, fluid_order: int | None = None, 
+              log_active: bool = False):
         save_dir = Path(save_dir)
         save_dir.mkdir(parents=True, exist_ok=True)
         if (save_dir / "solid.xdmf").exists():

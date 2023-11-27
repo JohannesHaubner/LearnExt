@@ -36,7 +36,8 @@ def find_cg_order(path_to_xdmf: os.PathLike) -> int:
     raise RuntimeError
 
 def run_extensions_from_file(extension: ExtensionOperator, path_to_file: os.PathLike, 
-                             save_to_file: os.PathLike, save_order: int = 1, log_active=False) -> None:
+                             save_to_file: os.PathLike, save_order: int = 1, 
+                             log_active: bool = False) -> None:
     path_to_file = Path(path_to_file)
     save_to_file = Path(save_to_file)
 
@@ -74,7 +75,8 @@ def run_extensions_from_file(extension: ExtensionOperator, path_to_file: os.Path
     return
 
 def run_extensions_with_solver(extension: ExtensionOperator, solver: Solver, 
-                               save_to_file: os.PathLike, save_order: int = 1, log_active=False) -> None:
+                               save_to_file: os.PathLike, save_order: int = 1, 
+                               log_active: bool = False) -> None:
     save_to_file = Path(save_to_file)
     from meshing import translate_function
 
@@ -133,8 +135,8 @@ if __name__ == "__main__":
     solver = Solver(problem, order=2, dt=0.02, T=1.0, time_stepping="implicit_euler")
     mesh = problem.fluid_mesh
     from extensions import BiharmonicExtension, HarmonicExtension
-    # extension = BiharmonicExtension(mesh)
-    extension = HarmonicExtension(mesh)
+    extension = BiharmonicExtension(mesh)
+    # extension = HarmonicExtension(mesh)
     
     # run_extensions_from_file(extension, "gravity_driven_test/data/test/fluid_harm.xdmf", 
     #                          "gravity_driven_test/data/test/fluid_biharm.xdmf", save_order=1)
