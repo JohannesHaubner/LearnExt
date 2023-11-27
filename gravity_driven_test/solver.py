@@ -58,7 +58,7 @@ class Solver:
 
         return
     
-    def solve(self, save_dir: os.PathLike):
+    def solve(self, save_dir: os.PathLike, fluid_order: int | None = None):
         save_dir = Path(save_dir)
         save_dir.mkdir(parents=True, exist_ok=True)
         if (save_dir / "solid.xdmf").exists():
@@ -79,7 +79,8 @@ class Solver:
         uh_solid = df.Function(solid_V)
         uh_solid.interpolate(self.u_)
 
-        uh_fluid = self.extend_harmonic(uh_solid, order=self.order)
+        fluid_order = self.order if fluid_order is None else fluid_order
+        uh_fluid = self.extend_harmonic(uh_solid, order=fluid_order)
         fluid_file.write_checkpoint(uh_fluid, "uh", self.t, append=True)
 
         while self.t < self.T:
@@ -89,7 +90,7 @@ class Solver:
             solid_file.write_checkpoint(self.u_, "uh", self.t, append=True)
 
             uh_solid.interpolate(self.u_)
-            uh_fluid = self.extend_harmonic(uh_solid, order=self.order)
+            uh_fluid = self.extend_harmonic(uh_solid, order=fluid_order)
             fluid_file.write_checkpoint(uh_fluid, "uh", self.t, append=True)
 
         solid_file.close()
@@ -156,8 +157,8 @@ class Solver:
     
 
 if __name__ == "__main__":
-    problem = Problem(1.0)
-    solver = Solver(problem, order=1, dt=0.02, T=1.0, time_stepping="implicit_euler")
-    solver.solve("gravity_driven_test/data/test")
+    problem = Problem(3.0)
+    solver = Solver(problem, order=2, dt=0.02, T=1.0, time_stepping="implicit_euler")
+    solver.solve("gravity_driven_test/data/test", fluid_order=1)
 
 
