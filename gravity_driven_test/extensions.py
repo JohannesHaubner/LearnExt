@@ -14,7 +14,7 @@ class ExtensionOperator(object):
         return False
     
 
-class Biharmonic(ExtensionOperator):
+class BiharmonicExtension(ExtensionOperator):
     def __init__(self, mesh):
         super().__init__(mesh)
 
@@ -43,3 +43,28 @@ class Biharmonic(ExtensionOperator):
         u_, z_ = uz.split(deepcopy=True)
 
         return u_
+
+class HarmonicExtension(ExtensionOperator):
+
+    def __init__(self, mesh, order: int = 2):
+        super().__init__(mesh)
+
+        self.order = order
+        self.V = df.VectorFunctionSpace(self.mesh, "CG", self.order)
+
+        u = df.TrialFunction(self.V)
+        v = df.TestFunction(self.V)
+        f = df.Constant((0.0, 0.0))
+        self.a = df.inner(df.grad(u), df.grad(v)) * df.dx
+        self.L = df.inner(f, v) * df.dx
+
+        return
+
+    def extend(self, boundary_conditions, params=None):
+
+        u = df.Function(self.V)
+        bc = df.DirichletBC(self.V, boundary_conditions, "on_boundary")
+
+        df.solve(self.a == self.L, u, [bc])
+
+        return u

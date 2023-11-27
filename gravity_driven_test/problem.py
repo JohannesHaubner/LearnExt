@@ -37,10 +37,7 @@ class Problem:
         self.mesh, self.boundaries = self.load_mesh()
         self.fluid_mesh, self.fluid_boundaries, \
             self.interface_tags, self.zero_displacement_tags = self.load_fluid_mesh()
-
-        self.elasticity_test()
-
-
+        
         return
     
     def load_mesh(self):

@@ -90,7 +90,7 @@ class Solver:
         if log_active is False: 
             pbar = tqdm.tqdm(total=self.T)
             import warnings
-            warnings.filterwarnings("ignore", category=tqdm.TqdmWarning) # message="TqdmWarning: clamping frac to range [0, 1]"
+            warnings.filterwarnings("ignore", category=tqdm.TqdmWarning)
         while self.t < self.T:
             self.step()
             self.t += self.dt
