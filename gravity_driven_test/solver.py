@@ -37,6 +37,7 @@ class Solver:
         self.t = 0.0
         self.T = T
         self.k = df.Constant(dt)
+        self.it = 0
 
         self.time_stepping = time_stepping
         self.step = {
@@ -73,7 +74,7 @@ class Solver:
         fluid_file = df.XDMFFile(str(save_dir / "fluid_harm.xdmf"))
         fluid_file.write(self.problem.fluid_mesh)
         
-        solid_file.write_checkpoint(self.u_, "uh", self.t, append=True)
+        solid_file.write_checkpoint(self.u_, "uh", self.it, append=True)
 
         solid_V = df.VectorFunctionSpace(self.mesh, "CG", self.order)
         uh_solid = df.Function(solid_V)
@@ -81,17 +82,18 @@ class Solver:
 
         fluid_order = self.order if fluid_order is None else fluid_order
         uh_fluid = self.extend_harmonic(uh_solid, order=fluid_order)
-        fluid_file.write_checkpoint(uh_fluid, "uh", self.t, append=True)
+        fluid_file.write_checkpoint(uh_fluid, "uh", self.it, append=True)
 
         while self.t < self.T:
             self.step()
             self.t += self.dt
+            self.it += 1
 
-            solid_file.write_checkpoint(self.u_, "uh", self.t, append=True)
+            solid_file.write_checkpoint(self.u_, "uh", self.it, append=True)
 
             uh_solid.interpolate(self.u_)
             uh_fluid = self.extend_harmonic(uh_solid, order=fluid_order)
-            fluid_file.write_checkpoint(uh_fluid, "uh", self.t, append=True)
+            fluid_file.write_checkpoint(uh_fluid, "uh", self.it, append=True)
 
         solid_file.close()
         fluid_file.close()
