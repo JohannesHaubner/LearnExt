@@ -7,7 +7,7 @@ import yaml
 from typing import Literal
 from os import PathLike
 
-import networks
+import torch_extension.networks as networks
 
 class ModelBuilder:
 

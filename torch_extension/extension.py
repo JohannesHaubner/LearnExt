@@ -94,7 +94,7 @@ def poisson_mask_custom(V: df.FunctionSpace, f_str: str, normalize: bool = False
 
 class TorchExtension(extension.ExtensionOperator):
 
-    def __init__(self, mesh, model: nn.Module, T_switch: float = 0.0, mask_rhs: str | None = None):
+    def __init__(self, mesh, model: nn.Module, T_switch: float = 0.0, mask_rhs: str | None = None, silent: bool = False):
         super().__init__(mesh)
 
         T = df.VectorElement("CG", self.mesh.ufl_cell(), 2)
@@ -142,6 +142,8 @@ class TorchExtension(extension.ExtensionOperator):
         # # Time to switch from harmonic to torch-corrected extension
         self.T_switch = T_switch
 
+        self.silent = silent
+
         return
 
     def extend(self, boundary_conditions, params):
@@ -159,7 +161,8 @@ class TorchExtension(extension.ExtensionOperator):
             u_ = uh
         
         else:
-            print("Torch-corrected extension")
+            if not self.silent:
+                print("Torch-corrected extension")
 
             harmonic_cg1 = df.interpolate(uh, self.F_cg1)
             self.u_cg1.vector().set_local(harmonic_cg1.vector().get_local())
@@ -190,8 +193,8 @@ class TorchExtension(extension.ExtensionOperator):
         return u_
 
 class TorchExtensionRecord(TorchExtension):
-    def __init__(self, mesh, model, T_switch=0.0, mask_rhs = None, T_record=0.0, run_name="Data0"):
-        super().__init__(mesh, model, T_switch=T_switch, mask_rhs=mask_rhs)
+    def __init__(self, mesh, model, T_switch=0.0, mask_rhs = None, T_record=0.0, run_name="Data0", silent: bool = False):
+        super().__init__(mesh, model, T_switch=T_switch, mask_rhs=mask_rhs, silent=silent)
 
         # Time to start recording
         self.T_record = T_record

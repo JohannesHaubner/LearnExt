@@ -1,5 +1,6 @@
 import dolfin as df
 import numpy as np
+import os
 
 class ExtensionOperator(object):
     def __init__(self, mesh):
@@ -68,3 +69,21 @@ class HarmonicExtension(ExtensionOperator):
         df.solve(self.a == self.L, u, [bc])
 
         return u
+
+class NNCorrectionExtension(ExtensionOperator):
+
+    def __init__(self, mesh, model_dir: os.PathLike):
+        super().__init__(mesh)
+
+        from torch_extension.loading import load_model
+        net = load_model(model_dir)
+        net.eval()
+
+        from torch_extension.extension import TorchExtension
+        self.extension_operator = TorchExtension(mesh, net, T_switch=0.0, silent=True)
+
+        return
+    
+    def extend(self, boundary_conditions, params={"t": 1.0}):
+        
+        return self.extension_operator.extend(boundary_conditions, params=params)

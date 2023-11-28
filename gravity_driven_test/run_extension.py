@@ -131,15 +131,16 @@ def run_extensions_with_solver(extension: ExtensionOperator, solver: Solver,
 
 
 if __name__ == "__main__":
-    problem = Problem(1.0)
+    problem = Problem(2.5)
     solver = Solver(problem, order=2, dt=0.02, T=1.0, time_stepping="implicit_euler")
     mesh = problem.fluid_mesh
-    from extensions import BiharmonicExtension, HarmonicExtension
-    extension = BiharmonicExtension(mesh)
+    from extensions import BiharmonicExtension, HarmonicExtension, NNCorrectionExtension
+    # extension = BiharmonicExtension(mesh)
     # extension = HarmonicExtension(mesh)
+    extension = NNCorrectionExtension(mesh, "torch_extension/models/yankee")
     
     # run_extensions_from_file(extension, "gravity_driven_test/data/test/fluid_harm.xdmf", 
     #                          "gravity_driven_test/data/test/fluid_biharm.xdmf", save_order=1)
-    run_extensions_with_solver(extension, solver, "gravity_driven_test/data/test/fluid_biharm.xdmf",
+    run_extensions_with_solver(extension, solver, "gravity_driven_test/data/test/fluid_yankee.xdmf",
                                save_order=1)
     
