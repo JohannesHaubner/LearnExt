@@ -4,117 +4,96 @@ import mpi4py as MPI
 comm = MPI.MPI.COMM_WORLD
 id = comm.Get_rank()
 
-def transfer_to_subfunc(f, Vbf):
-    """
-    Transfer function that lives on the whole mesh to the function space Vbf, which lives on a subpart of the
+class Tools():
+    def __init__(self, V_full, Vbf):
+        self.V_full = V_full
+        self.Vbf = Vbf
 
-    """
-    # Extract meshes
-    V_full = f.function_space()
-    f_f = Function(Vbf)
+        self.mesh = V_full.mesh()
+        self.submesh = Vbf.mesh()
 
-    mesh = V_full.mesh()
-    submesh = Vbf.mesh()
+        # Build cell mapping between sub and parent meshes
+        cell_map = self.submesh.topology().mapping()[self.mesh.id()].cell_map()
 
-    # Build cell mapping between sub and parent meshes
-    cell_map = submesh.topology().mapping()[mesh.id()].cell_map()
+        # Get cell dofmaps
+        dofmap = self.Vbf.dofmap()
+        dofmap_full = self.V_full.dofmap()
 
-    # Get cell dofmaps
-    dofmap = Vbf.dofmap()
-    dofmap_full = V_full.dofmap()
+        self.imin, self.imax = dofmap_full.ownership_range()
+        self.iminl, self.imaxl = dofmap.ownership_range()
 
+        d_full = []
+        d = []
 
-    d_full = []
-    d = []
-    imin, imax = dofmap_full.ownership_range()
-    iminl, imaxl = dofmap.ownership_range()
+        # Transfer dofs
+        for c in cells(self.submesh):
+            d_full.append([dofmap_full.local_to_global_index(i) for i in dofmap_full.cell_dofs(cell_map[c.index()])])
+            d.append([dofmap.local_to_global_index(i) for i in dofmap.cell_dofs(c.index())])  
 
-    # Transfer dofs
-    for c in cells(submesh):
-        d_full.append([dofmap_full.local_to_global_index(i) for i in dofmap_full.cell_dofs(cell_map[c.index()])])
-        d.append([dofmap.local_to_global_index(i) for i in dofmap.cell_dofs(c.index())])  
-        #f_f.vector().set_local(dofmap_full.cell_dofs(cell_map[c.index()])) = f.vector()[dofmap.cell_dofs(c.index())]
-
-
-    d_f_a = np.asarray(d_full).flatten()
-    d_a = np.asarray(d).flatten()
-    d = np.column_stack((d_f_a, d_a))
-    reduced = np.asarray(list(set([tuple(i) for i in d.tolist()])), dtype='int')
-   
-    # gather data on process 0
-    data = comm.gather(reduced, root=0)
-    # send data to all processes
-    data = comm.bcast(data, root=0)
-    data = np.concatenate(data, axis=0)
+        d_f_a = np.asarray(d_full).flatten()
+        d_a = np.asarray(d).flatten()
+        d = np.column_stack((d_f_a, d_a))
+        self.reduced = np.asarray(list(set([tuple(i) for i in d.tolist()])), dtype='int')
 
 
-    #len data , data2
-
-    f_vec = f.vector().gather(range(f.vector().size()))
-    f_f_vec = f_f.vector().gather(range(f_f.vector().size()))
-    f_f_vec[data[:,1]] = f_vec[data[:,0]]
 
 
-    f_f.vector().set_local(f_f_vec[iminl:imaxl])
-    f_f.vector().apply("")
-    return f_f
+    def transfer_to_subfunc(self, f):
+        """
+        Transfer function that lives on the whole mesh to the function space Vbf, which lives on a subpart of the
 
-def transfer_subfunction_to_parent(f, f_full):
-    """
-    Transfers a function from a MeshView submesh to its parent mesh
-    keeps f_full on the other subpart of the mesh unchanged
-    """
-
-    # Extract meshes
-    V_full = f_full.function_space()
-    f_f = Function(V_full)
-    f_f.vector()[:] = f_full.vector()[:]
-    mesh = V_full.mesh()
-    V = f.function_space()
-    submesh = V.mesh()
-
-    # Build cell mapping between sub and parent meshes
-    cell_map = submesh.topology().mapping()[mesh.id()].cell_map()
-
-    # Get cell dofmaps
-    dofmap = V.dofmap()
-    dofmap_full = V_full.dofmap()
+        """
+        # Extract meshes
+        f_f = Function(self.Vbf)
+    
+        # gather data on process 0
+        data = comm.gather(self.reduced, root=0)
+        # send data to all processes
+        data = comm.bcast(data, root=0)
+        data = np.concatenate(data, axis=0)
 
 
-    d_full = []
-    d = []
-    imin, imax = dofmap_full.ownership_range()
+        #len data , data2
 
-    # Transfer dofs
-    for c in cells(submesh):
-        d_full.append([dofmap_full.local_to_global_index(i) for i in dofmap_full.cell_dofs(cell_map[c.index()])])
-        d.append([dofmap.local_to_global_index(i) for i in dofmap.cell_dofs(c.index())])  
-        #f_f.vector().set_local(dofmap_full.cell_dofs(cell_map[c.index()])) = f.vector()[dofmap.cell_dofs(c.index())]
+        f_vec = f.vector().gather(range(f.vector().size()))
+        f_f_vec = f_f.vector().gather(range(f_f.vector().size()))
+        f_f_vec[data[:,1]] = f_vec[data[:,0]]
 
 
-    d_f_a = np.asarray(d_full).flatten()
-    d_a = np.asarray(d).flatten()
-    d = np.column_stack((d_f_a, d_a))
-    reduced = np.asarray(list(set([tuple(i) for i in d.tolist()])), dtype='int')
-   
-    # gather data on process 0
-    data = comm.gather(reduced, root=0)
-    # send data to all processes
-    data = comm.bcast(data, root=0)
-    data = np.concatenate(data, axis=0)
+        f_f.vector().set_local(f_f_vec[self.iminl:self.imaxl])
+        f_f.vector().apply("")
+        return f_f
+
+    def transfer_subfunction_to_parent(self, f, f_full):
+        """
+        Transfers a function from a MeshView submesh to its parent mesh
+        keeps f_full on the other subpart of the mesh unchanged
+        f needs to be a function in Vbf
+        f_full needs to be a function in V_full
+        """
+
+        # Extract meshes
+        f_f = Function(self.V_full)
+        f_f.vector()[:] = f_full.vector()[:]
+    
+        # gather data on process 0
+        data = comm.gather(self.reduced, root=0)
+        # send data to all processes
+        data = comm.bcast(data, root=0)
+        data = np.concatenate(data, axis=0)
 
 
-    #len data , data2
+        #len data , data2
 
-    f_f_vec = f_f.vector().gather(range(f_full.vector().size()))
-    f_vec = f.vector().gather(range(f.vector().size()))
-    f_f_vec[data[:,0]] = f_vec[data[:,1]]
+        f_f_vec = f_f.vector().gather(range(f_full.vector().size()))
+        f_vec = f.vector().gather(range(f.vector().size()))
+        f_f_vec[data[:,0]] = f_vec[data[:,1]]
 
 
-    f_f.vector().set_local(f_f_vec[imin:imax])
-    f_f.vector().apply("")
+        f_f.vector().set_local(f_f_vec[self.imin:self.imax])
+        f_f.vector().apply("")
 
-    return f_f
+        return f_f
 
 
 if __name__ == "__main__":
@@ -194,12 +173,14 @@ if __name__ == "__main__":
     vf.rename("function", "function")
     file << vf
 
+    tools = Tools(V, Vf)
+
 
     f = interpolate(Constant(1.0), V)
-    ff = transfer_subfunction_to_parent(vf, f)
+    ff = tools.transfer_subfunction_to_parent(vf, f)
     ff.rename("function", "function")
     file << ff
 
-    f = transfer_to_subfunc(ff, Vf)
+    f = tools.transfer_to_subfunc(ff)
     f.rename("function", "function")
     file << f
