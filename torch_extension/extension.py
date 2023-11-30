@@ -289,6 +289,111 @@ class TorchExtensionInplace(extension.ExtensionOperator):
 
         return self.u_
 
+class TorchExtensionInplaceMat(extension.ExtensionOperator):
+
+    def __init__(self, mesh, model: nn.Module, T_switch: float = 0.0, mask_rhs: str | None = None, silent: bool = False):
+        super().__init__(mesh)
+
+        T = df.VectorElement("CG", self.mesh.ufl_cell(), 2)
+        self.F = df.FunctionSpace(self.mesh, T)
+        self.iter = -1
+
+        # harmonic extension 
+        uh = df.TrialFunction(self.F)
+        v = df.TestFunction(self.F)
+
+        a = df.inner(df.grad(uh), df.grad(v))*df.dx
+        L = df.Constant(0.0) * v[0] *df.dx
+        A = df.assemble(a)
+        
+        bc = df.DirichletBC(self.F, df.Constant((0.,0.)), 'on_boundary')
+        bc.apply(A)
+
+        self.solver_harmonic = df.LUSolver(A)
+        self.rhs_harmonic = df.assemble(L)
+
+        # For clement interpolation
+        T_cg1 = df.VectorElement("CG", self.mesh.ufl_cell(), 1)
+        self.F_cg1 = df.FunctionSpace(self.mesh, T_cg1)
+
+        # u_cg1 is referred to in the clement_interpolate internals, so it has to 
+        # be carried through in the simulation and the dofs updated with the 
+        # harmonic extension at each time step.
+        self.u_cg1 = df.Function(self.F_cg1)
+        _, self.clement_interpolater = clement_interpolate(df.grad(self.u_cg1), with_CI=True)
+
+        # Pytorch model
+        self.model = model
+        model.eval()
+
+        # mask for adjusting pytorch correction
+        V_scal = df.FunctionSpace(self.mesh, "CG", 1)
+        if mask_rhs is None:
+            # Masking function custom made for specific domain.
+            mask_rhs = "2.0 * (x[0]+1.0) * (1-x[0]) * exp( -3.5*pow(x[0], 7) ) + 0.1"
+        poisson_mask = poisson_mask_custom(V_scal, mask_rhs, normalize=True)
+        self.mask_np = poisson_mask.vector().get_local().reshape(-1,1)
+        # Mask needs to have shape (num_vertices, 1) to broadcast correctly in
+        # multiplication with correction of shape (num_vertices, 2).
+
+        # # Time to switch from harmonic to torch-corrected extension
+        self.T_switch = T_switch
+
+        self.silent = silent
+
+        self.harm_cg1 = df.Function(self.F_cg1)
+        self.uh = df.Function(self.F)
+        self.u_ = df.Function(self.F)
+
+        self.interp_mat_2_1 = df.PETScDMCollection.create_transfer_matrix(self.F, self.F_cg1)
+        self.interp_mat_1_2 = df.PETScDMCollection.create_transfer_matrix(self.F_cg1, self.F)
+
+        return
+
+    def extend(self, boundary_conditions, params):
+        """ Torch-corrected extension of boundary_conditions (Function on self.mesh) to the interior """
+
+        t = params["t"]
+
+        # harmonic extension
+        bc = df.DirichletBC(self.F, boundary_conditions, 'on_boundary')
+        bc.apply(self.rhs_harmonic)
+        self.solver_harmonic.solve(self.uh.vector(), self.rhs_harmonic)
+
+        if t < self.T_switch:
+            self.u_ = self.uh
+        
+        else:
+            if not self.silent:
+                print("Torch-corrected extension")
+
+            # self.harm_cg1.interpolate(self.uh)
+            self.interp_mat_2_1.mult(self.uh.vector(), self.harm_cg1.vector())
+
+            self.u_cg1.vector().set_local(self.harm_cg1.vector().get_local())
+            gh_harm = self.clement_interpolater()
+
+            harmonic_plus_grad_w_coords_np = CG1_vector_plus_grad_to_array_w_coords(self.harm_cg1, gh_harm)
+            harmonic_plus_grad_w_coords_torch = torch.tensor(harmonic_plus_grad_w_coords_np, dtype=torch.float32)
+
+            with torch.no_grad():
+                corr_np = self.model(harmonic_plus_grad_w_coords_torch).numpy()
+                corr_np = corr_np * self.mask_np
+
+            new_dofs = self.harm_cg1.vector().get_local()
+            new_dofs[0::2] += corr_np[:,0]
+            new_dofs[1::2] += corr_np[:,1]
+            self.harm_cg1.vector().set_local(new_dofs)
+
+            # self.u_.interpolate(self.harm_cg1)
+            self.interp_mat_1_2.mult(self.harm_cg1.vector(), self.u_.vector())
+
+            # Apply the harmonic extension boundary condition to ensure fluid-solid extension matches at all
+            # dof locations, not just vertices.
+            bc.apply(self.u_.vector())
+
+        return self.u_
+
 class TorchExtensionRecord(TorchExtension):
     def __init__(self, mesh, model, T_switch=0.0, mask_rhs = None, T_record=0.0, run_name="Data0"):
         super().__init__(mesh, model, T_switch=T_switch, mask_rhs=mask_rhs)
