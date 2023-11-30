@@ -316,11 +316,17 @@ class TorchExtensionInplaceMat(extension.ExtensionOperator):
         T_cg1 = df.VectorElement("CG", self.mesh.ufl_cell(), 1)
         self.F_cg1 = df.FunctionSpace(self.mesh, T_cg1)
 
-        # u_cg1 is referred to in the clement_interpolate internals, so it has to 
+        self.harm_cg1 = df.Function(self.F_cg1)
+        self.uh = df.Function(self.F)
+        self.u_ = df.Function(self.F)
+
+        self.interp_mat_2_1 = df.PETScDMCollection.create_transfer_matrix(self.F, self.F_cg1)
+        self.interp_mat_1_2 = df.PETScDMCollection.create_transfer_matrix(self.F_cg1, self.F)
+
+        # self.harm_cg1 is referred to in the clement_interpolate internals, so it has to 
         # be carried through in the simulation and the dofs updated with the 
         # harmonic extension at each time step.
-        self.u_cg1 = df.Function(self.F_cg1)
-        _, self.clement_interpolater = clement_interpolate(df.grad(self.u_cg1), with_CI=True)
+        _, self.clement_interpolater = clement_interpolate(df.grad(self.harm_cg1), with_CI=True)
 
         # Pytorch model
         self.model = model
@@ -341,13 +347,6 @@ class TorchExtensionInplaceMat(extension.ExtensionOperator):
 
         self.silent = silent
 
-        self.harm_cg1 = df.Function(self.F_cg1)
-        self.uh = df.Function(self.F)
-        self.u_ = df.Function(self.F)
-
-        self.interp_mat_2_1 = df.PETScDMCollection.create_transfer_matrix(self.F, self.F_cg1)
-        self.interp_mat_1_2 = df.PETScDMCollection.create_transfer_matrix(self.F_cg1, self.F)
-
         return
 
     def extend(self, boundary_conditions, params):
@@ -367,10 +366,8 @@ class TorchExtensionInplaceMat(extension.ExtensionOperator):
             if not self.silent:
                 print("Torch-corrected extension")
 
-            # self.harm_cg1.interpolate(self.uh)
             self.interp_mat_2_1.mult(self.uh.vector(), self.harm_cg1.vector())
 
-            self.u_cg1.vector().set_local(self.harm_cg1.vector().get_local())
             gh_harm = self.clement_interpolater()
 
             harmonic_plus_grad_w_coords_np = CG1_vector_plus_grad_to_array_w_coords(self.harm_cg1, gh_harm)
@@ -385,7 +382,6 @@ class TorchExtensionInplaceMat(extension.ExtensionOperator):
             new_dofs[1::2] += corr_np[:,1]
             self.harm_cg1.vector().set_local(new_dofs)
 
-            # self.u_.interpolate(self.harm_cg1)
             self.interp_mat_1_2.mult(self.harm_cg1.vector(), self.u_.vector())
 
             # Apply the harmonic extension boundary condition to ensure fluid-solid extension matches at all
