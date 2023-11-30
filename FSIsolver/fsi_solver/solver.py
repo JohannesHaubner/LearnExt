@@ -190,7 +190,7 @@ class FSI(Context):
         else:
             print('Check if snapshot is saved for t = ', self.t)
             t_frac = abs(self.t / 0.04 - round(self.t / 0.04))*0.04  # make a snapshot every 1/25 s
-            if abs(t_frac) < self.dt_min * 0.5 or True:
+            if abs(t_frac) < self.dt_min * 0.5: # or True:
                 print('save snapshot...', self.t)
 
                 # save displacement
@@ -428,8 +428,8 @@ class FSI(Context):
             sigmasp = Constant(0.0)
             imr = Constant(0.0)
         elif material == "IMR": 
-            sigmasv = mys * sFhat * sFhatt + lambdas * sFhatti * sFhati
-            sigmasv_ = mys * sFhat_ * sFhatt_ + lambdas * sFhatti_ * sFhati_
+            sigmasv = mys * sFhat * sFhatt - lambdas * sFhatti * sFhati
+            sigmasv_ = mys * sFhat_ * sFhatt_ - lambdas * sFhatti_ * sFhati_ 
             sigmasp =  Constant(-1.0) * p * I 
             imr = Constant(1.0)
         else:
