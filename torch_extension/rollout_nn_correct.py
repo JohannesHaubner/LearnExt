@@ -89,8 +89,6 @@ output_xdmf_file_p1.write(fluid_domain)
 
 from torch_extension.extension import TorchExtension
 extension_operator = TorchExtension(fluid_domain, network, T_switch=0.0, silent=True)
-from torch_extension.extension import TorchExtensionInplaceMat
-extension_operator = TorchExtensionInplaceMat(fluid_domain, network, T_switch=0.0, silent=True)
 
 u_bc = df.Function(Fspace)
 u_p1 = df.Function(fspace)

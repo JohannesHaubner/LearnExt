@@ -155,31 +155,11 @@ print(f"T = {(end-start) / M:.2e}", end="\t# ")
 print("extension.extend(), t=0: ")
 T_tot += (end-start) / M
 
-M = 10
-start = timer()
-for k in range(M):
-    extension.extend(U, params={"t": 1.0})
-end = timer()
-print(f"T = {(end-start) / M:.2e}", end="\t# ")
-print("extension.extend(), t=1: ")
 
-from torch_extension.extension import TorchExtensionInplace
-extension_inpl = TorchExtensionInplace(msh, model, T_switch=0.5, silent=True)
-M = 10
-start = timer()
-for k in range(M):
-    extension_inpl.extend(U, params={"t": 1.0})
-end = timer()
-print(f"T = {(end-start) / M:.2e}", end="\t# ")
-print("extension.extend(), t=1, inplace: ")
-
-from torch_extension.extension import TorchExtensionInplaceMat
-extension_inpl_mat = TorchExtensionInplaceMat(msh, model, T_switch=0.5, silent=True)
-extension_inpl_mat.extend(U, params={"t": 1.0})
 M = 40
 start = timer()
 for k in range(M):
-    extension_inpl_mat.extend(U, params={"t": 1.0})
+    extension.extend(U, params={"t": 1.0})
 end = timer()
 print(f"T = {(end-start) / M:.2e}", end="\t# ")
 print("extension.extend(), t=1, inplace, mat: ")
@@ -242,7 +222,7 @@ print("u.interpolate(U), CG1->CG2: ")
 M = 40
 start = timer()
 for k in range(M):
-    extension_inpl_mat.interp_mat_2_1.mult(U.vector(), u.vector())
+    extension.interp_mat_2_1.mult(U.vector(), u.vector())
 end = timer()
 print(f"T = {(end-start) / M:.2e}", end="\t# ")
 print("matrix interpolate, CG2->CG1: ")
@@ -252,7 +232,7 @@ T_tot += (end-start) / M
 M = 40
 start = timer()
 for k in range(M):
-    extension_inpl_mat.interp_mat_1_2.mult(u.vector(), U.vector())
+    extension.interp_mat_1_2.mult(u.vector(), U.vector())
 end = timer()
 print(f"T = {(end-start) / M:.2e}", end="\t# ")
 print("matrix interpolate, CG1->CG2: ")
