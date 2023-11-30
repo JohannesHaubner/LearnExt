@@ -99,7 +99,72 @@ FSI_param['boundary_cond'] = Expression("5e6*t", t=FSI_param['t'], degree=2)
 
 # extension operator
 ids = [boundary_labels[i] for i in subdomain_boundaries["fluid"]]
-extension_operator = extension.Biharmonic(fluid_domain, markers_fluid, ids)
+# extension operator
+class Biharmonic_DataGeneration(extension.ExtensionOperator):
+    def __init__(self, mesh, marker=None, ids=None):
+        super().__init__(mesh, marker=None, ids=None)
+
+        T = VectorElement("CG", self.mesh.ufl_cell(), 2)
+        self.FS = FunctionSpace(self.mesh, MixedElement(T, T))
+        self.F = FunctionSpace(self.mesh, T)
+        self.iter = -1
+
+        # Create time series
+        self.xdmf_output = XDMFFile(str(here.parent) + "/Output/Extension/Data/membrane.xdmf")
+
+        # biharmonic extension
+        uz = TrialFunction(self.FS)
+        puz = TestFunction(self.FS)
+        (u, z) = split(uz)
+        (psiu, psiz) = split(puz)
+
+        a = inner(grad(z), grad(psiu)) * dx + inner(z, psiz) * dx - inner(grad(u), grad(psiz)) * dx
+        L = Constant(0.0) * psiu[0] * dx
+        A = assemble(a)
+
+        bc = DirichletBC(self.FS.sub(0), Constant((0.,0.)), 'on_boundary')
+        bc.apply(A)
+
+        self.solver_biharmonic = LUSolver(A)
+        self.rhs_biharmonic = assemble(L)
+
+        self.ids = ids
+        self.marker = marker
+
+
+
+    def extend(self, boundary_conditions, params):
+        """ biharmonic extension of boundary_conditions (Function on self.mesh) to the interior """
+
+        t = params["t"]
+        dx = Measure('dx', domain=self.mesh)
+
+        # harmonic extension
+        if self.ids == None:
+            bc = DirichletBC(self.F, boundary_conditions, 'on_boundary')
+        else:
+            bc = []
+            for i in self.ids:
+                bc.append(DirichletBC(self.F, boundary_conditions, self.marker, self.ids))
+        bc.apply(self.rhs_harmonic)
+        uh = Function(self.F)
+        self.solver_harmonic.solve(uh.vector(), self.rhs_harmonic)
+        
+
+        # biharmonic extension
+        bc = DirichletBC(self.FS.sub(0), boundary_conditions, 'on_boundary')
+        bc.apply(self.rhs_biharmonic)
+        uz = Function(self.FS)
+        self.solver_biharmonic.solve(uz.vector(), self.rhs_biharmonic)
+
+        u_, z_ = uz.split(deepcopy=True)
+
+        self.iter +=1
+        self.xdmf_output.write_checkpoint(u_, "output_biharmonic_ext", self.iter, XDMFFile.Encoding.HDF5, append=True)
+
+        return u_
+
+extension_operator = Biharmonic_DataGeneration(fluid_domain, markers_fluid, ids)
 
 # save options
 FSI_param['save_directory'] = str(here.parent)+ '/Output/FSIbenchmarkII_biharmonic_adaptive_n' #no save if set to None
