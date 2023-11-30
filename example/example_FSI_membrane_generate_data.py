@@ -102,59 +102,38 @@ ids = [boundary_labels[i] for i in subdomain_boundaries["fluid"]]
 # extension operator
 class Biharmonic_DataGeneration(extension.ExtensionOperator):
     def __init__(self, mesh, marker=None, ids=None):
-        super().__init__(mesh, marker=None, ids=None)
-
-        T = VectorElement("CG", self.mesh.ufl_cell(), 2)
-        self.FS = FunctionSpace(self.mesh, MixedElement(T, T))
-        self.F = FunctionSpace(self.mesh, T)
+        super().__init__(mesh, marker, ids)
         self.iter = -1
 
         # Create time series
         self.xdmf_output = XDMFFile(str(here.parent) + "/Output/Extension/Data/membrane.xdmf")
 
-        # biharmonic extension
+        T = VectorElement("CG", self.mesh.ufl_cell(), 2)
+        self.FS = FunctionSpace(self.mesh, MixedElement(T, T))
+
+    def extend(self, boundary_conditions, params=None):
+        """ biharmonic extension of boundary_conditions (Function on self.mesh) to the interior """
+
         uz = TrialFunction(self.FS)
         puz = TestFunction(self.FS)
         (u, z) = split(uz)
         (psiu, psiz) = split(puz)
 
-        a = inner(grad(z), grad(psiu)) * dx + inner(z, psiz) * dx - inner(grad(u), grad(psiz)) * dx
-        L = Constant(0.0) * psiu[0] * dx
-        A = assemble(a)
-
-        if self.ids == None:
-            bc = DirichletBC(self.FS.sub(0), Constant((0.,0.)), 'on_boundary')
-            bc.apply(A)
-        else:
-            for i in self.ids:
-                bc = DirichletBC(self.FS.sub(0), Constant((0.,0.)), self.marker, i)
-                bc.apply(A)
-
-        self.solver_biharmonic = LUSolver(A)
-        self.rhs_biharmonic = assemble(L)
-
-        self.ids = ids
-        self.marker = marker
-
-
-
-    def extend(self, boundary_conditions, params):
-        """ biharmonic extension of boundary_conditions (Function on self.mesh) to the interior """
-
-        t = params["t"]
         dx = Measure('dx', domain=self.mesh)
 
-        # biharmonic extension
-        if self.ids == None:
-            bc = DirichletBC(self.F, boundary_conditions, 'on_boundary')
-            bc.apply(self.rhs_biharmonic)
+        a = inner(grad(z), grad(psiu)) * dx + inner(z, psiz) * dx - inner(grad(u), grad(psiz)) * dx
+        L = Constant(0.0) * psiu[0] * dx
+
+        if self.marker == None:
+            bc = DirichletBC(self.FS.sub(0), boundary_conditions, 'on_boundary')
         else:
             bc = []
             for i in self.ids:
-                bc = DirichletBC(self.F, boundary_conditions, self.marker, i)
-                bc.apply(self.rhs_biharmonic)
+                bc.append(DirichletBC(self.FS.sub(0), boundary_conditions, self.marker, i))
+
         uz = Function(self.FS)
-        self.solver_biharmonic.solve(uz.vector(), self.rhs_biharmonic)
+
+        solve(a == L, uz, bc)
 
         u_, z_ = uz.split(deepcopy=True)
 
