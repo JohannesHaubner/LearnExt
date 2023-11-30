@@ -122,8 +122,13 @@ class Biharmonic_DataGeneration(extension.ExtensionOperator):
         L = Constant(0.0) * psiu[0] * dx
         A = assemble(a)
 
-        bc = DirichletBC(self.FS.sub(0), Constant((0.,0.)), 'on_boundary')
-        bc.apply(A)
+        if self.ids == None:
+            bc = DirichletBC(self.FS.sub(0), Constant((0.,0.)), 'on_boundary')
+            bc.apply(A)
+        else:
+            for i in self.ids:
+                bc = DirichletBC(self.FS.sub(0), Constant((0.,0.)), self.marker, i)
+                bc.apply(A)
 
         self.solver_biharmonic = LUSolver(A)
         self.rhs_biharmonic = assemble(L)
@@ -139,21 +144,15 @@ class Biharmonic_DataGeneration(extension.ExtensionOperator):
         t = params["t"]
         dx = Measure('dx', domain=self.mesh)
 
-        # harmonic extension
+        # biharmonic extension
         if self.ids == None:
             bc = DirichletBC(self.F, boundary_conditions, 'on_boundary')
+            bc.apply(self.rhs_biharmonic)
         else:
             bc = []
             for i in self.ids:
-                bc.append(DirichletBC(self.F, boundary_conditions, self.marker, self.ids))
-        bc.apply(self.rhs_harmonic)
-        uh = Function(self.F)
-        self.solver_harmonic.solve(uh.vector(), self.rhs_harmonic)
-        
-
-        # biharmonic extension
-        bc = DirichletBC(self.FS.sub(0), boundary_conditions, 'on_boundary')
-        bc.apply(self.rhs_biharmonic)
+                bc = DirichletBC(self.F, boundary_conditions, self.marker, i)
+                bc.apply(self.rhs_biharmonic)
         uz = Function(self.FS)
         self.solver_biharmonic.solve(uz.vector(), self.rhs_biharmonic)
 
