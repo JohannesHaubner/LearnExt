@@ -65,7 +65,7 @@ fspace = df.VectorFunctionSpace(fluid_domain, "CG", 1)
 
 
 import FSIsolver.extension_operator.extension as extension
-from learnExt.NeuralNet.neural_network_custom import ANN, generate_weights
+from learnExt.NeuralNet.neural_network_custom import ANN
 from learnExt.learnext_hybridPDENN import Custom_Reduced_Functional as crf
 
 
@@ -86,18 +86,18 @@ class LearnExtension(extension.ExtensionOperator):
         self.first = True
 
 
-
     def extend(self, boundary_conditions, params = None):
         """ harmonic extension of boundary_conditions (Function on self.mesh) to the interior """
 
         displacementy = params["displacementy"]
 
-        if self.first:
+        if abs(displacementy) <= 0.005:
+            trafo = False
+        elif self.first:
             trafo = False
             self.first = False
         else:
             trafo = True
-
 
         u = df.Function(self.FS2)
         v = df.TestFunction(self.FS2)
@@ -144,25 +144,27 @@ extension_operator = LearnExtension(fluid_domain)
 
 
 input_xdmf_file = df.XDMFFile("Output/Extension/Data/input_.xdmf")
-if Path("hybridIncRolloutP1.xdmf").exists():
-    Path("hybridIncRolloutP1.xdmf").unlink()
-    Path("hybridIncRolloutP1.h5").unlink
-# if Path("hybridIncRolloutP2.xdmf").exists():
-#     Path("hybridIncRolloutP2.xdmf").unlink()
-#     Path("hybridIncRolloutP2.h5").unlink
-output_xdmf_file_p1 = df.XDMFFile("hybridIncRolloutP1.xdmf")
+if Path("hybridIncCorrRolloutP1.xdmf").exists():
+    Path("hybridIncCorrRolloutP1.xdmf").unlink()
+    Path("hybridIncCorrRolloutP1.h5").unlink
+# if Path("hybridIncCorrRolloutP2.xdmf").exists():
+#     Path("hybridIncCorrRolloutP2.xdmf").unlink()
+#     Path("hybridIncCorrRolloutP2.h5").unlink
+output_xdmf_file_p1 = df.XDMFFile("hybridIncCorrRolloutP1.xdmf")
 output_xdmf_file_p1.write(fluid_domain)
-# output_xdmf_file_p2 = df.XDMFFile("hybridIncRolloutP2.xdmf")
+# output_xdmf_file_p2 = df.XDMFFile("hybridIncCorrRolloutP2.xdmf")
 # output_xdmf_file_p2.write(fluid_domain)
 
 df.set_log_active(False)
 u_bc = df.Function(Fspace)
 u_p1 = df.Function(fspace)
-disp_point = df.Point((0.6, 0.2))
-for k in tqdm.tqdm(range(206)): # Number of time steps that make it loop best.
+
+dofs = np.arange(Fspace.dim())[np.linalg.norm(Fspace.tabulate_dof_coordinates() - np.array([0.6, 0.2]), axis=1) < 1e-7]
+dof = dofs[1]
+for k in tqdm.tqdm(range(2*206)): # 2 * number of time steps that make it loop best.
     input_xdmf_file.read_checkpoint(u_bc, "input_harmonic_ext", k)
-    disp_y = 0.1
-    u_ext = extension_operator.extend(u_bc, {"displacementy": disp_y, "b_old": None})
+    disp_y = u_bc.vector()[dof]
+    u_ext = extension_operator.extend(u_bc, {"displacementy": disp_y})
     u_p1.interpolate(u_ext)
     # output_xdmf_file_p2.write_checkpoint(u_ext, "uh", k, append=True)
     output_xdmf_file_p1.write_checkpoint(u_p1, "uh", k, append=True)
