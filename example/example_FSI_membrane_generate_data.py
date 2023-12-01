@@ -80,7 +80,7 @@ FSI_param['solid_mesh'] = solid_domain
 
 FSI_param['lambdas'] = 1e5
 FSI_param['mys'] = 2e7
-FSI_param['rhos'] = 0.8e4
+FSI_param['rhos'] = 0.8e3
 FSI_param['rhof'] = 1.0e3
 FSI_param['nyf'] = 4e-3
 
