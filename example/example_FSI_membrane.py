@@ -107,4 +107,3 @@ FSI_param['save_directory'] = str(here.parent)+ '/Output/FSIbenchmarkII_biharmon
 # initialize FSI solver
 fsisolver = solver.FSIsolver(mesh, boundaries, domains, params, FSI_param, extension_operator, warmstart=False)
 fsisolver.solve()
-

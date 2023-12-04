@@ -107,10 +107,13 @@ class Biharmonic_DataGeneration(extension.ExtensionOperator):
 
         # Create time series
         self.xdmf_output = XDMFFile(str(here.parent) + "/Output/Extension/Data/membrane.xdmf")
+        self.xdmf_output.write(self.mesh)
 
         T = VectorElement("CG", self.mesh.ufl_cell(), 2)
         self.FS = FunctionSpace(self.mesh, MixedElement(T, T))
 
+
+    @extension.ExtensionOperator.timings_extension
     def extend(self, boundary_conditions, params=None):
         """ biharmonic extension of boundary_conditions (Function on self.mesh) to the interior """
 
@@ -141,6 +144,7 @@ class Biharmonic_DataGeneration(extension.ExtensionOperator):
         self.xdmf_output.write_checkpoint(u_, "output_biharmonic_ext", self.iter, XDMFFile.Encoding.HDF5, append=True)
 
         return u_
+
 
 extension_operator = Biharmonic_DataGeneration(fluid_domain, markers_fluid, ids)
 
