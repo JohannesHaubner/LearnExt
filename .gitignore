@@ -130,3 +130,11 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+#
+*.vtu
+*.xml
+*.btr
+*.pvtu
+*.pvd
+

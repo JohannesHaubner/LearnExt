@@ -478,6 +478,8 @@ class FSI(Context):
         # add boundary conditions that appear in weak form (get_boundary_conditions)
         if self.FSI_params["bc_type"] == "pressure":
             F += inner(self.bc* n, psiv)*ds(self.param["inflow"])
+            F -= rhof * nyf *inner(grad(v).T*n, psiv)*ds(self.param["inflow"])
+            F -= rhof * nyf *inner(grad(v).T*n, psiv)*ds(self.param["outflow"])
 
 
 

@@ -85,7 +85,7 @@ FSI_param['rhof'] = 1.0e3
 FSI_param['nyf'] = 4e-3
 
 FSI_param['t'] = 0.0
-FSI_param['deltat'] = 0.001 #0.0025
+FSI_param['deltat'] = 0.01 #0.0025
 FSI_param['T'] = 5.0
 
 FSI_param['material_model'] = "IMR"
