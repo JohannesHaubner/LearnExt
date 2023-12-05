@@ -2,10 +2,8 @@
 
 # LearnExt
 
-Code repository for FSI experiments on neural network-corrected harmonic extensions from the manuscript
+Code repository for the manuscript
 > J. Haubner, O. Hellan, M. Zeinhofer, M. Kuchta: Learning Mesh Motion Techniques with Application to Fluid-Structure Interaction, arXiv preprint arXiv:2206.02217
-
-Forked from https://github.com/johanneshaubner/LearnExt/
 
 ## Usage/Examples
 
