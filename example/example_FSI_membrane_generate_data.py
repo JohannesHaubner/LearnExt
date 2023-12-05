@@ -94,7 +94,7 @@ FSI_param['bc_type'] = "pressure"
 FSI_param['displacement_point'] = Point((0.01, 0.005))
 
 # boundary conditions, need to be 0 at t = 0
-FSI_param['boundary_cond'] = Expression("5e6*t", t=1.0, degree=2) #FSI_param['t'], degree=2)
+FSI_param['boundary_cond'] = Expression("1.5e7*t", t=FSI_param['t'], degree=2)
 
 
 # extension operator
@@ -106,7 +106,7 @@ class Biharmonic_DataGeneration(extension.ExtensionOperator):
         self.iter = -1
 
         # Create time series
-        self.xdmf_output = XDMFFile(str(here.parent) + "/Output/Extension/Data/membrane.xdmf")
+        self.xdmf_output = XDMFFile(str(here.parent) + "/Output/Extension/Data/membrane_test.xdmf")
         self.xdmf_output.write(self.mesh)
 
         T = VectorElement("CG", self.mesh.ufl_cell(), 2)
@@ -170,7 +170,7 @@ class Biharmonic_DataGeneration(extension.ExtensionOperator):
 extension_operator = Biharmonic_DataGeneration(fluid_domain, markers_fluid, ids)
 
 # save options
-FSI_param['save_directory'] = str(here.parent)+ '/Output/FSIbenchmarkII_biharmonic_adaptive_n' #no save if set to None
+FSI_param['save_directory'] = str(here.parent)+ '/Output/FSIbenchmarkII_membrane' #no save if set to None
 
 # initialize FSI solver
 fsisolver = solver.FSIsolver(mesh, boundaries, domains, params, FSI_param, extension_operator, warmstart=False)
