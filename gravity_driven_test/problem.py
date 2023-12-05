@@ -151,9 +151,12 @@ class Problem:
         return
 
 
-
-if __name__ == "__main__":
+def main():
 
     problem = Problem(3.0)
     problem.elasticity_test(save_dir="gravity_driven_test/data/elast_test")
 
+    return
+
+if __name__ == "__main__":
+    main()
