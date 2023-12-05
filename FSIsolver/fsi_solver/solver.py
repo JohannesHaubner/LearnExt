@@ -320,8 +320,8 @@ class FSI(Context):
             bc_type = "inflow"
 
         bc = []
-        bc.append(DirichletBC(VP.sub(1), Constant(0.0), pressureb, method='pointwise'))
         if bc_type == "inflow":
+            bc.append(DirichletBC(VP.sub(1), Constant(0.0), pressureb, method='pointwise'))
             bc.append(DirichletBC(VP.sub(0), self.bc, self.boundaries, self.param["inflow"]))
         elif bc_type == "pressure":
             pass
@@ -478,6 +478,8 @@ class FSI(Context):
         # add boundary conditions that appear in weak form (get_boundary_conditions)
         if self.FSI_params["bc_type"] == "pressure":
             F += inner(self.bc* n, psiv)*ds(self.param["inflow"])
+            F -= rhof * nyf *inner(grad(v).T*n, psiv)*ds(self.param["inflow"])
+            F -= rhof * nyf *inner(grad(v).T*n, psiv)*ds(self.param["outflow"])
 
 
 
