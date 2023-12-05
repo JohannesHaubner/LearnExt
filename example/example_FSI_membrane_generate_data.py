@@ -94,7 +94,7 @@ FSI_param['bc_type'] = "pressure"
 FSI_param['displacement_point'] = Point((0.01, 0.005))
 
 # boundary conditions, need to be 0 at t = 0
-FSI_param['boundary_cond'] = Expression("5e6*t", t=FSI_param['t'], degree=2)
+FSI_param['boundary_cond'] = Expression("5e6*t", t=1.0, degree=2) #FSI_param['t'], degree=2)
 
 
 # extension operator
@@ -112,11 +112,6 @@ class Biharmonic_DataGeneration(extension.ExtensionOperator):
         T = VectorElement("CG", self.mesh.ufl_cell(), 2)
         self.FS = FunctionSpace(self.mesh, MixedElement(T, T))
 
-
-    @extension.ExtensionOperator.timings_extension
-    def extend(self, boundary_conditions, params=None):
-        """ biharmonic extension of boundary_conditions (Function on self.mesh) to the interior """
-
         uz = TrialFunction(self.FS)
         puz = TestFunction(self.FS)
         (u, z) = split(uz)
@@ -127,16 +122,42 @@ class Biharmonic_DataGeneration(extension.ExtensionOperator):
         a = inner(grad(z), grad(psiu)) * dx + inner(z, psiz) * dx - inner(grad(u), grad(psiz)) * dx
         L = Constant(0.0) * psiu[0] * dx
 
+
+        self.A = assemble(a)
+
+        bc = []
         if self.marker == None:
-            bc = DirichletBC(self.FS.sub(0), boundary_conditions, 'on_boundary')
+            bc.append(DirichletBC(self.FS.sub(0), Constant((0.,0.)), 'on_boundary'))
         else:
-            bc = []
+            for i in self.ids:
+                bc.append(DirichletBC(self.FS.sub(0), Constant((0., 0.)), self.marker, i))
+        self.bc = bc
+
+        for bci in self.bc:
+            bci.apply(self.A)
+
+        self.solver = LUSolver(self.A)
+
+        self.L = assemble(Constant(0.0) * psiu[0] * dx)
+
+
+    @extension.ExtensionOperator.timings_extension
+    def extend(self, boundary_conditions, params=None):
+        """ biharmonic extension of boundary_conditions (Function on self.mesh) to the interior """
+
+        bc = []
+        if self.marker == None:
+            bc.append(DirichletBC(self.FS.sub(0), boundary_conditions, 'on_boundary'))
+        else:
             for i in self.ids:
                 bc.append(DirichletBC(self.FS.sub(0), boundary_conditions, self.marker, i))
 
+        for bci in bc:
+            bci.apply(self.L)
+
         uz = Function(self.FS)
 
-        solve(a == L, uz, bc)
+        self.solver.solve(uz.vector(), self.L)
 
         u_, z_ = uz.split(deepcopy=True)
 

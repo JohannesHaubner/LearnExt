@@ -320,8 +320,8 @@ class FSI(Context):
             bc_type = "inflow"
 
         bc = []
-        bc.append(DirichletBC(VP.sub(1), Constant(0.0), pressureb, method='pointwise'))
         if bc_type == "inflow":
+            bc.append(DirichletBC(VP.sub(1), Constant(0.0), pressureb, method='pointwise'))
             bc.append(DirichletBC(VP.sub(0), self.bc, self.boundaries, self.param["inflow"]))
         elif bc_type == "pressure":
             pass
