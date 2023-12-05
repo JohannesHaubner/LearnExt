@@ -87,3 +87,43 @@ class NNCorrectionExtension(ExtensionOperator):
     def extend(self, boundary_conditions, params={"t": 1.0}):
         
         return self.extension_operator.extend(boundary_conditions, params=params)
+
+from learnExt.NeuralNet.neural_network_custom import ANN
+from learnExt.learnext_hybridPDENN import Custom_Reduced_Functional as crf
+class LearnExtension(ExtensionOperator):
+    def __init__(self, mesh):
+        super().__init__(mesh)
+
+        T = df.VectorElement("CG", self.mesh.ufl_cell(), 1)
+        T2 = df.VectorElement("CG", self.mesh.ufl_cell(), 2)
+        self.FS = df.FunctionSpace(self.mesh, T)
+        self.FS2 = df.FunctionSpace(self.mesh, T2)
+        self.bc_old = df.Function(self.FS)
+        network_path = "example/learned_networks/trained_network.pkl"
+        self.net = ANN(network_path)
+        self.threshold = 0.001
+
+    def extend(self, boundary_conditions, params = None):
+        """ harmonic extension of boundary_conditions (Function on self.mesh) to the interior """
+
+
+        u = df.Function(self.FS2)
+        v = df.TestFunction(self.FS2)
+
+        dx = df.Measure('dx', domain=self.mesh, metadata={'quadrature_degree': 4})
+
+        E = df.inner(crf.NN_der(self.threshold, df.inner(df.grad(u), df.grad(u)), self.net) * df.grad(u), df.grad(v)) * dx
+
+
+        # solve PDE
+        bc = df.DirichletBC(self.FS2, boundary_conditions, 'on_boundary')
+
+
+        df.solve(E == 0, u, bc, solver_parameters={"nonlinear_solver": "newton", "newton_solver":
+            {"maximum_iterations": 200}})
+
+
+        self.bc_old.assign(df.project(u, self.FS))
+
+        return u
+    

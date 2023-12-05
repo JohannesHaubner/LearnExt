@@ -58,11 +58,12 @@ def main():
     path_to_files = "gravity_driven_test/data/max_deformations/max_deformations"
     save_to_dir = Path("gravity_driven_test/data/max_deformations")
 
-    from extensions import BiharmonicExtension, HarmonicExtension, NNCorrectionExtension
+    from extensions import BiharmonicExtension, HarmonicExtension, NNCorrectionExtension, LearnExtension
     biharmonic_extension = BiharmonicExtension(fluid_mesh)
     harmonic_extension = HarmonicExtension(fluid_mesh)
     nn_correct_extension_yankee = NNCorrectionExtension(fluid_mesh, "torch_extension/models/yankee")
     nn_correct_extension_foxtrot = NNCorrectionExtension(fluid_mesh, "torch_extension/models/foxtrot")
+    hybrid_extension = LearnExtension(fluid_mesh)
 
     read_order = 2
     save_order = 1
@@ -70,6 +71,7 @@ def main():
     extend_from_file(path_to_files, save_to_dir / "harmonic", harmonic_extension, read_order, save_order)
     extend_from_file(path_to_files, save_to_dir / "nn_correct_yankee", nn_correct_extension_yankee, read_order, save_order)
     extend_from_file(path_to_files, save_to_dir / "nn_correct_foxtrot", nn_correct_extension_foxtrot, read_order, save_order)
+    extend_from_file(path_to_files, save_to_dir / "hybrid", hybrid_extension, read_order, save_order)
 
     return
 
