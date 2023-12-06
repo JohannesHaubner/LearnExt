@@ -1,8 +1,11 @@
 from dolfin import *
+import xml.etree.ElementTree as ET
 
 class ExtensionOperator(object):
-    def __init__(self, mesh):
+    def __init__(self, mesh, marker, ids):
         self.mesh = mesh
+        self.marker = marker
+        self.ids = ids
 
     def extend(self, boundary_conditions, params=None):
         """extend the boundary_conditions to the interior of the mesh"""
@@ -11,10 +14,44 @@ class ExtensionOperator(object):
     def custom(self, FSI):
         """custom function for extension operator"""
         return False
+    
+    @staticmethod
+    def timings_extension(func):
+        """decorator to get timings for extension"""
+        def wrapper(self, *arg, **kw):
+            dump_timings_to_xml('test_timings.xml', TimingClear.clear)
+
+            with Timer("do extension"):
+                res = func(self, *arg, **kw)
+
+            dump_timings_to_xml('test_timings.xml', TimingClear.keep)
+
+            tree = ET.parse('test_timings.xml')
+            root = tree.getroot()
+
+            mpi_kind = 'MPI_MAX'
+
+            data = {}
+            for table in root:
+                if mpi_kind not in table.get('name'):
+                    continue
+                
+                for row in table:
+                    row_data = {}
+                    for col in row:
+                        row_data[col.get('key')] = col.get('value')
+                    data[row.get('key')] = row_data
+
+            col = 'wall tot'
+            for process in data:
+                print(process, data[process]['reps'], data[process][col])
+
+            return res
+        return wrapper
 
 class Biharmonic(ExtensionOperator):
-    def __init__(self, mesh):
-        super().__init__(mesh)
+    def __init__(self, mesh, marker=None, ids=None):
+        super().__init__(mesh, marker, ids)
 
         T = VectorElement("CG", self.mesh.ufl_cell(), 2)
         self.FS = FunctionSpace(self.mesh, MixedElement(T, T))
@@ -29,10 +66,16 @@ class Biharmonic(ExtensionOperator):
 
         dx = Measure('dx', domain=self.mesh)
 
+        #TODO preassemble
         a = inner(grad(z), grad(psiu)) * dx + inner(z, psiz) * dx - inner(grad(u), grad(psiz)) * dx
         L = Constant(0.0) * psiu[0] * dx
 
-        bc = DirichletBC(self.FS.sub(0), boundary_conditions, 'on_boundary')
+        if self.marker == None:
+            bc = DirichletBC(self.FS.sub(0), boundary_conditions, 'on_boundary')
+        else:
+            bc = []
+            for i in self.ids:
+                bc.append(DirichletBC(self.FS.sub(0), boundary_conditions, self.marker, i))
 
         uz = Function(self.FS)
 

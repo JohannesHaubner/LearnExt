@@ -79,6 +79,7 @@ class Harmonic(extension.ExtensionOperator):
 
     def extend(self, boundary_conditions, params=None):
         """ harmonic extension of boundary_conditions (Function on self.mesh) to the interior """
+        print('extend start')
 
         save_ext = True
         if save_ext:
@@ -89,7 +90,7 @@ class Harmonic(extension.ExtensionOperator):
             self.bc_old = boundary_conditions
             up = project(self.bc_old, self.FS2)
             upi = project(-1.0*up, self.FS2)
-            ALE.move(self.mesh, up, annotate=False)
+            ALE.move(self.mesh, up)
 
         u = Function(self.FS2)
         v = TestFunction(self.FS2)
@@ -107,8 +108,9 @@ class Harmonic(extension.ExtensionOperator):
         if save_ext:
             file << u
         if self.trafo:
-            ALE.move(self.mesh, upi, annotate=False)
+            ALE.move(self.mesh, upi)
 
+        print('extend finish')
         return u
 
 extension_operator = Harmonic(fluid_domain)
