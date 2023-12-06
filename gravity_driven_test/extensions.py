@@ -91,7 +91,7 @@ class NNCorrectionExtension(ExtensionOperator):
 from learnExt.NeuralNet.neural_network_custom import ANN
 from learnExt.learnext_hybridPDENN import Custom_Reduced_Functional as crf
 class LearnExtension(ExtensionOperator):
-    def __init__(self, mesh):
+    def __init__(self, mesh, network_path: str):
         super().__init__(mesh)
 
         T = df.VectorElement("CG", self.mesh.ufl_cell(), 1)
@@ -99,7 +99,7 @@ class LearnExtension(ExtensionOperator):
         self.FS = df.FunctionSpace(self.mesh, T)
         self.FS2 = df.FunctionSpace(self.mesh, T2)
         self.bc_old = df.Function(self.FS)
-        network_path = "example/learned_networks/trained_network.pkl"
+        # network_path = "example/learned_networks/trained_network.pkl"
         self.net = ANN(network_path)
         self.threshold = 0.001
 

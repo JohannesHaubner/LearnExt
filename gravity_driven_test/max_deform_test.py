@@ -63,7 +63,8 @@ def main():
     harmonic_extension = HarmonicExtension(fluid_mesh)
     nn_correct_extension_yankee = NNCorrectionExtension(fluid_mesh, "torch_extension/models/yankee")
     nn_correct_extension_foxtrot = NNCorrectionExtension(fluid_mesh, "torch_extension/models/foxtrot")
-    hybrid_extension = LearnExtension(fluid_mesh)
+    hybrid_fsi_extension = LearnExtension(fluid_mesh, "example/learned_networks/trained_network.pkl")
+    hybrid_art_extension = LearnExtension(fluid_mesh, "example/learned_networks/artificial/trained_network.pkl")
 
     read_order = 2
     save_order = 1
@@ -71,7 +72,8 @@ def main():
     extend_from_file(path_to_files, save_to_dir / "harmonic", harmonic_extension, read_order, save_order)
     extend_from_file(path_to_files, save_to_dir / "nn_correct_yankee", nn_correct_extension_yankee, read_order, save_order)
     extend_from_file(path_to_files, save_to_dir / "nn_correct_foxtrot", nn_correct_extension_foxtrot, read_order, save_order)
-    extend_from_file(path_to_files, save_to_dir / "hybrid", hybrid_extension, read_order, save_order)
+    extend_from_file(path_to_files, save_to_dir / "hybrid_fsi", hybrid_fsi_extension, read_order, save_order)
+    extend_from_file(path_to_files, save_to_dir / "hybrid_art", hybrid_art_extension, read_order, save_order)
 
     return
 

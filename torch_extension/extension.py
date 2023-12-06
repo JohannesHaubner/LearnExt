@@ -95,7 +95,7 @@ def poisson_mask_custom(V: df.FunctionSpace, f_str: str, normalize: bool = False
 class TorchExtension(extension.ExtensionOperator):
 
     def __init__(self, mesh, model: nn.Module, T_switch: float = 0.0, mask_rhs: str | None = None, silent: bool = False):
-        super().__init__(mesh)
+        super().__init__(mesh, marker=None, ids=None)
 
         T = df.VectorElement("CG", self.mesh.ufl_cell(), 2)
         self.F = df.FunctionSpace(self.mesh, T)
