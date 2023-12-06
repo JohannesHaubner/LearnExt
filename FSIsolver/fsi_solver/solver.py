@@ -143,6 +143,26 @@ class FSI(Context):
 
         self.bc_weak_form = []
 
+        class Projector():
+            def __init__(self, V):
+                self.v = TestFunction(V)
+                u = TrialFunction(V)
+                form = inner(u, self.v)*dx
+                self.A = assemble(form)
+                self.solver = LUSolver(self.A)
+                self.V = V
+            
+            def project(self, f):
+                L = inner(f, self.v)*dx
+                b = assemble(L)
+                
+                uh = Function(self.V)
+                self.solver.solve(uh.vector(), b)
+                
+                return uh
+        
+        self.projector_scalar_cg1 = Projector(FunctionSpace(self.mesh, "CG", 1))
+
 
     def warmstart(self, t):
         self.warmstart = True
@@ -207,7 +227,7 @@ class FSI(Context):
                     ALE.move(self.mesh, u, annotate=False)
                 except:
                     ALE.move(self.mesh, u)
-                pp = project(p - pmed / vol * Constant("1.0"), p.function_space())
+                pp = self.projector_scalar_cg1.project(p - pmed / vol * Constant("1.0"))
                 v.rename("velocity", "velocity")
                 p.rename("pressure", "pressure")
                 self.pfile << p
@@ -250,10 +270,7 @@ class FSI(Context):
         np.savetxt(self.times_filename, self.times)
         try:
             if save_det == True:
-                V = VectorFunctionSpace(u.function_space().mesh(), "CG", 1)
-                V0 = FunctionSpace(u.function_space().mesh(), "DG", 0)
-                up = project(u, V)
-                det_u = project(det(Identity(2) + grad(up)), V0)
+                det_u = self.projector_scalar_cg1.project(det(Identity(2) + grad(up)))
                 self.determinant_deformation.append(det_u.vector().min())
                 np.savetxt(self.determinant_filename, self.determinant_deformation)
         except:
