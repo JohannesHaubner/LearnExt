@@ -309,7 +309,7 @@ class FSI(Context):
 
         bc = self.get_boundary_conditions(vp_.function_space())
 
-        F = self.get_weak_form(vp, vp_, u, u_, psi, option)
+        F = 1e-4*self.get_weak_form(vp, vp_, u, u_, psi, option)
 
         ## see https://fenicsproject.discourse.group/t/using-petsc4py-petsc-snes-directly/2368/12
 
@@ -347,9 +347,19 @@ class FSI(Context):
 
         opts = PETSc.Options()
         opts.setValue('snes_monitor', None)
-        opts.setValue('snes_divergence_tolerance', 1e8)
-        opts.setValue('nl_div_tol', 1e8)
+        opts.setValue('snes_view', None)
+        opts.setValue('snes_check_jacobian', None)
+        opts.setValue('divergence_tolerance', -1)
+        #opts.setValue('nl_div_tol', 1e8)
+        snes.setOptionsPrefix()
         snes.setFromOptions()
+
+        #snes.setErrorIfNotConverged(True)
+
+        ksp = snes.getKSP()
+        ksp.setType('preonly')
+        ksp.getPC().setType('lu')
+        ksp.getPC().setFactorSolverType('mumps')
 
         snes.setFunction(problem.F, b.vec())
         snes.setJacobian(problem.J, J_mat.mat())
@@ -357,7 +367,8 @@ class FSI(Context):
 
         print('vp_vec', vp.vector().min())
         from IPython import embed; embed()
-        exit(0)
+        if snes.converged == False:
+            raise Exception("ERROR: SNES solver not converged")
 
         
         #problem = NonlinearVariationalProblem(F, vp, bc, J)
