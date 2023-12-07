@@ -309,7 +309,7 @@ class FSI(Context):
 
         bc = self.get_boundary_conditions(vp_.function_space())
 
-        F = 1e-4*self.get_weak_form(vp, vp_, u, u_, psi, option)
+        F = 1e-8*self.get_weak_form(vp, vp_, u, u_, psi, option)
 
         ## see https://fenicsproject.discourse.group/t/using-petsc4py-petsc-snes-directly/2368/12
 
@@ -349,9 +349,7 @@ class FSI(Context):
         opts.setValue('snes_monitor', None)
         opts.setValue('snes_view', None)
         opts.setValue('snes_check_jacobian', None)
-        opts.setValue('divergence_tolerance', -1)
-        #opts.setValue('nl_div_tol', 1e8)
-        snes.setOptionsPrefix()
+        opts.setValue('divergence_tolerance', 1e10)
         snes.setFromOptions()
 
         #snes.setErrorIfNotConverged(True)
@@ -649,18 +647,18 @@ class FSIsolver(Solver):
             while not self.FSI.check_timestep_success():
                 self.FSI.advance_time()
                 print(self.FSI.t, self.FSI.dt)
-                try:
-                    vp.assign(self.FSI.solve_system(vp_, u, u_, 0))   #u = u_ here in this system
-                    u.assign(self.FSI.get_deformation(vp, vp_, u_))
-                    vp.assign(self.FSI.solve_system(vp_, u, u_, 1))
-                    self.FSI.timestep_success()
-                    self.FSI.adapt_dt()
-                except Exception as e:
-                    print(e)
-                    self.FSI.adapt_dt()
-                    flag = self.extension_operator.custom(self.FSI)
-                    if flag == True:
-                        u_.assign(self.FSI.get_deformation(vp, vp_, u_))
+                #try:
+                vp.assign(self.FSI.solve_system(vp_, u, u_, 0))   #u = u_ here in this system
+                u.assign(self.FSI.get_deformation(vp, vp_, u_))
+                vp.assign(self.FSI.solve_system(vp_, u, u_, 1))
+                self.FSI.timestep_success()
+                self.FSI.adapt_dt()
+                #except Exception as e:
+                #    print(e)
+                #    self.FSI.adapt_dt()
+                #    flag = self.extension_operator.custom(self.FSI)
+                #    if flag == True:
+                #        u_.assign(self.FSI.get_deformation(vp, vp_, u_))
 
             if self.FSI.success == False:
                 raise ValueError('System not solvable with minimal time-step size.')
