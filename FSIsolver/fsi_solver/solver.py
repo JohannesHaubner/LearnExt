@@ -311,8 +311,67 @@ class FSI(Context):
 
         F = self.get_weak_form(vp, vp_, u, u_, psi, option)
 
-        solve(F == 0, vp, bc, solver_parameters={"nonlinear_solver": "newton", "newton_solver":
-            {"maximum_iterations": 20}})
+        ## see https://fenicsproject.discourse.group/t/using-petsc4py-petsc-snes-directly/2368/12
+
+        class SNESProblem():
+            def __init__(self, F, u, bc):
+                V = vp.function_space()
+                du = TrialFunction(V)
+                self.L = F
+                self.a = derivative(F, u, du)
+                self.bcs = bc
+                self.u = u
+
+            def F(self, snes, x, F):
+                x = PETScVector(x)
+                F  = PETScVector(F)
+                assemble(self.L, tensor=F)
+                for bc in self.bcs:
+                    bc.apply(F, x)                
+
+            def J(self, snes, x, J, P):
+                J = PETScMatrix(J)
+                assemble(self.a, tensor=J)
+                for bc in self.bcs:
+                    bc.apply(J)
+                    
+        problem = SNESProblem(F, vp, bc)
+        import petsc4py, sys
+        petsc4py.init(sys.argv)
+        from petsc4py import PETSc
+            
+        b = PETScVector()  # same as b = PETSc.Vec()
+        J_mat = PETScMatrix()
+
+        snes = PETSc.SNES().create(MPI.comm_world)    
+
+        opts = PETSc.Options()
+        opts.setValue('snes_monitor', None)
+        opts.setValue('snes_divergence_tolerance', 1e8)
+        opts.setValue('nl_div_tol', 1e8)
+        snes.setFromOptions()
+
+        snes.setFunction(problem.F, b.vec())
+        snes.setJacobian(problem.J, J_mat.mat())
+        snes.solve(None, problem.u.vector().vec())
+
+        print('vp_vec', vp.vector().min())
+        from IPython import embed; embed()
+        exit(0)
+
+        
+        #problem = NonlinearVariationalProblem(F, vp, bc, J)
+        #solver = NonlinearVariationalSolver(problem)
+        #prm = solver.parameters
+        #prm['nonlinear_solver'] = 'snes'
+
+        #info(solver.parameters, True)
+        #from IPython import embed; embed()
+        #solver.solve()
+        #exit(0)
+
+        #solve(F == 0, vp, bc, solver_parameters={"nonlinear_solver": "snes", "snes_solver":
+        #    {"maximum_iterations": 20, "divtol": 1e6}})
 
         return vp
 
