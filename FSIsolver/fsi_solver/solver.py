@@ -309,7 +309,7 @@ class FSI(Context):
 
         bc = self.get_boundary_conditions(vp_.function_space())
 
-        F = 1e-8*self.get_weak_form(vp, vp_, u, u_, psi, option)
+        F = self.get_weak_form(vp, vp_, u, u_, psi, option)
 
         ## see https://fenicsproject.discourse.group/t/using-petsc4py-petsc-snes-directly/2368/12
 
@@ -346,25 +346,28 @@ class FSI(Context):
         snes = PETSc.SNES().create(MPI.comm_world)    
 
         opts = PETSc.Options()
-        opts.setValue('snes_monitor', None)
-        opts.setValue('snes_view', None)
-        opts.setValue('snes_check_jacobian', None)
-        opts.setValue('divergence_tolerance', 1e10)
+        #opts.setValue('snes_monitor', None)
+        #opts.setValue('ksp_view', None)
+        #opts.setValue('pc_view', None)
+        #opts.setValue('log_view', None)
+        opts.setValue('snes_type', 'newtonls')
+        #opts.setValue('snes_view', None)
+        opts.setValue('snes_divergence_tolerance', 1e4)
+        opts.setValue('snes_linesearch_type', 'l2')
         snes.setFromOptions()
 
-        #snes.setErrorIfNotConverged(True)
+        snes.setErrorIfNotConverged(True)
 
         ksp = snes.getKSP()
-        ksp.setType('preonly')
         ksp.getPC().setType('lu')
-        ksp.getPC().setFactorSolverType('mumps')
+        ksp.getPC().setFactorSolverType('umfpack')
+        ksp.setType('preonly')
 
         snes.setFunction(problem.F, b.vec())
         snes.setJacobian(problem.J, J_mat.mat())
         snes.solve(None, problem.u.vector().vec())
 
         print('vp_vec', vp.vector().min())
-        from IPython import embed; embed()
         if snes.converged == False:
             raise Exception("ERROR: SNES solver not converged")
 
@@ -379,9 +382,9 @@ class FSI(Context):
         #solver.solve()
         #exit(0)
 
-        #solve(F == 0, vp, bc, solver_parameters={"nonlinear_solver": "snes", "snes_solver":
-        #    {"maximum_iterations": 20, "divtol": 1e6}})
-
+        #solve(F == 0, vp, bc, solver_parameters={"nonlinear_solver": "newton", "newton_solver":
+        #    {"maximum_iterations": 20}})
+        
         return vp
 
     def get_boundary_conditions(self, VP):
@@ -647,18 +650,18 @@ class FSIsolver(Solver):
             while not self.FSI.check_timestep_success():
                 self.FSI.advance_time()
                 print(self.FSI.t, self.FSI.dt)
-                #try:
-                vp.assign(self.FSI.solve_system(vp_, u, u_, 0))   #u = u_ here in this system
-                u.assign(self.FSI.get_deformation(vp, vp_, u_))
-                vp.assign(self.FSI.solve_system(vp_, u, u_, 1))
-                self.FSI.timestep_success()
-                self.FSI.adapt_dt()
-                #except Exception as e:
-                #    print(e)
-                #    self.FSI.adapt_dt()
-                #    flag = self.extension_operator.custom(self.FSI)
-                #    if flag == True:
-                #        u_.assign(self.FSI.get_deformation(vp, vp_, u_))
+                try:
+                    vp.assign(self.FSI.solve_system(vp_, u, u_, 0))   #u = u_ here in this system
+                    u.assign(self.FSI.get_deformation(vp, vp_, u_))
+                    vp.assign(self.FSI.solve_system(vp_, u, u_, 1))
+                    self.FSI.timestep_success()
+                    self.FSI.adapt_dt()
+                except Exception as e:
+                    print(e)
+                    self.FSI.adapt_dt()
+                    flag = self.extension_operator.custom(self.FSI)
+                    if flag == True:
+                        u_.assign(self.FSI.get_deformation(vp, vp_, u_))
 
             if self.FSI.success == False:
                 raise ValueError('System not solvable with minimal time-step size.')
