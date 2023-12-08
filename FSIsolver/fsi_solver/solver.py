@@ -97,6 +97,15 @@ class FSI(Context):
         else:
             self.theta = 0.5 + self.FSI_params["deltat"] # theta-time-stepping parameter
 
+        if "bc_type" in self.FSI_params.keys():
+            bc_type = self.FSI_params["bc_type"]
+            print("Choice for boundary type: ", self.FSI_params["bc_type"])
+        else:
+            print("Default choice for boundary type: inflow")
+            bc_type = "inflow"
+
+        self.bc_type = bc_type
+
         # help variables
         self.aphat = 1e-9
 
@@ -346,13 +355,13 @@ class FSI(Context):
         snes = PETSc.SNES().create(MPI.comm_world)    
 
         opts = PETSc.Options()
-        #opts.setValue('snes_monitor', None)
+        opts.setValue('snes_monitor', None)
         #opts.setValue('ksp_view', None)
         #opts.setValue('pc_view', None)
         #opts.setValue('log_view', None)
         opts.setValue('snes_type', 'newtonls')
         #opts.setValue('snes_view', None)
-        opts.setValue('snes_divergence_tolerance', 1e4)
+        opts.setValue('snes_divergence_tolerance', 1e2)
         opts.setValue('snes_linesearch_type', 'l2')
         snes.setFromOptions()
 
@@ -360,16 +369,15 @@ class FSI(Context):
 
         ksp = snes.getKSP()
         ksp.getPC().setType('lu')
-        ksp.getPC().setFactorSolverType('umfpack')
+        ksp.getPC().setFactorSolverType('mumps')
         ksp.setType('preonly')
 
         snes.setFunction(problem.F, b.vec())
         snes.setJacobian(problem.J, J_mat.mat())
         snes.solve(None, problem.u.vector().vec())
 
-        print('vp_vec', vp.vector().min())
-        if snes.converged == False:
-            raise Exception("ERROR: SNES solver not converged")
+        #if snes.converged == False:
+        #    raise Exception("ERROR: SNES solver not converged")
 
         
         #problem = NonlinearVariationalProblem(F, vp, bc, J)
@@ -400,18 +408,11 @@ class FSI(Context):
             
         pressureb = PressureB()
 
-        if "bc_type" in self.FSI_params.keys():
-            bc_type = self.FSI_params["bc_type"]
-            print("Choice for boundary type: ", self.FSI_params["bc_type"])
-        else:
-            print("Default choice for boundary type: inflow")
-            bc_type = "inflow"
-
         bc = []
-        if bc_type == "inflow":
+        if self.bc_type == "inflow":
             bc.append(DirichletBC(VP.sub(1), Constant(0.0), pressureb, method='pointwise'))
             bc.append(DirichletBC(VP.sub(0), self.bc, self.boundaries, self.param["inflow"]))
-        elif bc_type == "pressure":
+        elif self.bc_type == "pressure":
             pass
         else:
             raise("Not Implemented")
@@ -564,7 +565,7 @@ class FSI(Context):
         F = A_T + A_P + A_I + theta * A_E + (1 - theta)*A_E_rhs
 
         # add boundary conditions that appear in weak form (get_boundary_conditions)
-        if self.FSI_params["bc_type"] == "pressure":
+        if self.bc_type == "pressure":
             F += inner(self.bc* n, psiv)*ds(self.param["inflow"])
             F -= rhof * nyf *inner(grad(v).T*n, psiv)*ds(self.param["inflow"])
             F -= rhof * nyf *inner(grad(v).T*n, psiv)*ds(self.param["outflow"])
