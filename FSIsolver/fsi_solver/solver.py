@@ -2,6 +2,10 @@ import sympy as sym
 from dolfin import *
 import numpy as np
 
+import petsc4py, sys
+petsc4py.init(sys.argv)
+from petsc4py import PETSc
+
 from pathlib import Path
 here = Path(__file__).parent
 import sys
@@ -22,6 +26,28 @@ class Solver(object):
     def save_snapshot(self):
         """save snapshot"""
         raise NotImplementedError
+    
+class SNESProblem():
+    def __init__(self, F, u, bc):
+        V = u.function_space()
+        du = TrialFunction(V)
+        self.L = F
+        self.a = derivative(F, u, du)
+        self.bcs = bc
+        self.u = u
+
+    def F(self, snes, x, F):
+        x = PETScVector(x)
+        F  = PETScVector(F)
+        assemble(self.L, tensor=F)
+        for bc in self.bcs:
+            bc.apply(F, x)                
+
+    def J(self, snes, x, J, P):
+        J = PETScMatrix(J)
+        assemble(self.a, tensor=J)
+        for bc in self.bcs:
+            bc.apply(J)
 
 class Context(object):
     def __init__(self, params):
@@ -151,6 +177,21 @@ class FSI(Context):
         self.tools_fluid = Tools(V, Vf)
 
         self.bc_weak_form = []
+
+        self.snes = PETSc.SNES().create(MPI.comm_world) 
+        opts = PETSc.Options()
+        opts.setValue('snes_monitor', None)
+        #opts.setValue('ksp_view', None)
+        #opts.setValue('pc_view', None)
+        #opts.setValue('log_view', None)
+        opts.setValue('snes_type', 'newtonls')
+        #opts.setValue('snes_view', None)
+        opts.setValue('snes_divergence_tolerance', 1e2)
+        opts.setValue('snes_linesearch_type', 'l2')
+        self.snes.setFromOptions()
+
+        self.snes.setErrorIfNotConverged(True)
+
 
         class Projector():
             def __init__(self, V):
@@ -321,60 +362,20 @@ class FSI(Context):
         F = self.get_weak_form(vp, vp_, u, u_, psi, option)
 
         ## see https://fenicsproject.discourse.group/t/using-petsc4py-petsc-snes-directly/2368/12
-
-        class SNESProblem():
-            def __init__(self, F, u, bc):
-                V = vp.function_space()
-                du = TrialFunction(V)
-                self.L = F
-                self.a = derivative(F, u, du)
-                self.bcs = bc
-                self.u = u
-
-            def F(self, snes, x, F):
-                x = PETScVector(x)
-                F  = PETScVector(F)
-                assemble(self.L, tensor=F)
-                for bc in self.bcs:
-                    bc.apply(F, x)                
-
-            def J(self, snes, x, J, P):
-                J = PETScMatrix(J)
-                assemble(self.a, tensor=J)
-                for bc in self.bcs:
-                    bc.apply(J)
                     
         problem = SNESProblem(F, vp, bc)
-        import petsc4py, sys
-        petsc4py.init(sys.argv)
-        from petsc4py import PETSc
             
         b = PETScVector()  # same as b = PETSc.Vec()
-        J_mat = PETScMatrix()
+        J_mat = PETScMatrix()   
 
-        snes = PETSc.SNES().create(MPI.comm_world)    
-
-        opts = PETSc.Options()
-        opts.setValue('snes_monitor', None)
-        #opts.setValue('ksp_view', None)
-        #opts.setValue('pc_view', None)
-        #opts.setValue('log_view', None)
-        opts.setValue('snes_type', 'newtonls')
-        #opts.setValue('snes_view', None)
-        opts.setValue('snes_divergence_tolerance', 1e2)
-        opts.setValue('snes_linesearch_type', 'l2')
-        snes.setFromOptions()
-
-        snes.setErrorIfNotConverged(True)
-
-        ksp = snes.getKSP()
+        ksp = self.snes.getKSP()
         ksp.getPC().setType('lu')
         ksp.getPC().setFactorSolverType('mumps')
         ksp.setType('preonly')
 
-        snes.setFunction(problem.F, b.vec())
-        snes.setJacobian(problem.J, J_mat.mat())
-        snes.solve(None, problem.u.vector().vec())
+        self.snes.setFunction(problem.F, b.vec())
+        self.snes.setJacobian(problem.J, J_mat.mat())
+        self.snes.solve(None, problem.u.vector().vec())
 
         #if snes.converged == False:
         #    raise Exception("ERROR: SNES solver not converged")
