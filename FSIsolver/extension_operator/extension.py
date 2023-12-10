@@ -50,14 +50,21 @@ class ExtensionOperator(object):
         return wrapper
 
 class Biharmonic(ExtensionOperator):
-    def __init__(self, mesh, marker=None, ids=None):
+    def __init__(self, mesh, marker=None, ids=None, save_extension=True, save_filename=None):
         super().__init__(mesh, marker, ids)
+
+        # options
+        self.save_ext = save_extension
+
+        if self.save_ext:
+            self.iter = -1
+            if save_filename == None:
+                raise Exception('save_filename (str) not specified')
+            self.xdmf_output = XDMFFile(str(save_filename))
+            self.xdmf_output.write(self.mesh)
 
         T = VectorElement("CG", self.mesh.ufl_cell(), 2)
         self.FS = FunctionSpace(self.mesh, MixedElement(T, T))
-
-    def extend(self, boundary_conditions, params=None):
-        """ biharmonic extension of boundary_conditions (Function on self.mesh) to the interior """
 
         uz = TrialFunction(self.FS)
         puz = TestFunction(self.FS)
@@ -66,30 +73,53 @@ class Biharmonic(ExtensionOperator):
 
         dx = Measure('dx', domain=self.mesh)
 
-        #TODO preassemble
         a = inner(grad(z), grad(psiu)) * dx + inner(z, psiz) * dx - inner(grad(u), grad(psiz)) * dx
         L = Constant(0.0) * psiu[0] * dx
 
+
+        self.A = assemble(a)
+
+        bc = []
         if self.marker == None:
-            bc = DirichletBC(self.FS.sub(0), boundary_conditions, 'on_boundary')
+            bc.append(DirichletBC(self.FS.sub(0), Constant((0.,0.)), 'on_boundary'))
         else:
-            bc = []
+            for i in self.ids:
+                bc.append(DirichletBC(self.FS.sub(0), Constant((0., 0.)), self.marker, i))
+        self.bc = bc
+
+        for bci in self.bc:
+            bci.apply(self.A)
+
+        self.solver = LUSolver(self.A)
+
+        self.L = assemble(Constant(0.0) * psiu[0] * dx)
+
+
+    @ExtensionOperator.timings_extension
+    def extend(self, boundary_conditions, params=None):
+        """ biharmonic extension of boundary_conditions (Function on self.mesh) to the interior """
+
+        bc = []
+        if self.marker == None:
+            bc.append(DirichletBC(self.FS.sub(0), boundary_conditions, 'on_boundary'))
+        else:
             for i in self.ids:
                 bc.append(DirichletBC(self.FS.sub(0), boundary_conditions, self.marker, i))
 
+        for bci in bc:
+            bci.apply(self.L)
+
         uz = Function(self.FS)
 
-        solve(a == L, uz, bc)
+        self.solver.solve(uz.vector(), self.L)
 
         u_, z_ = uz.split(deepcopy=True)
 
-        save_ext = False
-        if save_ext:
-            file = File('../../Output/Extension/function.pvd')
-            file << u_
+        if self.save_ext:
+            self.iter +=1
+            self.xdmf_output.write_checkpoint(u_, "output_biharmonic_ext", self.iter, XDMFFile.Encoding.HDF5, append=True)
 
         return u_
-
 
 
 if __name__ == "__main__":
