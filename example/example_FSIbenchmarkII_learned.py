@@ -156,6 +156,9 @@ class LearnExtension(extension.ExtensionOperator):
 
 extension_operator = LearnExtension(fluid_domain)
 
+#extension_operator = extension.LearnExtension(fluid_domain, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold)
+
+
 # save options
 FSI_param['save_directory'] = str(here.parent) + '/Output/FSIbenchmarkII_supervised_300322' #no save if set to None
 #FSI_param['save_every_N_snapshot'] = 4 # save every 8th snapshot
