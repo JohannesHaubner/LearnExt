@@ -120,6 +120,94 @@ class Biharmonic(ExtensionOperator):
             self.xdmf_output.write_checkpoint(u_, "output_biharmonic_ext", self.iter, XDMFFile.Encoding.HDF5, append=True)
 
         return u_
+    
+class Harmonic(ExtensionOperator):
+    def __init__(self, mesh, marker=None, ids=None, save_extension=True, save_filename=None, incremental=False):
+        super().__init__(mesh, marker, ids)
+
+        # options
+        self.save_ext = save_extension
+
+        if self.save_ext:
+            self.iter = -1
+            if save_filename == None:
+                raise Exception('save_filename (str) not specified')
+            self.xdmf_output = XDMFFile(str(save_filename))
+            self.xdmf_output.write(self.mesh)
+
+        self.incremental = incremental
+        if self.incremental:
+            self.bc_old = Function(self.FS2)
+
+        T = VectorElement("CG", self.mesh.ufl_cell(), 2)
+        self.FS = FunctionSpace(self.mesh, T)
+
+        uz = TrialFunction(self.FS)
+        puz = TestFunction(self.FS)
+        (u, z) = split(uz)
+        (psiu, psiz) = split(puz)
+
+        dx = Measure('dx', domain=self.mesh)
+
+        a = inner(grad(u), grad(v)) * dx
+        L = Constant(0.0) * psiu[0] * dx
+
+
+        self.A = assemble(a)
+
+        bc = []
+        if self.marker == None:
+            bc.append(DirichletBC(self.FS.sub(0), Constant((0.,0.)), 'on_boundary'))
+        else:
+            for i in self.ids:
+                bc.append(DirichletBC(self.FS.sub(0), Constant((0., 0.)), self.marker, i))
+        self.bc = bc
+
+        for bci in self.bc:
+            bci.apply(self.A)
+
+        self.solver = LUSolver(self.A)
+
+        self.L = assemble(Constant(0.0) * psiu[0] * dx)
+
+
+    @ExtensionOperator.timings_extension
+    def extend(self, boundary_conditions, params=None):
+        """ biharmonic extension of boundary_conditions (Function on self.mesh) to the interior """
+
+        bc = []
+        if self.marker == None:
+            bc.append(DirichletBC(self.FS.sub(0), boundary_conditions, 'on_boundary'))
+        else:
+            for i in self.ids:
+                bc.append(DirichletBC(self.FS.sub(0), boundary_conditions, self.marker, i))
+
+        for bci in bc:
+            bci.apply(self.L)
+
+        if self.incremental:
+            # move mesh with previous deformation
+            self.bc_old = boundary_conditions
+            up = project(self.bc_old, self.FS)
+            upi = Function(self.FS)
+            upi.vector().axpy(-1., up.vector())
+            ALE.move(self.mesh, up)
+
+        uz = Function(self.FS)
+
+        self.solver.solve(uz.vector(), self.L)
+
+        u_, z_ = uz.split(deepcopy=True)
+
+        if self.incremental:
+            # move mesh back
+            ALE.move(self.mesh, upi)
+
+        if self.save_ext:
+            self.iter +=1
+            self.xdmf_output.write_checkpoint(u_, "output_biharmonic_ext", self.iter, XDMFFile.Encoding.HDF5, append=True)
+
+        return u_
 
 
 if __name__ == "__main__":

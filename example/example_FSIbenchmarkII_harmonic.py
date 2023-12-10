@@ -113,7 +113,7 @@ class Harmonic(extension.ExtensionOperator):
         print('extend finish')
         return u
 
-extension_operator = Harmonic(fluid_domain)
+extension_operator = extension.Harmonic(fluid_domain, incremental=True, save_extension=True)
 
 # save options
 FSI_param['save_directory'] = str(str(here.parent) + '/Output/FSIbenchmarkII_harmonic_trafo_adaptive_t') #no save if set to None
