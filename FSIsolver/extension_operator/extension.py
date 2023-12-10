@@ -92,7 +92,7 @@ class Biharmonic(ExtensionOperator):
 
         self.solver = LUSolver(self.A)
 
-        self.L = assemble(Constant(0.0) * psiu[0] * dx)
+        self.L = assemble(L)
 
 
     @ExtensionOperator.timings_extension
@@ -135,32 +135,30 @@ class Harmonic(ExtensionOperator):
             self.xdmf_output = XDMFFile(str(save_filename))
             self.xdmf_output.write(self.mesh)
 
-        self.incremental = incremental
-        if self.incremental:
-            self.bc_old = Function(self.FS2)
-
         T = VectorElement("CG", self.mesh.ufl_cell(), 2)
         self.FS = FunctionSpace(self.mesh, T)
 
-        uz = TrialFunction(self.FS)
-        puz = TestFunction(self.FS)
-        (u, z) = split(uz)
-        (psiu, psiz) = split(puz)
+        self.incremental = incremental
+        if self.incremental:
+            self.bc_old = Function(self.FS)
+
+        u = TrialFunction(self.FS)
+        v = TestFunction(self.FS)
 
         dx = Measure('dx', domain=self.mesh)
 
         a = inner(grad(u), grad(v)) * dx
-        L = Constant(0.0) * psiu[0] * dx
+        L = Constant(0.0) * v[0] * dx
 
 
         self.A = assemble(a)
 
         bc = []
         if self.marker == None:
-            bc.append(DirichletBC(self.FS.sub(0), Constant((0.,0.)), 'on_boundary'))
+            bc.append(DirichletBC(self.FS, Constant((0.,0.)), 'on_boundary'))
         else:
             for i in self.ids:
-                bc.append(DirichletBC(self.FS.sub(0), Constant((0., 0.)), self.marker, i))
+                bc.append(DirichletBC(self.FS, Constant((0., 0.)), self.marker, i))
         self.bc = bc
 
         for bci in self.bc:
@@ -168,7 +166,7 @@ class Harmonic(ExtensionOperator):
 
         self.solver = LUSolver(self.A)
 
-        self.L = assemble(Constant(0.0) * psiu[0] * dx)
+        self.L = assemble(L)
 
 
     @ExtensionOperator.timings_extension
@@ -177,10 +175,10 @@ class Harmonic(ExtensionOperator):
 
         bc = []
         if self.marker == None:
-            bc.append(DirichletBC(self.FS.sub(0), boundary_conditions, 'on_boundary'))
+            bc.append(DirichletBC(self.FS, boundary_conditions, 'on_boundary'))
         else:
             for i in self.ids:
-                bc.append(DirichletBC(self.FS.sub(0), boundary_conditions, self.marker, i))
+                bc.append(DirichletBC(self.FS, boundary_conditions, self.marker, i))
 
         for bci in bc:
             bci.apply(self.L)
@@ -193,11 +191,9 @@ class Harmonic(ExtensionOperator):
             upi.vector().axpy(-1., up.vector())
             ALE.move(self.mesh, up)
 
-        uz = Function(self.FS)
+        u_ = Function(self.FS)
 
-        self.solver.solve(uz.vector(), self.L)
-
-        u_, z_ = uz.split(deepcopy=True)
+        self.solver.solve(u_.vector(), self.L)
 
         if self.incremental:
             # move mesh back
