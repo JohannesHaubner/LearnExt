@@ -4,6 +4,7 @@ import os
 
 from pathlib import Path
 from tqdm import tqdm
+from typing import Sequence
 
 from FSIsolver.extension_operator.extension import ExtensionOperator
 
@@ -21,6 +22,7 @@ def find_number_of_checkpoints(path_to_xdmf: os.PathLike) -> int:
             return num + 1
     raise RuntimeError
 
+
 def get_flipped_cells(mesh: df.Mesh, u: df.Function) -> df.Function:
     assert u.function_space().ufl_element().degree() == 1
 
@@ -37,8 +39,9 @@ def get_flipped_cells(mesh: df.Mesh, u: df.Function) -> df.Function:
     flipped_cells = pre_orient1 * post_orient1
     return flipped_cells.astype(np.float64)
 
+
 def extend_from_file(path_to_files: os.PathLike, save_to_path: os.PathLike, 
-                     extension: ExtensionOperator, order: int):
+                     extension: ExtensionOperator, order: int, checkpoints: Sequence[int] | None = None):
     print(str(path_to_files))
     print(str(save_to_path))
     path_to_files = Path(path_to_files)
@@ -73,17 +76,19 @@ def extend_from_file(path_to_files: os.PathLike, save_to_path: os.PathLike,
     signs = df.Function(DG0)
 
 
-    ks = range(find_number_of_checkpoints(path_to_files.with_suffix(".xdmf")))
-    ks = [0, 10, 20, 120, 272]
-    for k in tqdm(ks):
+    if checkpoints is None:
+        ks = range(find_number_of_checkpoints(path_to_files.with_suffix(".xdmf")))
+    else:
+        ks = checkpoints
+    for l, k in enumerate(tqdm(ks)):
         infile.read_checkpoint(u_bc, "uh", k)
         u_ext = extension.extend(u_bc)
         u_save.interpolate(u_ext)
         # interp_mat.mult(u_ext.vector(), u_save.vector()) # u_save.interpolate(u_ext)
         flipped_cells = get_flipped_cells(mesh, u_save)
         signs.vector()[:] = flipped_cells
-        outfile.write_checkpoint(u_save, "uh", k, append=True)
-        outfile_signs.write_checkpoint(signs, "sign_h", k, append=True)
+        outfile.write_checkpoint(u_save, "uh", l, append=True)
+        outfile_signs.write_checkpoint(signs, "sign_h", l, append=True)
 
     infile.close()
     outfile.close()
@@ -95,8 +100,8 @@ def extend_from_file(path_to_files: os.PathLike, save_to_path: os.PathLike,
 
 def main():
 
-    path_to_files = Path("Data_MoF-2/membrane_test_p2.xdmf")
-    save_to_dir = Path("membrane_test/data")
+    path_to_files = Path("membrane_test/data/Data_MoF/membrane_test_p2.xdmf")
+    save_to_dir = Path("membrane_test/data/extended")
 
     mesh = df.Mesh()
     with df.XDMFFile(str(path_to_files)) as meshfile:
@@ -108,7 +113,9 @@ def main():
 
     df.set_log_active(False)
     order = 2
-    extend_from_file(path_to_files, save_to_dir / "harmonic", harmonic, order)
+    # checkpoints = [0, 10, 20, 120, 272]
+    checkpoints = None
+    extend_from_file(path_to_files, save_to_dir / "harmonic", harmonic, order, checkpoints=checkpoints)
 
     return
 

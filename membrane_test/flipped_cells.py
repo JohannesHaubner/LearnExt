@@ -3,24 +3,28 @@ import numpy as np
 
 from pathlib import Path
 
-# TODO: Change test_path to membrane dataset when available.
-test_path = Path("gravity_driven_test/data/max_deformations/harmonic.xdmf")
+if Path("membrane_test/data/extended/harmonic.xdmf").exists():
+    test_path = Path("membrane_test/data/extended/harmonic.xdmf")
+else:
+    test_path = Path("membrane_test/data/Data_MoF/membrane_test_p1.xdmf")
+print(str(test_path))
 
 mesh = df.Mesh()
 test_file = df.XDMFFile(str(test_path))
 test_file.read(mesh)
 
 
-print(mesh.num_vertices())
+print(f"{mesh.num_vertices() = }")
 V = df.VectorFunctionSpace(mesh, "CG", 1)
 u = df.Function(V)
 
 
 from FSIsolver.extension_operator.extension import LearnExtension
 
+ks = [20, 120, 272]
 
 mesh0 = df.Mesh(mesh)
-test_file.read_checkpoint(u, "uh", 0)
+test_file.read_checkpoint(u, "uh", ks[0])
 mesh0.init_cell_orientations(df.Constant((0.0, 0.0, 1.0)))
 pre_orient0 = np.array(mesh0.cell_orientations())
 try:
@@ -33,7 +37,7 @@ print(np.count_nonzero(post_orient0 - pre_orient0), "flipped cells")
 
 
 mesh1 = df.Mesh(mesh)
-test_file.read_checkpoint(u, "uh", 1)
+test_file.read_checkpoint(u, "uh", ks[1])
 mesh1.init_cell_orientations(df.Constant((0.0, 0.0, 1.0)))
 pre_orient1 = np.array(mesh1.cell_orientations())
 try:
@@ -46,7 +50,7 @@ print(np.count_nonzero(post_orient1 - pre_orient1), "flipped cells")
 
 
 mesh2 = df.Mesh(mesh)
-test_file.read_checkpoint(u, "uh", 2)
+test_file.read_checkpoint(u, "uh", ks[2])
 mesh2.init_cell_orientations(df.Constant((0.0, 0.0, 1.0)))
 pre_orient2 = np.array(mesh2.cell_orientations())
 try:

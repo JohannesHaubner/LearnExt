@@ -129,7 +129,7 @@ class Biharmonic(ExtensionOperator):
         return u_
     
 class Harmonic(ExtensionOperator):
-    def __init__(self, mesh, marker=None, ids=None, save_extension=True, save_filename=None, incremental=False):
+    def __init__(self, mesh, marker=None, ids=None, save_extension=False, save_filename=None, incremental=False):
         super().__init__(mesh, marker, ids)
 
         # options
