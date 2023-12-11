@@ -2,5 +2,5 @@
 	"name": "LearnExt",
 
 	// Update the 'image' property with your Docker image name.
-	"image": "ghcr.io/johanneshaubner/learnext:v0.0.5"
+	"image": "ghcr.io/johanneshaubner/learnext:v0.0.3"
 }

@@ -282,7 +282,10 @@ class LearnExtension(ExtensionOperator):
             except:
                 ALE.move(self.mesh, up)
 
-        u = Function(self.FS2)
+        if trafo:
+            u = TrialFunction(self.FS2)
+        else:
+            u = Function(self.FS2)
         v = TestFunction(self.FS2)
 
         dx = Measure('dx', domain=self.mesh, metadata={'quadrature_degree': 4})
@@ -299,7 +302,11 @@ class LearnExtension(ExtensionOperator):
             bc_func = boundary_conditions
         bc = DirichletBC(self.FS2, bc_func, 'on_boundary')
 
-        solve(E == 0, u, bc, solver_parameters={"nonlinear_solver": "newton", "newton_solver":
+        if trafo:
+            u = Function(self.FS2)
+            solve(lhs(E) == rhs(E), u, bc)
+        else:
+            solve(E == 0, u, bc, solver_parameters={"nonlinear_solver": "newton", "newton_solver":
                 {"maximum_iterations": 200}})
 
         if trafo:
