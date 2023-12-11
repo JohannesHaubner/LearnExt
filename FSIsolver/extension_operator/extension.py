@@ -57,7 +57,7 @@ class ExtensionOperator(object):
         return wrapper
 
 class Biharmonic(ExtensionOperator):
-    def __init__(self, mesh, marker=None, ids=None, save_extension=True, save_filename=None):
+    def __init__(self, mesh, marker=None, ids=None, save_extension=False, save_filename=None):
         super().__init__(mesh, marker, ids)
 
         # options

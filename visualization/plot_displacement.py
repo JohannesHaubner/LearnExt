@@ -7,6 +7,8 @@ import numpy as np
 #pl.axis([0,15, -0.1, 0.1])
 #pl.savefig('./displacement_plot.png')
 
+tmax = 0.8 # 15
+
 colors = [np.asarray([218, 215, 213])*1./255,
           np.asarray([0, 101, 189])*1./255,
           np.asarray([0, 0, 0])*1./255,
@@ -19,7 +21,7 @@ def plot_displacement(list, times, str, colors, foldernames):
     for i in range(len(list)):
         #pl.plot(times[i], list[i], linewidth=0.6, label=foldernames[i])
         pl.plot(times[i], list[i], color = colors[i], linewidth=0.6, label=foldernames[i])
-    pl.axis([0, 15, -0.1, 0.1])
+    pl.axis([0, tmax, -0.1, 0.1])
     pl.legend(loc='lower left')
     pl.xlabel("time")
     pl.ylabel("y-displacement of tip of the flap")
@@ -32,7 +34,7 @@ def plot_determinant(list, times, str, colors, foldernames):
     for i in range(len(list)):
         #pl.plot(times[i], list[i], linewidth=0.6, label=foldernames[i])
         pl.plot(times[i], list[i], color = colors[i], linewidth=0.6, label=foldernames[i])
-    pl.axis([0, 15, -0.1, 1.1])
+    pl.axis([0, tmax, -0.1, 1.1])
     pl.legend(loc='lower left')
     pl.xlabel("time")
     pl.ylabel("minimal determinant of deformation gradient")
@@ -49,7 +51,7 @@ def plot_timestep(times, str, colors, foldernames):
         times_mid = [0.5*(times[i][k+1] + times[i][k]) for k in range(len(times[i])-1)]
         #pl.plot(times_mid, times_diff, linewidth=0.6, label=foldernames[i])
         pl.plot(times_mid, times_diff, color=colors[i], linewidth=0.6, label=foldernames[i])
-        pl.axis([0, 15, 0.0, 0.011])
+        pl.axis([0, tmax, 0.0, 0.011])
     pl.legend(loc='lower left')
     pl.xlabel("time")
     pl.ylabel("time-step size")
@@ -57,8 +59,8 @@ def plot_timestep(times, str, colors, foldernames):
     pl.close()
 
 if __name__ == "__main__":
-    foldernames = ["biharmonic", "supervised_learn/standard", "supervised_learn/incremental", "supervised_learn/lintraf_correct"] # ["biharmonic", "harmonic_trafo", "harmonic_notrafo"] #
-    names=  ["biharmonic", "learned", "learned linear incremental", "learned linear incremental corrected"] #["biharmonic", "harmonic incremental", "harmonic"]
+    foldernames = ["membrane"] #["biharmonic", "supervised_learn/standard", "supervised_learn/incremental", "supervised_learn/lintraf_correct"] # ["biharmonic", "harmonic_trafo", "harmonic_notrafo"] #
+    names=  ["biharmonic"] #["biharmonic", "learned", "learned linear incremental", "learned linear incremental corrected"] #["biharmonic", "harmonic incremental", "harmonic"]
 
     times_list = []
     displacement_list = []
