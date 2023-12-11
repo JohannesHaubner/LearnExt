@@ -66,7 +66,7 @@ FSI_param['boundary_cond'] = df.Expression(("(t < 2)?(1.5*Ubar*4.0*x[1]*(0.41 -x
                                         Ubar=Ubar, t=FSI_param['t'], degree=2)
 
 
-from torch_extension.extension import TorchExtension, TorchExtensionRecord
+from FSIsolver.extension_operator.extension import TorchExtension, TorchExtensionRecord
 import torch
 import torch.nn as nn
 from torch_extension.loading import load_model

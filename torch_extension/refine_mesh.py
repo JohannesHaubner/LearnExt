@@ -52,7 +52,7 @@ mlp.eval()
 
 
 
-from torch_extension.extension import TorchExtension
+from FSIsolver.extension_operator.extension import TorchExtension
 
 extender = TorchExtension(fluid_domain, mlp)
 
@@ -72,7 +72,8 @@ u_ref = df.Function(CG1_ref)
 # u_corr = df.Function(CG2)
 # u_corr_ref = df.Function(CG1_ref)
 
-from torch_extension.extension import clement_interpolate, CG1_vector_plus_grad_to_array_w_coords, poisson_mask_custom
+from torch_extension.clement import clement_interpolate
+from torch_extension.tools import CG1_vector_plus_grad_to_array_w_coords, poisson_mask_custom
 poisson_mask_f = "2.0 * (x[0]+1.0) * (1-x[0]) * exp( -3.5*pow(x[0], 7) ) + 0.1"
 
 mask     = poisson_mask_custom(df.FunctionSpace(fluid_domain, "CG", 1), poisson_mask_f, normalize=True)

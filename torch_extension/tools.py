@@ -90,27 +90,3 @@ def poisson_mask_custom(V: df.FunctionSpace, f_str: str, normalize: bool = False
         uh.vector()[:] /= np.max(uh.vector()[:]) # Normalize mask to have sup-norm 1.
 
     return uh
-
-from FSIsolver.extension_operator.extension import TorchExtension
-class TorchExtensionRecord(TorchExtension):
-    def __init__(self, mesh, model, T_switch=0.0, mask_rhs = None, T_record=0.0, run_name="Data0", silent: bool = False):
-        super().__init__(mesh, model, T_switch=T_switch, mask_rhs=mask_rhs, silent=silent)
-
-        # Time to start recording
-        self.T_record = T_record
-
-        # Create time series
-        self.xdmf_input = df.XDMFFile(str(here.parent) + f"/TorchOutput/Extension/{run_name}/harm.xdmf")
-        self.xdmf_output = df.XDMFFile(str(here.parent) + f"/TorchOutput/Extension/{run_name}/torch.xdmf")
-
-        return
-
-    def extend(self, boundary_conditions, params):
-        u_ = super().extend(boundary_conditions, params)
-
-        if params["t"] > self.T_record:
-            self.iter +=1
-            self.xdmf_input.write_checkpoint(self.uh, "input_harmonic_ext", self.iter, df.XDMFFile.Encoding.HDF5, append=True)
-            self.xdmf_output.write_checkpoint(self.u_, "output_pytorch_ext", self.iter, df.XDMFFile.Encoding.HDF5, append=True)
-
-        return u_

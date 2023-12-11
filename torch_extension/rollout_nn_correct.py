@@ -73,7 +73,7 @@ import torch
 
 # network(torch.rand((fspace.dim()//2, 8))) # Check everything works before run.
 
-from torch_extension.extension import TorchExtension
+from FSIsolver.extension_operator.extension import TorchExtension
 
 # extension_operator = TorchExtension(fluid_domain, network, T_switch=0.0, silent=True)
 # print(extension_operator.model)
