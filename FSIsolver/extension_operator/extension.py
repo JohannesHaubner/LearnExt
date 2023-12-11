@@ -221,8 +221,6 @@ class LearnExtension(ExtensionOperator):
         T2 = VectorElement("CG", self.mesh.ufl_cell(), 2)
         self.FS = FunctionSpace(self.mesh, T)
         self.FS2 = FunctionSpace(self.mesh, T2)
-        self.incremental = False
-        self.incremental_correct = False
         self.bc_old = Function(self.FS2)
         self.net = ANN(NN_path)
 

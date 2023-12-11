@@ -67,8 +67,12 @@ FSI_param['boundary_cond'] = Expression(("(t < 2)?(1.5*Ubar*4.0*x[1]*(0.41 -x[1]
 
 threshold = 0.001
 
-extension_operator = extension.LearnExtension(fluid_domain, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold)
-
+extension_operator = extension.LearnExtension(fluid_domain, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold)# learned
+#extension_operator = extension.LearnExtension(fluid_domain, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold)# learned artificial dataset
+#extension_operator = extension.LearnExtension(fluid_domain, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=False)# learned linearized
+#extension_operator = extension.LearnExtension(fluid_domain, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=False)# learned linearized artificial dataset
+#extension_operator = extension.LearnExtension(fluid_domain, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=True)# learned linearized corrected
+#extension_operator = extension.LearnExtension(fluid_domain, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=Truee)# learned linearized corrected artificial dataset
 
 # save options
 FSI_param['save_directory'] = str(here.parent) + '/Output/FSIbenchmarkII_supervised_300322' #no save if set to None
