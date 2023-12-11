@@ -241,6 +241,7 @@ class LearnExtension(ExtensionOperator):
             self.xdmf_output = XDMFFile(str(save_filename))
             self.xdmf_output.write(self.mesh)
 
+    @ExtensionOperator.timings_extension
     def extend(self, boundary_conditions, params = None):
         """ harmonic extension of boundary_conditions (Function on self.mesh) to the interior """
 
