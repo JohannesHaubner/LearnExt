@@ -18,13 +18,11 @@ from .NeuralNet.tools import *
 #import moola
 
 class Custom_Reduced_Functional(object):
-    def __init__(self, posfunc, posfunc_der, net, normgradtraf, b_opt, init_weights, threshold,
+    def __init__(self, posfunc, posfunc_der, net, init_weights, threshold,
                  mesh, boundaries, data, params, order, output_path):
         self.posfunc = posfunc
         self.posfunc_der = posfunc_der
         self.net = net
-        self.normgradtraf = normgradtraf
-        self.b_opt = b_opt
         self.threshold = threshold
         self.ufile = File(output_path + "/custom_function_checks.pvd")
 
@@ -61,7 +59,7 @@ class Custom_Reduced_Functional(object):
             u = Function(V)
             v = TestFunction(V)
             E = inner(self.NN_der(threshold, inner(grad(u), grad(u)), net) * grad(u), grad(v)) * dx
-            solve(E == 0, u, bc)
+            solve(E == 0, u, bc, solver_parameters={"newton_solver":{"relative_tolerance":1e-8}})
 
             self.ufile << u
             self.ufile << gj
@@ -191,9 +189,6 @@ class LearnExt:
         self.V = VectorFunctionSpace(mesh, "CG", order)
         #self.V1 = VectorFunctionSpace(mesh, "CG", 1)
 
-        self.normgradtraf = None
-        self.b_opt = None
-
         self.threshold = None
 
         self.fb = lambda x: x
@@ -209,20 +204,6 @@ class LearnExt:
 
     def machine_learning(self, data, threshold=0):
         self.threshold = threshold
-        if self.b_opt == None or self.normgradtraf == None:
-            b_opt = Function(self.Vs)
-            normgradtraf = Function(self.Vs)
-
-            # load data
-            with XDMFFile(self.output_path + "optimal_control_data.xdmf") as infile:
-                infile.read_checkpoint(b_opt, "b_opt")
-                infile.read_checkpoint(normgradtraf, "normgradtraf")
-
-            file = File('../Output/learnExt/results/bopt.pvd')
-            file << b_opt
-        else:
-            b_opt = self.b_opt
-            normgradtraf = self.normgradtraf
 
         set_working_tape(Tape())
 
@@ -245,11 +226,11 @@ class LearnExt:
         init_weights = list_to_weights(init_weights1, init_weights)
         net.weights = init_weights
 
-        rf = Custom_Reduced_Functional(posfunc, posfunc_der, net, normgradtraf, b_opt, init_weights, threshold,
+        rf = Custom_Reduced_Functional(posfunc, posfunc_der, net, init_weights, threshold,
                                        self.mesh, self.boundaries, data, self.params, self.order, self.output_path)
 
         try:
-            rf = Custom_Reduced_Functional(posfunc, posfunc_der, net, normgradtraf, b_opt, init_weights, threshold,
+            rf = Custom_Reduced_Functional(posfunc, posfunc_der, net, init_weights, threshold,
                                        self.mesh, self.boundaries, data, self.params, self.order, self.output_path)
         except Exception as e:
             print(e)
@@ -261,7 +242,7 @@ class LearnExt:
             exit(0)
         rfn = ReducedFunctionalNumPy(rf)
 
-        opt_theta = minimize(rfn, options={"disp": True, "gtol": 1e-8, "ftol": 1e-8,
+        opt_theta = minimize(rfn, method= "L-BFGS-B", options={"disp": True, "gtol": 1e-8, "ftol": 1e-8,
                                            "maxiter": 100})  # minimize(Jhat, method= "L-BFGS-B") #
 
         transformed_opt_theta = trafo_weights(list_to_weights(opt_theta, init_weights), posfunc)
