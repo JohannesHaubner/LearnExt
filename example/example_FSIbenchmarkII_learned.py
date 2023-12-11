@@ -67,94 +67,12 @@ FSI_param['boundary_cond'] = Expression(("(t < 2)?(1.5*Ubar*4.0*x[1]*(0.41 -x[1]
 
 threshold = 0.001
 
-# extension operator
-class LearnExtension(extension.ExtensionOperator):
-    def __init__(self, mesh):
-        super().__init__(mesh)
-
-        T = VectorElement("CG", self.mesh.ufl_cell(), 1)
-        T2 = VectorElement("CG", self.mesh.ufl_cell(), 2)
-        self.FS = FunctionSpace(self.mesh, T)
-        self.FS2 = FunctionSpace(self.mesh, T2)
-        self.incremental = False
-        self.incremental_correct = False
-        self.bc_old = Function(self.FS2)
-        output_directory = str(str(here.parent) + "/example/learned_networks/")
-        self.net = ANN(output_directory + "trained_network.pkl")
-
-    def extend(self, boundary_conditions, params = None):
-        """ harmonic extension of boundary_conditions (Function on self.mesh) to the interior """
-
-        if params != None:
-            try:
-                b_old = params["b_old"]
-            except:
-                pass
-            try:
-                displacementy = params["displacementy"]
-            except:
-                displacementy = None
-
-        if self.incremental == True and self.incremental_correct == False:
-            trafo = True
-        elif self.incremental == True and self.incremental_correct == True:
-            if displacementy == None:
-                Warning("displacementy == None; set trafo to False")
-                trafo = False
-            elif abs(displacementy) <= 0.005:
-                print('displacementy <= 0.005: displacementy = ', displacementy)
-                trafo = False
-            else:
-                trafo = True
-        else:
-            trafo = False
-
-        save_ext = True
-        if save_ext:
-            file = File(str(here.parent) + '/Output/Extension/function.pvd')
-            file << boundary_conditions
-
-        if b_old != None:
-            self.bc_old = project(b_old, self.FS)
-
-        if trafo:
-            up = project(self.bc_old, self.FS)
-            upi = project(-1.0*up, self.FS)
-            ALE.move(self.mesh, up, annotate=False)
-
-        u = Function(self.FS2)
-        v = TestFunction(self.FS2)
-
-        dx = Measure('dx', domain=self.mesh, metadata={'quadrature_degree': 4})
-
-        if trafo:
-            E = inner(crf.NN_der(threshold, inner(grad(self.bc_old), grad(self.bc_old)), self.net) * grad(u), grad(v)) * dx
-        else:
-            E = inner(crf.NN_der(threshold, inner(grad(u), grad(u)), self.net) * grad(u), grad(v)) * dx
-
-        # solve PDE
-        if trafo:
-            bc_func = project(boundary_conditions - self.bc_old, self.FS2)
-        else:
-            bc_func = boundary_conditions
-        bc = DirichletBC(self.FS2, bc_func, 'on_boundary')
-
-
-        solve(E == 0, u, bc, solver_parameters={"nonlinear_solver": "newton", "newton_solver":
-            {"maximum_iterations": 200}})
-
-        if trafo:
-            u = project(u + self.bc_old, self.FS2)
-        self.bc_old.assign(project(u, self.FS))
-
-        if save_ext:
-            file << u
-        if trafo:
-            ALE.move(self.mesh, upi, annotate=False)
-
-        return u
-
-extension_operator = LearnExtension(fluid_domain)
+extension_operator = extension.LearnExtension(fluid_domain, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold)# learned
+#extension_operator = extension.LearnExtension(fluid_domain, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold)# learned artificial dataset
+#extension_operator = extension.LearnExtension(fluid_domain, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=False)# learned linearized
+#extension_operator = extension.LearnExtension(fluid_domain, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=False)# learned linearized artificial dataset
+#extension_operator = extension.LearnExtension(fluid_domain, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=True)# learned linearized corrected
+#extension_operator = extension.LearnExtension(fluid_domain, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=Truee)# learned linearized corrected artificial dataset
 
 # save options
 FSI_param['save_directory'] = str(here.parent) + '/Output/FSIbenchmarkII_supervised_300322' #no save if set to None
