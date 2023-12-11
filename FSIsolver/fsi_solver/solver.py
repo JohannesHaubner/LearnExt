@@ -2,6 +2,10 @@ import sympy as sym
 from dolfin import *
 import numpy as np
 
+import petsc4py, sys
+petsc4py.init(sys.argv)
+from petsc4py import PETSc
+
 from pathlib import Path
 here = Path(__file__).parent
 import sys
@@ -22,6 +26,28 @@ class Solver(object):
     def save_snapshot(self):
         """save snapshot"""
         raise NotImplementedError
+    
+class SNESProblem():
+    def __init__(self, F, u, bc):
+        V = u.function_space()
+        du = TrialFunction(V)
+        self.L = F
+        self.a = derivative(F, u, du)
+        self.bcs = bc
+        self.u = u
+
+    def F(self, snes, x, F):
+        x = PETScVector(x)
+        F  = PETScVector(F)
+        assemble(self.L, tensor=F)
+        for bc in self.bcs:
+            bc.apply(F, x)                
+
+    def J(self, snes, x, J, P):
+        J = PETScMatrix(J)
+        assemble(self.a, tensor=J)
+        for bc in self.bcs:
+            bc.apply(J)
 
 class Context(object):
     def __init__(self, params):
@@ -97,6 +123,15 @@ class FSI(Context):
         else:
             self.theta = 0.5 + self.FSI_params["deltat"] # theta-time-stepping parameter
 
+        if "bc_type" in self.FSI_params.keys():
+            bc_type = self.FSI_params["bc_type"]
+            print("Choice for boundary type: ", self.FSI_params["bc_type"])
+        else:
+            print("Default choice for boundary type: inflow")
+            bc_type = "inflow"
+
+        self.bc_type = bc_type
+
         # help variables
         self.aphat = 1e-9
 
@@ -156,6 +191,21 @@ class FSI(Context):
         self.tools_fluid = Tools(V, Vf)
 
         self.bc_weak_form = []
+
+        self.snes = PETSc.SNES().create(MPI.comm_world) 
+        opts = PETSc.Options()
+        opts.setValue('snes_monitor', None)
+        #opts.setValue('ksp_view', None)
+        #opts.setValue('pc_view', None)
+        #opts.setValue('log_view', None)
+        opts.setValue('snes_type', 'newtonls')
+        #opts.setValue('snes_view', None)
+        opts.setValue('snes_divergence_tolerance', 1e2)
+        opts.setValue('snes_linesearch_type', 'l2')
+        self.snes.setFromOptions()
+
+        self.snes.setErrorIfNotConverged(True)
+
 
         class Projector():
             def __init__(self, V):
@@ -325,9 +375,39 @@ class FSI(Context):
 
         F = self.get_weak_form(vp, vp_, u, u_, psi, option)
 
-        solve(F == 0, vp, bc, solver_parameters={"nonlinear_solver": "newton", "newton_solver":
-            {"maximum_iterations": 20}})
+        ## see https://fenicsproject.discourse.group/t/using-petsc4py-petsc-snes-directly/2368/12
+                    
+        problem = SNESProblem(F, vp, bc)
+            
+        b = PETScVector()  # same as b = PETSc.Vec()
+        J_mat = PETScMatrix()   
 
+        ksp = self.snes.getKSP()
+        ksp.getPC().setType('lu')
+        ksp.getPC().setFactorSolverType('mumps')
+        ksp.setType('preonly')
+
+        self.snes.setFunction(problem.F, b.vec())
+        self.snes.setJacobian(problem.J, J_mat.mat())
+        self.snes.solve(None, problem.u.vector().vec())
+
+        #if snes.converged == False:
+        #    raise Exception("ERROR: SNES solver not converged")
+
+        
+        #problem = NonlinearVariationalProblem(F, vp, bc, J)
+        #solver = NonlinearVariationalSolver(problem)
+        #prm = solver.parameters
+        #prm['nonlinear_solver'] = 'snes'
+
+        #info(solver.parameters, True)
+        #from IPython import embed; embed()
+        #solver.solve()
+        #exit(0)
+
+        #solve(F == 0, vp, bc, solver_parameters={"nonlinear_solver": "newton", "newton_solver":
+        #    {"maximum_iterations": 20}})
+        
         return vp
 
     def get_boundary_conditions(self, VP):
@@ -343,18 +423,11 @@ class FSI(Context):
             
         pressureb = PressureB()
 
-        if "bc_type" in self.FSI_params.keys():
-            bc_type = self.FSI_params["bc_type"]
-            print("Choice for boundary type: ", self.FSI_params["bc_type"])
-        else:
-            print("Default choice for boundary type: inflow")
-            bc_type = "inflow"
-
         bc = []
-        if bc_type == "inflow":
+        if self.bc_type == "inflow":
             bc.append(DirichletBC(VP.sub(1), Constant(0.0), pressureb, method='pointwise'))
             bc.append(DirichletBC(VP.sub(0), self.bc, self.boundaries, self.param["inflow"]))
-        elif bc_type == "pressure":
+        elif self.bc_type == "pressure":
             pass
         else:
             raise("Not Implemented")
@@ -507,7 +580,7 @@ class FSI(Context):
         F = A_T + A_P + A_I + theta * A_E + (1 - theta)*A_E_rhs
 
         # add boundary conditions that appear in weak form (get_boundary_conditions)
-        if self.FSI_params["bc_type"] == "pressure":
+        if self.bc_type == "pressure":
             F += inner(self.bc* n, psiv)*ds(self.param["inflow"])
             F -= rhof * nyf *inner(grad(v).T*n, psiv)*ds(self.param["inflow"])
             F -= rhof * nyf *inner(grad(v).T*n, psiv)*ds(self.param["outflow"])

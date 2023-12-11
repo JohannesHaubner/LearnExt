@@ -65,14 +65,20 @@ fspace = df.VectorFunctionSpace(fluid_domain, "CG", 1)
 
 
 import torch
-from torch_extension.loading import load_model
-network = load_model("torch_extension/models/foxtrot")
-network.eval()
+# from torch_extension.loading import load_model
+# network = load_model("torch_extension/models/foxtrot")
+# network.eval()
 
-print(network)
+# print(network)
 
-network(torch.rand((fspace.dim()//2, 8))) # Check everything works before run.
-# quit()
+# network(torch.rand((fspace.dim()//2, 8))) # Check everything works before run.
+
+from torch_extension.extension import TorchExtension
+
+# extension_operator = TorchExtension(fluid_domain, network, T_switch=0.0, silent=True)
+# print(extension_operator.model)
+extension_operator = TorchExtension(fluid_domain, "torch_extension/models/foxtrot", T_switch=0.0, silent=True)
+# print(extension_operator.model)
 
 
 input_xdmf_file = df.XDMFFile("Output/Extension/Data/input_.xdmf")
@@ -87,8 +93,6 @@ output_xdmf_file_p1.write(fluid_domain)
 # output_xdmf_file_p2 = df.XDMFFile("foxtrotRolloutP2.xdmf")
 # output_xdmf_file_p2.write(fluid_domain)
 
-from torch_extension.extension import TorchExtension
-extension_operator = TorchExtension(fluid_domain, network, T_switch=0.0, silent=True)
 
 u_bc = df.Function(Fspace)
 u_p1 = df.Function(fspace)

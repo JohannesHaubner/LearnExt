@@ -8,7 +8,8 @@ here = Path(__file__).parent.resolve()
 
 # resolution
 resolution = 0.0005  #0.05 #1 # 0.005 #0.1
-resolution2 = 0.0001
+resolution2 = 0.000125
+resolution3 = 0.000125
 
 # geometric properties
 L = 2.5 #2.5 #20            # length of channel
@@ -28,6 +29,8 @@ d["c_8"] = [0.02, 0.005, 0.]
 d["c_9"] = [0.02, 0.021, 0.]
 d["c_10"] = [0.0, 0.021, 0.]
 c = [0.01, 0.005, 0.]
+c2 = [0.01, 0.0045, 0.]
+c3 = [0.01, 0.0, 0.]
 
 # labels
 inflow = 1
@@ -71,11 +74,11 @@ model = geometry.__enter__()
 # Add points with finer resolution on left side
 points =  []
 for i in range(10):
-    if i == 1 or i == 2 or i == 5 or i == 6: 
+    if i == 1 or i == 2 or i == 5 or i == 6: # or i == 3 or i == 4: 
         points.append(model.add_point(d["c_"+ str(i+1)], mesh_size = resolution2))
     else:
         points.append(model.add_point(d["c_"+ str(i+1)], mesh_size = resolution))
-model.add_point(c)
+points2 = [model.add_point(c, mesh_size = resolution3), model.add_point(c2, mesh_size=resolution3), model.add_point(c3, mesh_size=resolution)]
 
 # Add lines between all points creating the rectangle
 channel_lines = []
@@ -83,19 +86,24 @@ for i in range(-1, len(points)-1):
     if i == 1 or i == 5:
         channel_lines.append(model.add_line(points[i+1], points[i]))
         print(points[i])
+    elif i == 3:
+        channel_lines.append(model.add_line(points[i], points2[2]))
+        channel_lines.append(model.add_line(points2[2], points[i+1]))
     else:
         channel_lines.append(model.add_line(points[i], points[i+1]))
         print(points[i])
                  
 interface_lines = []
-interface_lines.append(model.add_line(points[1], points[6]))
-interface_lines.append(model.add_line(points[5], points[2]))
+interface_lines.append(model.add_line(points[1], points2[0]))
+interface_lines.append(model.add_line(points2[0], points[6]))
+interface_lines.append(model.add_line(points[5], points2[1]))
+interface_lines.append(model.add_line(points2[1], points[2]))
 
-elastic = model.add_curve_loop([interface_lines[0], channel_lines[6], interface_lines[1], channel_lines[2]])
+elastic = model.add_curve_loop([interface_lines[0], interface_lines[1], channel_lines[7], interface_lines[2], interface_lines[3], channel_lines[2]])
 
 # Create a line loop and plane surface for meshing
-channel_loop = model.add_curve_loop([channel_lines[0], channel_lines[1], interface_lines[0], channel_lines[7], channel_lines[8], channel_lines[9]])
-channel_loop3 = model.add_curve_loop([interface_lines[1], channel_lines[3], channel_lines[4], channel_lines[5]])
+channel_loop = model.add_curve_loop([channel_lines[0], channel_lines[1], interface_lines[0], interface_lines[1], channel_lines[8], channel_lines[9], channel_lines[10]])
+channel_loop3 = model.add_curve_loop([interface_lines[2], interface_lines[3], channel_lines[3], channel_lines[4], channel_lines[5], channel_lines[6]])
 plane_surface = model.add_plane_surface(
     channel_loop)
 plane_surface2 = model.add_plane_surface(
@@ -108,14 +116,14 @@ plane_surface3 = model.add_plane_surface(
 model.synchronize()
 
 #volume_marker = 6
-model.add_physical([channel_lines[4]], "inflow") # mark inflow boundary with 1
+model.add_physical([channel_lines[4], channel_lines[5]], "inflow") # mark inflow boundary with 1
 model.add_physical([channel_lines[-1]], "outflow") # mark outflow boundary with 2
 wall_lines = []
-for i in [0, 1, 3, 5, 7, 8]:
+for i in [0, 1, 3, 6, 8, 9]:
     wall_lines.append(channel_lines[i])
 model.add_physical(wall_lines, "walls") # mark walls with 3
 model.add_physical(channel_lines[2], "solid_left")
-model.add_physical(channel_lines[6], "solid_right")
+model.add_physical(channel_lines[7], "solid_right")
 model.add_physical(interface_lines, "interface") # mark interface with 6
 model.add_physical([plane_surface, plane_surface3], "fluid") # mark fluid domain with 7
 model.add_physical([plane_surface2], "solid") # mark solid domain with 8
