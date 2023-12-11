@@ -431,38 +431,6 @@ class TorchExtension(ExtensionOperator):
         return self.u_
 
 
-
-if __name__ == "__main__":
-    mesh = Mesh()
-    with XDMFFile("Output/Mesh_Generation/mesh_triangles.xdmf") as infile:
-        infile.read(mesh)
-    mvc = MeshValueCollection("size_t", mesh, 2)
-    mvc2 = MeshValueCollection("size_t", mesh, 2)
-    with XDMFFile("Output/Mesh_Generation/facet_mesh.xdmf") as infile:
-        infile.read(mvc, "name_to_read")
-    with XDMFFile("Output/Mesh_Generation/mesh_triangles.xdmf") as infile:
-        infile.read(mvc2, "name_to_read")
-    boundaries = cpp.mesh.MeshFunctionSizet(mesh, mvc)
-    domains = cpp.mesh.MeshFunctionSizet(mesh, mvc2)
-
-    # subdomains
-    fluid_domain = MeshView.create(domains, 7)
-    print(fluid_domain.num_vertices())
-
-    identity_model = nn.Identity()
-
-    torch_extend = TorchExtension(fluid_domain, identity_model, T_switch=0.0, silent=True)
-    print(torch_extend.model)
-    print(torch_extend.silent)
-    torch_extend = TorchExtension(fluid_domain, "torch_extension/models/foxtrot", T_switch=0.0, silent=True)
-    print(torch_extend.model)
-    print(torch_extend.silent)
-
-    quit()
-
-
-
-
 if __name__ == "__main__":
     # load mesh
     mesh = Mesh()
