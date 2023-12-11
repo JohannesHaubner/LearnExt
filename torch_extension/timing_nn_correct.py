@@ -143,7 +143,7 @@ print(f"T = {(end-start) / M:.2e}", end="\t# ")
 print("outfile.write_checkpoint(), CG2: ")
 Path("foop2.xdmf").unlink(); Path("foop2.h5").unlink()
 
-from torch_extension.extension import TorchExtension
+from FSIsolver.extension_operator.extension import TorchExtension
 extension = TorchExtension(msh, model, T_switch=0.5, silent=True)
 
 M = 20
@@ -175,7 +175,7 @@ print("clement_interpolater(): ")
 T_tot += (end-start) / M
 
 
-from torch_extension.extension import CG1_vector_plus_grad_to_array_w_coords
+from torch_extension.tools import CG1_vector_plus_grad_to_array_w_coords
 M = 100
 start = timer()
 for k in range(M):
