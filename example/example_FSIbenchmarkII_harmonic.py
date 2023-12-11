@@ -63,57 +63,7 @@ FSI_param['boundary_cond'] = Expression(("(t < 2)?(1.5*Ubar*4.0*x[1]*(0.41 -x[1]
                                          "(1.5*Ubar*4.0*x[1]*(0.41 -x[1]))/ 0.1681", "0.0"),
                                         Ubar=Ubar, t=FSI_param['t'], degree=2)
 
-# extension operator
-class Harmonic(extension.ExtensionOperator):
-    def __init__(self, mesh):
-        super().__init__(mesh)
-
-        T = VectorElement("CG", self.mesh.ufl_cell(), 1)
-        T2 = VectorElement("CG", self.mesh.ufl_cell(), 2)
-        self.FS = FunctionSpace(self.mesh, T)
-        self.FS2 = FunctionSpace(self.mesh, T2)
-        self.trafo = True
-        if self.trafo:
-            self.bc_old = Function(self.FS2)
-        output_directory = str(str(here.parent) + "/Output/learnExt/results/")
-
-    def extend(self, boundary_conditions, params=None):
-        """ harmonic extension of boundary_conditions (Function on self.mesh) to the interior """
-        print('extend start')
-
-        save_ext = True
-        if save_ext:
-            file = File(str(here.parent) + '/Output/Extension/function.pvd')
-            file << boundary_conditions
-
-        if self.trafo:
-            self.bc_old = boundary_conditions
-            up = project(self.bc_old, self.FS2)
-            upi = project(-1.0*up, self.FS2)
-            ALE.move(self.mesh, up)
-
-        u = Function(self.FS2)
-        v = TestFunction(self.FS2)
-
-        dx = Measure('dx', domain=self.mesh)
-
-        E = inner(grad(u), grad(v)) * dx(self.mesh)
-
-        # solve PDE
-        bc = DirichletBC(self.FS2, boundary_conditions, 'on_boundary')
-
-
-        solve(E == 0, u, bc)
-
-        if save_ext:
-            file << u
-        if self.trafo:
-            ALE.move(self.mesh, upi)
-
-        print('extend finish')
-        return u
-
-extension_operator = Harmonic(fluid_domain)
+extension_operator = extension.Harmonic(fluid_domain, incremental=True, save_extension=True, save_filename=str(here.parent) + '/Output/Extension/Data/FSIII_harmonic_incremental.xdmf')
 
 # save options
 FSI_param['save_directory'] = str(str(here.parent) + '/Output/FSIbenchmarkII_harmonic_trafo_adaptive_t') #no save if set to None

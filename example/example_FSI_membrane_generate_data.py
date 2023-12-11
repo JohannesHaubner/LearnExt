@@ -99,75 +99,8 @@ FSI_param['boundary_cond'] = Expression("1.5e7*t", t=FSI_param['t'], degree=2)
 
 # extension operator
 ids = [boundary_labels[i] for i in subdomain_boundaries["fluid"]]
-# extension operator
-class Biharmonic_DataGeneration(extension.ExtensionOperator):
-    def __init__(self, mesh, marker=None, ids=None):
-        super().__init__(mesh, marker, ids)
-        self.iter = -1
 
-        # Create time series
-        self.xdmf_output = XDMFFile(str(here.parent) + "/Output/Extension/Data/membrane_test.xdmf")
-        self.xdmf_output.write(self.mesh)
-
-        T = VectorElement("CG", self.mesh.ufl_cell(), 2)
-        self.FS = FunctionSpace(self.mesh, MixedElement(T, T))
-
-        uz = TrialFunction(self.FS)
-        puz = TestFunction(self.FS)
-        (u, z) = split(uz)
-        (psiu, psiz) = split(puz)
-
-        dx = Measure('dx', domain=self.mesh)
-
-        a = inner(grad(z), grad(psiu)) * dx + inner(z, psiz) * dx - inner(grad(u), grad(psiz)) * dx
-        L = Constant(0.0) * psiu[0] * dx
-
-
-        self.A = assemble(a)
-
-        bc = []
-        if self.marker == None:
-            bc.append(DirichletBC(self.FS.sub(0), Constant((0.,0.)), 'on_boundary'))
-        else:
-            for i in self.ids:
-                bc.append(DirichletBC(self.FS.sub(0), Constant((0., 0.)), self.marker, i))
-        self.bc = bc
-
-        for bci in self.bc:
-            bci.apply(self.A)
-
-        self.solver = LUSolver(self.A)
-
-        self.L = assemble(Constant(0.0) * psiu[0] * dx)
-
-
-    @extension.ExtensionOperator.timings_extension
-    def extend(self, boundary_conditions, params=None):
-        """ biharmonic extension of boundary_conditions (Function on self.mesh) to the interior """
-
-        bc = []
-        if self.marker == None:
-            bc.append(DirichletBC(self.FS.sub(0), boundary_conditions, 'on_boundary'))
-        else:
-            for i in self.ids:
-                bc.append(DirichletBC(self.FS.sub(0), boundary_conditions, self.marker, i))
-
-        for bci in bc:
-            bci.apply(self.L)
-
-        uz = Function(self.FS)
-
-        self.solver.solve(uz.vector(), self.L)
-
-        u_, z_ = uz.split(deepcopy=True)
-
-        self.iter +=1
-        self.xdmf_output.write_checkpoint(u_, "output_biharmonic_ext", self.iter, XDMFFile.Encoding.HDF5, append=True)
-
-        return u_
-
-
-extension_operator = Biharmonic_DataGeneration(fluid_domain, markers_fluid, ids)
+extension_operator = extension.Biharmonic(fluid_domain, markers_fluid, ids, save_extension=True, save_filename= str(here.parent) + "/Output/Extension/Data/membrane_test.xdmf")
 
 # save options
 FSI_param['save_directory'] = str(here.parent)+ '/Output/FSIbenchmarkII_membrane' #no save if set to None
