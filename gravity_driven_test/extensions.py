@@ -79,7 +79,7 @@ class NNCorrectionExtension(ExtensionOperator):
         net = load_model(model_dir)
         net.eval()
 
-        from torch_extension.extension import TorchExtension
+        from FSIsolver.extension_operator.extension import TorchExtension
         self.extension_operator = TorchExtension(mesh, net, T_switch=0.0, silent=True)
 
         return

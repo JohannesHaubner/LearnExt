@@ -107,15 +107,23 @@ def main():
     with df.XDMFFile(str(path_to_files)) as meshfile:
         meshfile.read(mesh)
 
-    from FSIsolver.extension_operator.extension import Harmonic
+    from FSIsolver.extension_operator.extension import Harmonic, TorchExtension, LearnExtensionSimplified
 
     harmonic = Harmonic(mesh, save_extension=False)
+    hybrid_fsi = LearnExtensionSimplified(mesh, "example/learned_networks/trained_network.pkl")
+    hybrid_art = LearnExtensionSimplified(mesh, "example/learned_networks/trained_network.pkl")
+    NN_correct_fsi = TorchExtension(mesh, "torch_extension/models/yankee", T_switch=0.0, silent=True)
+    NN_correct_art = TorchExtension(mesh, "torch_extension/models/foxtrot", T_switch=0.0, silent=True)
 
     df.set_log_active(False)
     order = 2
     # checkpoints = [0, 10, 20, 120, 272]
     checkpoints = None
-    extend_from_file(path_to_files, save_to_dir / "harmonic", harmonic, order, checkpoints=checkpoints)
+    # extend_from_file(path_to_files, save_to_dir / "harmonic", harmonic, order, checkpoints=checkpoints)
+    # extend_from_file(path_to_files, save_to_dir / "hybrid_fsi", hybrid_fsi, order, checkpoints=checkpoints)
+    extend_from_file(path_to_files, save_to_dir / "hybrid_art", hybrid_art, order, checkpoints=checkpoints)
+    # extend_from_file(path_to_files, save_to_dir / "nn_correct_fsi", NN_correct_fsi, order, checkpoints=checkpoints)
+    # extend_from_file(path_to_files, save_to_dir / "nn_correct_art", NN_correct_art, order, checkpoints=checkpoints)
 
     return
 

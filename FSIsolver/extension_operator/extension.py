@@ -1,4 +1,5 @@
 from dolfin import *
+import numpy as np
 import xml.etree.ElementTree as ET
 
 from pathlib import Path
@@ -323,6 +324,43 @@ class LearnExtension(ExtensionOperator):
                 ALE.move(self.mesh, up)
 
         return u
+    
+class LearnExtensionSimplified(ExtensionOperator):
+    def __init__(self, mesh, network_path: str):
+        super().__init__(mesh, marker=None, ids=None)
+
+        T = df.VectorElement("CG", self.mesh.ufl_cell(), 1)
+        T2 = df.VectorElement("CG", self.mesh.ufl_cell(), 2)
+        self.FS = df.FunctionSpace(self.mesh, T)
+        self.FS2 = df.FunctionSpace(self.mesh, T2)
+        self.bc_old = df.Function(self.FS)
+        self.net = ANN(network_path)
+        self.threshold = 0.001
+
+    def extend(self, boundary_conditions, params = None):
+        """ harmonic extension of boundary_conditions (Function on self.mesh) to the interior """
+
+
+        u = df.Function(self.FS2)
+        v = df.TestFunction(self.FS2)
+
+        dx = df.Measure('dx', domain=self.mesh, metadata={'quadrature_degree': 4})
+
+        E = df.inner(crf.NN_der(self.threshold, df.inner(df.grad(u), df.grad(u)), self.net) * df.grad(u), df.grad(v)) * dx
+
+
+        # solve PDE
+        bc = df.DirichletBC(self.FS2, boundary_conditions, 'on_boundary')
+
+
+        df.solve(E == 0, u, bc, solver_parameters={"nonlinear_solver": "newton", "newton_solver":
+            {"maximum_iterations": 200}})
+
+
+        self.bc_old.assign(df.project(u, self.FS))
+
+        return u
+    
 
 import torch
 import torch.nn as nn
@@ -389,7 +427,7 @@ class TorchExtension(ExtensionOperator):
 
         return
 
-    def extend(self, boundary_conditions, params):
+    def extend(self, boundary_conditions, params={"t": np.inf}):
         """ Torch-corrected extension of boundary_conditions (Function on self.mesh) to the interior """
 
         t = params["t"]
