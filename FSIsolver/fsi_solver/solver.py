@@ -225,7 +225,9 @@ class FSI(Context):
                 
                 return uh
         
+        self.projector_scalar_dg0 = Projector(FunctionSpace(self.mesh, "DG", 0))
         self.projector_scalar_cg1 = Projector(FunctionSpace(self.mesh, "CG", 1))
+        self.projector_vector_cg1 = Projector(VectorFunctionSpace(self.mesh, "CG", 1))
 
 
     def warmstart(self, t):
@@ -334,7 +336,8 @@ class FSI(Context):
         np.savetxt(self.times_filename, self.times)
         try:
             if save_det == True:
-                det_u = self.projector_scalar_cg1.project(det(Identity(2) + grad(up)))
+                up = self.projector_vector_cg1.project(u)
+                det_u = self.projector_scalar_dg0.project(det(Identity(2) + grad(up)))
                 self.determinant_deformation.append(det_u.vector().min())
                 np.savetxt(self.determinant_filename, self.determinant_deformation)
         except:
