@@ -111,7 +111,7 @@ def main():
 
     harmonic = Harmonic(mesh, save_extension=False)
     hybrid_fsi = LearnExtensionSimplified(mesh, "example/learned_networks/trained_network.pkl")
-    hybrid_art = LearnExtensionSimplified(mesh, "example/learned_networks/trained_network.pkl")
+    hybrid_art = LearnExtensionSimplified(mesh, "example/learned_networks/artificial/trained_network.pkl")
     NN_correct_fsi = TorchExtension(mesh, "torch_extension/models/yankee", T_switch=0.0, silent=True)
     NN_correct_art = TorchExtension(mesh, "torch_extension/models/foxtrot", T_switch=0.0, silent=True)
 
