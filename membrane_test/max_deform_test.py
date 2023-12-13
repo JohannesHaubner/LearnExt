@@ -41,7 +41,7 @@ def get_flipped_cells(mesh: df.Mesh, u: df.Function) -> df.Function:
 
 
 def extend_from_file(path_to_files: os.PathLike, save_to_path: os.PathLike, 
-                     extension: ExtensionOperator, order: int, checkpoints: Sequence[int] | None = None):
+                     extension: ExtensionOperator, order: int, save_order: int = 1, checkpoints: Sequence[int] | None = None):
     print(str(path_to_files))
     print(str(save_to_path))
     path_to_files = Path(path_to_files)
@@ -65,11 +65,13 @@ def extend_from_file(path_to_files: os.PathLike, save_to_path: os.PathLike,
 
 
     V = df.VectorFunctionSpace(mesh, "CG", order)
-    V_save = df.VectorFunctionSpace(mesh, "CG", 1)
+    CG1 = df.VectorFunctionSpace(mesh, "CG", 1)
+    V_save = df.VectorFunctionSpace(mesh, "CG", save_order)
 
     # interp_mat = df.PETScDMCollection.create_transfer_matrix(V, V_save)
     
     u_bc = df.Function(V)
+    u_cg1 = df.Function(CG1)
     u_save = df.Function(V_save)
 
     DG0 = df.FunctionSpace(mesh, "DG", 0)
@@ -83,9 +85,10 @@ def extend_from_file(path_to_files: os.PathLike, save_to_path: os.PathLike,
     for l, k in enumerate(tqdm(ks)):
         infile.read_checkpoint(u_bc, "uh", k)
         u_ext = extension.extend(u_bc)
+        u_cg1.interpolate(u_ext)
         u_save.interpolate(u_ext)
         # interp_mat.mult(u_ext.vector(), u_save.vector()) # u_save.interpolate(u_ext)
-        flipped_cells = get_flipped_cells(mesh, u_save)
+        flipped_cells = get_flipped_cells(mesh, u_cg1)
         signs.vector()[:] = flipped_cells
         outfile.write_checkpoint(u_save, "uh", l, append=True)
         outfile_signs.write_checkpoint(signs, "sign_h", l, append=True)
@@ -102,28 +105,36 @@ def main():
 
     path_to_files = Path("membrane_test/data/Data_MoF/membrane_test_p2.xdmf")
     save_to_dir = Path("membrane_test/data/extended")
+    # save_to_dir = Path("membrane_test/data/extended_p2")
 
     mesh = df.Mesh()
     with df.XDMFFile(str(path_to_files)) as meshfile:
         meshfile.read(mesh)
 
-    from FSIsolver.extension_operator.extension import Harmonic, TorchExtension, LearnExtensionSimplified
+    from FSIsolver.extension_operator.extension import Biharmonic, Harmonic, TorchExtension, LearnExtensionSimplified, LearnExtensionSimplifiedSNES
 
-    harmonic = Harmonic(mesh, save_extension=False)
-    hybrid_fsi = LearnExtensionSimplified(mesh, "example/learned_networks/trained_network.pkl")
-    hybrid_art = LearnExtensionSimplified(mesh, "example/learned_networks/artificial/trained_network.pkl")
-    NN_correct_fsi = TorchExtension(mesh, "torch_extension/models/yankee", T_switch=0.0, silent=True)
-    NN_correct_art = TorchExtension(mesh, "torch_extension/models/foxtrot", T_switch=0.0, silent=True)
+    # biharmonic = Biharmonic(mesh)
+    # harmonic = Harmonic(mesh, save_extension=False)
+    # hybrid_fsi = LearnExtensionSimplified(mesh, "example/learned_networks/trained_network.pkl")
+    # hybrid_art = LearnExtensionSimplified(mesh, "example/learned_networks/artificial/trained_network.pkl")
+    # NN_correct_fsi = TorchExtension(mesh, "torch_extension/models/yankee", T_switch=0.0, silent=True)
+    # NN_correct_art = TorchExtension(mesh, "torch_extension/models/foxtrot", T_switch=0.0, silent=True)
+    hybrid_fsi_snes = LearnExtensionSimplifiedSNES(mesh, "example/learned_networks/trained_network.pkl")
 
     df.set_log_active(False)
     order = 2
+    save_order = 2
     # checkpoints = [0, 10, 20, 120, 272]
+    # checkpoints = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 120, 193, 194, 195, 269, 272]
+    # checkpoints = [194]
     checkpoints = None
-    # extend_from_file(path_to_files, save_to_dir / "harmonic", harmonic, order, checkpoints=checkpoints)
-    # extend_from_file(path_to_files, save_to_dir / "hybrid_fsi", hybrid_fsi, order, checkpoints=checkpoints)
-    extend_from_file(path_to_files, save_to_dir / "hybrid_art", hybrid_art, order, checkpoints=checkpoints)
-    # extend_from_file(path_to_files, save_to_dir / "nn_correct_fsi", NN_correct_fsi, order, checkpoints=checkpoints)
-    # extend_from_file(path_to_files, save_to_dir / "nn_correct_art", NN_correct_art, order, checkpoints=checkpoints)
+    # extend_from_file(path_to_files, save_to_dir / "biharmonic", biharmonic, order, save_order=save_order, checkpoints=checkpoints)
+    # extend_from_file(path_to_files, save_to_dir / "harmonic", harmonic, order, save_order=save_order, checkpoints=checkpoints)
+    # extend_from_file(path_to_files, save_to_dir / "hybrid_fsi", hybrid_fsi, order, save_order=save_order, checkpoints=checkpoints)
+    # extend_from_file(path_to_files, save_to_dir / "hybrid_art", hybrid_art, order, save_order=save_order, checkpoints=checkpoints)
+    # extend_from_file(path_to_files, save_to_dir / "nn_correct_fsi", NN_correct_fsi, order, save_order=save_order, checkpoints=checkpoints)
+    # extend_from_file(path_to_files, save_to_dir / "nn_correct_art", NN_correct_art, order, save_order=save_order, checkpoints=checkpoints)
+    extend_from_file(path_to_files, save_to_dir / "hybrid_fsi_snes", hybrid_fsi_snes, order, save_order=save_order, checkpoints=checkpoints)
 
     return
 
