@@ -15,7 +15,7 @@ V = df.VectorFunctionSpace(mesh, "CG", 1)
 u = df.Function(V)
 
 
-from extensions import LearnExtension
+from FSIsolver.extension_operator.extension import LearnExtension
 
 
 mesh0 = df.Mesh(mesh)

@@ -10,7 +10,7 @@ from typing import Sequence, Literal
 from problem import Problem
 from solver import Solver
 
-from extensions import ExtensionOperator
+from FSIsolver.extension_operator.extension import ExtensionOperator
 
 def find_number_of_checkpoints(path_to_xdmf: os.PathLike) -> int:
 
@@ -235,8 +235,8 @@ if __name__ == "__main__":
     problem_in = Problem(2.5)
     solver_in = Solver(problem_in, order=2, dt=0.02, T=1.0, time_stepping="implicit_euler")
     mesh_in = problem_in.fluid_mesh
-    from extensions import BiharmonicExtension, HarmonicExtension, NNCorrectionExtension
-    extension_in = BiharmonicExtension(mesh_in)
+    from FSIsolver.extension_operator.extension import Biharmonic, Harmonic, TorchExtension
+    extension_in = Biharmonic(mesh_in)
     # extension_in = HarmonicExtension(mesh_in)
     # extension_in = NNCorrectionExtension(mesh_in, "torch_extension/models/yankee")
     
@@ -250,6 +250,6 @@ if __name__ == "__main__":
     ls = [1.0, 2.0, 2.5]
     # save_maximum_deflections(ls, "gravity_driven_test/data/max_deformations/max_deformations", extension_in, 
     #                          solver_order=2, save_order=2, dt=0.02, T=3.0, time_stepping="implicit_euler")
-    save_maximum_deflections(ls, "gravity_driven_test/data/max_deformations/max_deformations_p1", extension_in, 
-                             solver_order=2, save_order=1, dt=0.02, T=3.0, time_stepping="implicit_euler")
+    save_maximum_deflections(ls, "gravity_driven_test/data/max_deformations_redo/max_deformations_redo", extension_in, 
+                             solver_order=2, save_order=2, dt=0.02, T=3.0, time_stepping="implicit_euler")
     

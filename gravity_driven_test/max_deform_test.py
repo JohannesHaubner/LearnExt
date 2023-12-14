@@ -4,7 +4,7 @@ import os
 
 from pathlib import Path
 
-from extensions import ExtensionOperator
+from FSIsolver.extension_operator.extension import ExtensionOperator
 
 from run_extension import find_number_of_checkpoints
 
@@ -55,25 +55,27 @@ def main():
     from problem import Problem
     fluid_mesh = Problem(0.0).fluid_mesh
 
-    path_to_files = "gravity_driven_test/data/max_deformations/max_deformations"
-    save_to_dir = Path("gravity_driven_test/data/max_deformations")
+    path_to_files = "gravity_driven_test/data/max_deformations_redo/max_deformations_redo"
+    save_to_dir = Path("gravity_driven_test/data/max_deformations_redo")
 
-    from extensions import BiharmonicExtension, HarmonicExtension, NNCorrectionExtension, LearnExtension
-    biharmonic_extension = BiharmonicExtension(fluid_mesh)
-    harmonic_extension = HarmonicExtension(fluid_mesh)
-    nn_correct_extension_yankee = NNCorrectionExtension(fluid_mesh, "torch_extension/models/yankee")
-    nn_correct_extension_foxtrot = NNCorrectionExtension(fluid_mesh, "torch_extension/models/foxtrot")
-    hybrid_fsi_extension = LearnExtension(fluid_mesh, "example/learned_networks/trained_network.pkl")
-    hybrid_art_extension = LearnExtension(fluid_mesh, "example/learned_networks/artificial/trained_network.pkl")
+    from FSIsolver.extension_operator.extension import Biharmonic, Harmonic, TorchExtension, LearnExtensionSimplifiedSNES, LearnExtensionSimplified
+    biharmonic_extension = Biharmonic(fluid_mesh)
+    harmonic_extension = Harmonic(fluid_mesh)
+    hybrid_fsi_extension = LearnExtensionSimplifiedSNES(fluid_mesh, "example/learned_networks/trained_network.pkl", snes_divergence_tolerance=1e18, snes_max_it=100)
+    hybrid_art_extension = LearnExtensionSimplifiedSNES(fluid_mesh, "example/learned_networks/artificial/trained_network.pkl", snes_divergence_tolerance=1e18, snes_max_it=100)
+    # hybrid_fsi_extension = LearnExtensionSimplified(fluid_mesh, "example/learned_networks/trained_network.pkl")
+    # hybrid_art_extension = LearnExtensionSimplified(fluid_mesh, "example/learned_networks/artificial/trained_network.pkl")
+    nn_correct_extension_fsi = TorchExtension(fluid_mesh, "torch_extension/models/yankee")
+    nn_correct_extension_art = TorchExtension(fluid_mesh, "torch_extension/models/foxtrot")
 
     read_order = 2
     save_order = 1
     extend_from_file(path_to_files, save_to_dir / "biharmonic", biharmonic_extension, read_order, save_order)
     extend_from_file(path_to_files, save_to_dir / "harmonic", harmonic_extension, read_order, save_order)
-    extend_from_file(path_to_files, save_to_dir / "nn_correct_yankee", nn_correct_extension_yankee, read_order, save_order)
-    extend_from_file(path_to_files, save_to_dir / "nn_correct_foxtrot", nn_correct_extension_foxtrot, read_order, save_order)
     extend_from_file(path_to_files, save_to_dir / "hybrid_fsi", hybrid_fsi_extension, read_order, save_order)
     extend_from_file(path_to_files, save_to_dir / "hybrid_art", hybrid_art_extension, read_order, save_order)
+    extend_from_file(path_to_files, save_to_dir / "nn_correct_fsi", nn_correct_extension_fsi, read_order, save_order)
+    extend_from_file(path_to_files, save_to_dir / "nn_correct_art", nn_correct_extension_art, read_order, save_order)
 
     return
 

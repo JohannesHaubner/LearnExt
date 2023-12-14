@@ -80,16 +80,16 @@ def write_flipped_cells_from_file(path_to_files: os.PathLike,
 def main():
 
 
-    files_dir = Path("gravity_driven_test/data/max_deformations")
+    files_dir = Path("gravity_driven_test/data/max_deformations_redo")
 
     read_order = 1
 
     path = files_dir / "biharmonic"; write_flipped_cells_from_file(path, path, read_order)
     path = files_dir / "harmonic"; write_flipped_cells_from_file(path, path, read_order)
-    path = files_dir / "nn_correct_yankee"; write_flipped_cells_from_file(path, path, read_order)
-    path = files_dir / "nn_correct_foxtrot"; write_flipped_cells_from_file(path, path, read_order)
     path = files_dir / "hybrid_fsi"; write_flipped_cells_from_file(path, path, read_order)
     path = files_dir / "hybrid_art"; write_flipped_cells_from_file(path, path, read_order)
+    path = files_dir / "nn_correct_fsi"; write_flipped_cells_from_file(path, path, read_order)
+    path = files_dir / "nn_correct_art"; write_flipped_cells_from_file(path, path, read_order)
 
     return
 

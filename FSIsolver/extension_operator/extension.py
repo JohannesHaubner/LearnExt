@@ -392,7 +392,8 @@ class LearnExtensionSimplifiedSNES(ExtensionOperator):
                 bc.apply(J)
             return
 
-    def __init__(self, mesh, network_path: str):
+    def __init__(self, mesh, network_path: str, snes_divergence_tolerance: float = 1e12, snes_max_it: float | None = None,
+                 snes_atol: float | None = None, snes_rtol: float | None = None, snes_stol: float | None = None):
         super().__init__(mesh, marker=None, ids=None)
 
         T = df.VectorElement("CG", self.mesh.ufl_cell(), 1)
@@ -407,7 +408,16 @@ class LearnExtensionSimplifiedSNES(ExtensionOperator):
         opts_ls.setValue('snes_monitor', None)
         opts_ls.setValue('snes_type', 'newtonls')
         opts_ls.setValue('snes_linesearch_type', 'l2')
-        opts_ls.setValue('snes_divergence_tolerance', 1e12)
+        opts_ls.setValue('snes_divergence_tolerance', snes_divergence_tolerance)
+        if snes_max_it is not None:
+            opts_ls.setValue('snes_max_it', snes_max_it)
+        if snes_atol is not None:
+            opts_ls.setValue('snes_atol', snes_atol)
+        if snes_rtol is not None:
+            opts_ls.setValue('snes_rtol', snes_rtol)
+        if snes_stol is not None:
+            opts_ls.setValue('snes_stol', snes_stol)
+
         self.snes_ls.setFromOptions()
         self.snes_ls.setErrorIfNotConverged(True)
 
