@@ -302,6 +302,8 @@ class LearnExtension(ExtensionOperator):
 
         self.snes.setErrorIfNotConverged(True)
 
+        self.u_old = Function(self.FS2)
+
 
         class Projector():
             def __init__(self, V):
@@ -367,6 +369,7 @@ class LearnExtension(ExtensionOperator):
             u = TrialFunction(self.FS2)
         else:
             u = Function(self.FS2)
+            u.assign(self.u_old)
         v = TestFunction(self.FS2)
 
         dx = Measure('dx', domain=self.mesh, metadata={'quadrature_degree': 4})
@@ -406,6 +409,7 @@ class LearnExtension(ExtensionOperator):
         if trafo:
             u = project(u + self.bc_old, self.FS2)
         self.bc_old.assign(project(u, self.FS))
+        self.u_old.assign(u)
 
         if self.save_ext:
             self.iter +=1
