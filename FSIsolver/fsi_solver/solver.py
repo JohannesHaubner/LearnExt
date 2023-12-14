@@ -39,7 +39,8 @@ class SNESProblem():
     def F(self, snes, x, F):
         x = PETScVector(x)
         F  = PETScVector(F)
-        assemble(self.L, tensor=F)
+        with Timer('assemble_snes'):
+            assemble(self.L, tensor=F)
         try:
             for bc in self.bcs:
                 bc.apply(F, x) 
@@ -48,7 +49,8 @@ class SNESProblem():
 
     def J(self, snes, x, J, P):
         J = PETScMatrix(J)
-        assemble(self.a, tensor=J)
+        with Timer('assemble_snes'):
+            assemble(self.a, tensor=J)
         try:
             for bc in self.bcs:
                 bc.apply(J)

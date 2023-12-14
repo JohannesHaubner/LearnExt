@@ -25,6 +25,8 @@ class ExtensionOperator(object):
         times["torch"] = 0
         times["total"] = 0
         times["no_ext"] = 0
+        times["snes_solve"] = 0
+        times["assemble_snes"] = 0
 
         self.times = times
 
@@ -40,11 +42,15 @@ class ExtensionOperator(object):
         lin_solves = self.times["linear_solves"]
         torch = self.times["torch"]
         total = self.times["total"]
+        snes_solve = self.times["snes_solve"]
+        assemble_snes = self.times["assemble_snes"]
         no_ext = self.times["no_ext"]
 
         lin_solves_avg = lin_solves/no_ext
         torch_avg = torch/no_ext
         total_avg = total/no_ext 
+        snes_solve_avg = snes_solve/no_ext
+        assemble_snes_avg = assemble_snes/no_ext
 
         print('timings', lin_solves_avg, torch_avg, total_avg)
 
@@ -52,6 +58,8 @@ class ExtensionOperator(object):
         timings["linear solves"] = lin_solves_avg
         timings["torch"] = torch_avg
         timings["total"] = total_avg
+        timings["snes_total"] = snes_solve_avg
+        timings["assemble_snes"] = assemble_snes_avg
         return timings
 
     def reset_timings(self):
@@ -59,6 +67,8 @@ class ExtensionOperator(object):
         self.times["torch"] = 0
         self.times["total"] = 0
         self.times["no_ext"] = 0
+        self.times["snes_solve"] = 0
+        self.times["assemble_snes"] = 0
         pass
     
     @staticmethod
@@ -98,6 +108,10 @@ class ExtensionOperator(object):
                     self.times["torch"] += float(data[process][col])
                 elif process == 'do extension':
                     self.times["total"] += float(data[process][col])
+                elif process == 'snes_solve':
+                    self.times["snes_solve"] += float(data[process][col])
+                elif process == 'assemble_snes':
+                    self.times["assemble_snes"] += float(data[process][col])
             self.times["no_ext"] += 1
             return res
         return wrapper
@@ -295,7 +309,7 @@ class LearnExtension(ExtensionOperator):
         #opts.setValue('log_view', None)
         opts.setValue('snes_type', 'newtonls')
         #opts.setValue('snes_view', None)
-        opts.setValue('snes_divergence_tolerance', 1e12)
+        opts.setValue('snes_divergence_tolerance', 1e26)
         opts.setValue('snes_max_it', 200)
         opts.setValue('snes_linesearch_type', 'l2')
         self.snes.setFromOptions()
@@ -404,7 +418,8 @@ class LearnExtension(ExtensionOperator):
 
             self.snes.setFunction(problem.F, b.vec())
             self.snes.setJacobian(problem.J, J_mat.mat())
-            self.snes.solve(None, problem.u.vector().vec())
+            with Timer('snes_solve'):
+                self.snes.solve(None, problem.u.vector().vec())
 
         if trafo:
             u = project(u + self.bc_old, self.FS2)
