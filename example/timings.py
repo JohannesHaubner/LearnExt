@@ -15,12 +15,12 @@ threshold = 0.001
 
 ext_ops = {}
 
-ext_ops["harmonic"] = extension.Harmonic(msh)
-ext_ops["biharmonic"] = extension.Biharmonic(msh)
-ext_ops["learned"] = extension.LearnExtension(msh, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold)# learned
-ext_ops["learned_art"] = extension.LearnExtension(msh, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold)# learned artificial dataset
-ext_ops["learned_inc"] = extension.LearnExtension(msh, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=False)# learned linearized
-ext_ops["learned_inc_art"] = extension.LearnExtension(msh, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=False)# learned linearized artificial dataset
+#ext_ops["harmonic"] = extension.Harmonic(msh)
+#ext_ops["biharmonic"] = extension.Biharmonic(msh)
+#ext_ops["learned"] = extension.LearnExtension(msh, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold)# learned
+#ext_ops["learned_art"] = extension.LearnExtension(msh, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold)# learned artificial dataset
+#ext_ops["learned_inc"] = extension.LearnExtension(msh, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=False)# learned linearized
+#ext_ops["learned_inc_art"] = extension.LearnExtension(msh, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=False)# learned linearized artificial dataset
 #ext_ops["learned_inc_cor"] = extension.LearnExtension(msh, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=True)# learned linearized corrected
 #ext_ops["learned_inc_cor_art"] = extension.LearnExtension(msh, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=True)# learned linearized corrected artificial dataset
 ext_ops["nncor"] = extension.TorchExtension(msh, "torch_extension/models/yankee", T_switch=0.0, silent=True)
@@ -36,3 +36,4 @@ for j in tqdm.tqdm(ext_ops.keys()):
         else:
             print(j)
             u_ext = ext_ops[j].extend(u_bc)
+    ext_ops[j].get_timings()

@@ -19,6 +19,15 @@ class ExtensionOperator(object):
         self.marker = marker
         self.ids = ids
 
+        # times
+        times = {}
+        times["linear_solves"] = 0
+        times["torch"] = 0
+        times["total"] = 0
+        times["no_ext"] = 0
+
+        self.times = times
+
     def extend(self, boundary_conditions, params=None):
         """extend the boundary_conditions to the interior of the mesh"""
         raise NotImplementedError
@@ -26,6 +35,19 @@ class ExtensionOperator(object):
     def custom(self, FSI):
         """custom function for extension operator"""
         return False
+
+    def get_timings(self):
+        lin_solves = self.times["linear_solves"]
+        torch = self.times["torch"]
+        total = self.times["total"]
+        no_ext = self.times["no_ext"]
+
+        lin_solves_avg = lin_solves/no_ext
+        torch_avg = torch/no_ext
+        total_avg = total/no_ext 
+
+        print('timings', lin_solves_avg, torch_avg, total_avg)
+        return lin_solves_avg, torch_avg, total_avg
     
     @staticmethod
     def timings_extension(func):
@@ -55,9 +77,16 @@ class ExtensionOperator(object):
                     data[row.get('key')] = row_data
 
             col = 'wall tot'
-            #for process in data:
-            #    print(process, data[process]['reps'], data[process][col])
-
+            for process in data:
+                #print(process, data[process]['reps'], data[process][col])
+                #from IPython import embed; embed()
+                if process == 'LU solver':
+                    self.times["linear_solves"] += float(data[process][col])
+                elif process == 'Torch':
+                    self.times["torch"] += float(data[process][col])
+                elif process == 'do extension':
+                    self.times["total"] += float(data[process][col])
+                self.times["no_ext"] += 1
             return res
         return wrapper
 
@@ -454,34 +483,35 @@ class TorchExtension(ExtensionOperator):
         bc.apply(self.rhs_harmonic)
         self.solver_harmonic.solve(self.uh.vector(), self.rhs_harmonic)
 
-        if t < self.T_switch:
-            self.u_ = self.uh
-        
-        else:
-            if not self.silent:
-                print("Torch-corrected extension")
+        with Timer("Torch"):
+            if t < self.T_switch:
+                self.u_ = self.uh
+            
+            else:
+                if not self.silent:
+                    print("Torch-corrected extension")
 
-            self.interp_mat_2_1.mult(self.uh.vector(), self.harm_cg1.vector())
+                self.interp_mat_2_1.mult(self.uh.vector(), self.harm_cg1.vector())
 
-            gh_harm = self.clement_interpolater()
+                gh_harm = self.clement_interpolater()
 
-            harmonic_plus_grad_w_coords_np = CG1_vector_plus_grad_to_array_w_coords(self.harm_cg1, gh_harm)
-            harmonic_plus_grad_w_coords_torch = torch.tensor(harmonic_plus_grad_w_coords_np, dtype=torch.float32)
+                harmonic_plus_grad_w_coords_np = CG1_vector_plus_grad_to_array_w_coords(self.harm_cg1, gh_harm)
+                harmonic_plus_grad_w_coords_torch = torch.tensor(harmonic_plus_grad_w_coords_np, dtype=torch.float32)
 
-            with torch.no_grad():
-                corr_np = self.model(harmonic_plus_grad_w_coords_torch).numpy()
-                corr_np = corr_np * self.mask_np
+                with torch.no_grad():
+                    corr_np = self.model(harmonic_plus_grad_w_coords_torch).numpy()
+                    corr_np = corr_np * self.mask_np
 
-            new_dofs = self.harm_cg1.vector().get_local()
-            new_dofs[0::2] += corr_np[:,0]
-            new_dofs[1::2] += corr_np[:,1]
-            self.harm_cg1.vector().set_local(new_dofs)
+                new_dofs = self.harm_cg1.vector().get_local()
+                new_dofs[0::2] += corr_np[:,0]
+                new_dofs[1::2] += corr_np[:,1]
+                self.harm_cg1.vector().set_local(new_dofs)
 
-            self.interp_mat_1_2.mult(self.harm_cg1.vector(), self.u_.vector())
+                self.interp_mat_1_2.mult(self.harm_cg1.vector(), self.u_.vector())
 
-            # Apply the harmonic extension boundary condition to ensure fluid-solid extension matches at all
-            # boundary dof locations, not just vertices.
-            bc.apply(self.u_.vector())
+                # Apply the harmonic extension boundary condition to ensure fluid-solid extension matches at all
+                # boundary dof locations, not just vertices.
+                bc.apply(self.u_.vector())
 
         return self.u_
     

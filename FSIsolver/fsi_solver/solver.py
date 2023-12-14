@@ -40,14 +40,20 @@ class SNESProblem():
         x = PETScVector(x)
         F  = PETScVector(F)
         assemble(self.L, tensor=F)
-        for bc in self.bcs:
-            bc.apply(F, x)                
+        try:
+            for bc in self.bcs:
+                bc.apply(F, x) 
+        except:
+            self.bcs.apply(F, x)               
 
     def J(self, snes, x, J, P):
         J = PETScMatrix(J)
         assemble(self.a, tensor=J)
-        for bc in self.bcs:
-            bc.apply(J)
+        try:
+            for bc in self.bcs:
+                bc.apply(J)
+        except:
+            self.bcs.apply(J)
 
 class Context(object):
     def __init__(self, params):
