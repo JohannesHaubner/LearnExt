@@ -35,16 +35,16 @@ while i <= refinement_levels:
     file << msh_r
     
     ext_ops = {}
-    ext_ops["harmonic"] = extension.Harmonic(msh)
-    #ext_ops["biharmonic"] = extension.Biharmonic(msh)
-    #ext_ops["learned"] = extension.LearnExtension(msh, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold)# learned
-    #ext_ops["learned artificial"] = extension.LearnExtension(msh, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold)# learned artificial dataset
-    #ext_ops["learned incremental"] = extension.LearnExtension(msh, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=False)# learned linearized
-    ##ext_ops["learned incremental artificial"] = extension.LearnExtension(msh, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=False)# learned linearized artificial dataset
-    #ext_ops["learned incremental corrected"] = extension.LearnExtension(msh, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=True)# learned linearized corrected
-    ###ext_ops["learned incremental corrected"] = extension.LearnExtension(msh, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=True)# learned linearized corrected artificial dataset
-    #ext_ops["NN corrected"] = extension.TorchExtension(msh, "torch_extension/models/yankee", T_switch=0.0, silent=True)
-    ##ext_ops["nncor_art"] = extension.TorchExtension(msh, "torch_extension/models/foxtrot", T_switch=0.0, silent=True)
+    ext_ops["harmonic"] = extension.Harmonic(msh_r)
+    #ext_ops["biharmonic"] = extension.Biharmonic(msh_r)
+    #ext_ops["learned"] = extension.LearnExtension(msh_r, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold)# learned
+    #ext_ops["learned artificial"] = extension.LearnExtension(msh_r, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold)# learned artificial dataset
+    #ext_ops["learned incremental"] = extension.LearnExtension(msh_r, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=False)# learned linearized
+    ##ext_ops["learned incremental artificial"] = extension.LearnExtension(msh_r, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=False)# learned linearized artificial dataset
+    #ext_ops["learned incremental corrected"] = extension.LearnExtension(msh_r, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=True)# learned linearized corrected
+    ###ext_ops["learned incremental corrected"] = extension.LearnExtension(msh_r, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=True)# learned linearized corrected artificial dataset
+    #ext_ops["NN corrected"] = extension.TorchExtension(msh_r, "torch_extension/models/yankee", T_switch=0.0, silent=True)
+    ##ext_ops["nncor_art"] = extension.TorchExtension(msh_r, "torch_extension/models/foxtrot", T_switch=0.0, silent=True)
 
     timings_r = {}
     V = df.VectorFunctionSpace(msh_r, "CG", 2)
@@ -55,10 +55,10 @@ while i <= refinement_levels:
             u_bc_r.assign(df.project(u_bc, V))
             if j == "nncor" or "nncor_art":
                 print(j)
-                u_ext = ext_ops[j].extend(u_bc, {"t": 1.0})
+                u_ext = ext_ops[j].extend(u_bc_r, {"t": 1.0})
             else:
                 print(j)
-                u_ext = ext_ops[j].extend(u_bc)
+                u_ext = ext_ops[j].extend(u_bc_r)
         timings_r[j] = ext_ops[j].get_timings()
         
     timings["refinment " + str(i)] = timings_r
