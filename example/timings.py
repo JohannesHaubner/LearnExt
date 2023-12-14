@@ -10,30 +10,60 @@ msh = df.Mesh()
 infile = df.XDMFFile("Output/Extension/Data/membrane_data.xdmf")
 infile.read(msh)
 
+msh_r = df.Mesh(msh)
+
 
 threshold = 0.001
 
-ext_ops = {}
+timings = {}
 
-#ext_ops["harmonic"] = extension.Harmonic(msh)
-#ext_ops["biharmonic"] = extension.Biharmonic(msh)
-#ext_ops["learned"] = extension.LearnExtension(msh, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold)# learned
-#ext_ops["learned_art"] = extension.LearnExtension(msh, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold)# learned artificial dataset
-#ext_ops["learned_inc"] = extension.LearnExtension(msh, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=False)# learned linearized
-#ext_ops["learned_inc_art"] = extension.LearnExtension(msh, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=False)# learned linearized artificial dataset
-#ext_ops["learned_inc_cor"] = extension.LearnExtension(msh, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=True)# learned linearized corrected
-#ext_ops["learned_inc_cor_art"] = extension.LearnExtension(msh, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=True)# learned linearized corrected artificial dataset
-ext_ops["nncor"] = extension.TorchExtension(msh, "torch_extension/models/yankee", T_switch=0.0, silent=True)
-ext_ops["nncor_art"] = extension.TorchExtension(msh, "torch_extension/models/foxtrot", T_switch=0.0, silent=True)
+refinement_levels = 2
+datapoints = range(5)
 
-for j in tqdm.tqdm(ext_ops.keys()):
-    u_bc = df.Function(df.VectorFunctionSpace(msh, "CG", 2))
-    for k in tqdm.tqdm(range(5)):
-        infile.read_checkpoint(u_bc, "output_biharmonic_ext", k)
-        if j == "nncor" or "nncor_art":
-            print(j)
-            u_ext = ext_ops[j].extend(u_bc, {"t": 1.0})
-        else:
-            print(j)
-            u_ext = ext_ops[j].extend(u_bc)
-    ext_ops[j].get_timings()
+df.parameters['allow_extrapolation'] = True
+u_bc = df.Function(df.VectorFunctionSpace(msh, "CG", 2))
+df.parameters['allow_extrapolation'] = False
+
+file = df.File('./mesh_levels.pvd')
+
+i = 0
+
+while i <= refinement_levels:
+    if i != 0:
+        msh_r = df.refine(msh_r)
+
+    file << msh_r
+    
+    ext_ops = {}
+    ext_ops["harmonic"] = extension.Harmonic(msh)
+    #ext_ops["biharmonic"] = extension.Biharmonic(msh)
+    #ext_ops["learned"] = extension.LearnExtension(msh, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold)# learned
+    #ext_ops["learned artificial"] = extension.LearnExtension(msh, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold)# learned artificial dataset
+    #ext_ops["learned incremental"] = extension.LearnExtension(msh, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=False)# learned linearized
+    ##ext_ops["learned incremental artificial"] = extension.LearnExtension(msh, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=False)# learned linearized artificial dataset
+    #ext_ops["learned incremental corrected"] = extension.LearnExtension(msh, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=True)# learned linearized corrected
+    ###ext_ops["learned incremental corrected"] = extension.LearnExtension(msh, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=True)# learned linearized corrected artificial dataset
+    #ext_ops["NN corrected"] = extension.TorchExtension(msh, "torch_extension/models/yankee", T_switch=0.0, silent=True)
+    ##ext_ops["nncor_art"] = extension.TorchExtension(msh, "torch_extension/models/foxtrot", T_switch=0.0, silent=True)
+
+    timings_r = {}
+    V = df.VectorFunctionSpace(msh_r, "CG", 2)
+    u_bc_r = df.Function(V)
+    for j in tqdm.tqdm(ext_ops.keys()):
+        for k in tqdm.tqdm(datapoints):
+            infile.read_checkpoint(u_bc, "output_biharmonic_ext", k)
+            u_bc_r.assign(df.project(u_bc, V))
+            if j == "nncor" or "nncor_art":
+                print(j)
+                u_ext = ext_ops[j].extend(u_bc, {"t": 1.0})
+            else:
+                print(j)
+                u_ext = ext_ops[j].extend(u_bc)
+        timings_r[j] = ext_ops[j].get_timings()
+        
+    timings["refinment " + str(i)] = timings_r
+
+    i += 1
+
+
+from IPython import embed; embed()

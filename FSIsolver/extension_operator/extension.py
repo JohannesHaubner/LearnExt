@@ -47,7 +47,19 @@ class ExtensionOperator(object):
         total_avg = total/no_ext 
 
         print('timings', lin_solves_avg, torch_avg, total_avg)
-        return lin_solves_avg, torch_avg, total_avg
+
+        timings = {}
+        timings["linear solves"] = lin_solves_avg
+        timings["torch"] = torch_avg
+        timings["total"] = total_avg
+        return timings
+
+    def reset_timings(self):
+        self.times["linear_solves"] = 0
+        self.times["torch"] = 0
+        self.times["total"] = 0
+        self.times["no_ext"] = 0
+        pass
     
     @staticmethod
     def timings_extension(func):
