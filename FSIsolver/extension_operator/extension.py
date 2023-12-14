@@ -98,7 +98,7 @@ class ExtensionOperator(object):
                     self.times["torch"] += float(data[process][col])
                 elif process == 'do extension':
                     self.times["total"] += float(data[process][col])
-                self.times["no_ext"] += 1
+            self.times["no_ext"] += 1
             return res
         return wrapper
 
