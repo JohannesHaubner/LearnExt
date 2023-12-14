@@ -1,5 +1,6 @@
 import dolfin as df
 import tqdm
+import pickle 
 from pathlib import Path
 here = Path(__file__).parent.resolve()
 import sys, os
@@ -36,15 +37,15 @@ while i <= refinement_levels:
     
     ext_ops = {}
     ext_ops["harmonic"] = extension.Harmonic(msh_r)
-    #ext_ops["biharmonic"] = extension.Biharmonic(msh_r)
-    #ext_ops["learned"] = extension.LearnExtension(msh_r, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold)# learned
-    #ext_ops["learned artificial"] = extension.LearnExtension(msh_r, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold)# learned artificial dataset
+    ext_ops["biharmonic"] = extension.Biharmonic(msh_r)
+    ext_ops["learned"] = extension.LearnExtension(msh_r, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold)# learned
+    ext_ops["learned artificial"] = extension.LearnExtension(msh_r, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold)# learned artificial dataset
     #ext_ops["learned incremental"] = extension.LearnExtension(msh_r, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=False)# learned linearized
-    ##ext_ops["learned incremental artificial"] = extension.LearnExtension(msh_r, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=False)# learned linearized artificial dataset
+    ext_ops["learned incremental artificial"] = extension.LearnExtension(msh_r, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=False)# learned linearized artificial dataset
     #ext_ops["learned incremental corrected"] = extension.LearnExtension(msh_r, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=True)# learned linearized corrected
-    ###ext_ops["learned incremental corrected"] = extension.LearnExtension(msh_r, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=True)# learned linearized corrected artificial dataset
+    ext_ops["learned incremental corrected artificial"] = extension.LearnExtension(msh_r, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=True)# learned linearized corrected artificial dataset
     #ext_ops["NN corrected"] = extension.TorchExtension(msh_r, "torch_extension/models/yankee", T_switch=0.0, silent=True)
-    ##ext_ops["nncor_art"] = extension.TorchExtension(msh_r, "torch_extension/models/foxtrot", T_switch=0.0, silent=True)
+    ext_ops["nncor_art"] = extension.TorchExtension(msh_r, "torch_extension/models/foxtrot", T_switch=0.0, silent=True)
 
     timings_r = {}
     V = df.VectorFunctionSpace(msh_r, "CG", 2)
@@ -65,5 +66,5 @@ while i <= refinement_levels:
 
     i += 1
 
-
-from IPython import embed; embed()
+with open('Output/Extension/Data/timings.pickle', 'wb') as handle:
+    pickle.dump(timings, handle, protocol=pickle.HIGHEST_PROTOCOL)
