@@ -7,6 +7,11 @@ import sys, os
 sys.path.insert(0, str(here))
 from learnExt.NeuralNet.neural_network_custom import ANN, generate_weights
 from learnExt.learnext_hybridPDENN import Custom_Reduced_Functional as crf
+from FSIsolver.fsi_solver.solver import SNESProblem
+
+import petsc4py, sys
+petsc4py.init(sys.argv)
+from petsc4py import PETSc
 
 class ExtensionOperator(object):
     def __init__(self, mesh, marker, ids):
@@ -50,8 +55,8 @@ class ExtensionOperator(object):
                     data[row.get('key')] = row_data
 
             col = 'wall tot'
-            for process in data:
-                print(process, data[process]['reps'], data[process][col])
+            #for process in data:
+            #    print(process, data[process]['reps'], data[process][col])
 
             return res
         return wrapper
@@ -129,7 +134,7 @@ class Biharmonic(ExtensionOperator):
         return u_
     
 class Harmonic(ExtensionOperator):
-    def __init__(self, mesh, marker=None, ids=None, save_extension=True, save_filename=None, incremental=False):
+    def __init__(self, mesh, marker=None, ids=None, save_extension=False, save_filename=None, incremental=False):
         super().__init__(mesh, marker, ids)
 
         # options
@@ -241,10 +246,46 @@ class LearnExtension(ExtensionOperator):
             self.xdmf_output = XDMFFile(str(save_filename))
             self.xdmf_output.write(self.mesh)
 
+        self.snes = PETSc.SNES().create(MPI.comm_world) 
+        opts = PETSc.Options()
+        opts.setValue('snes_monitor', None)
+        #opts.setValue('ksp_view', None)
+        #opts.setValue('pc_view', None)
+        #opts.setValue('log_view', None)
+        opts.setValue('snes_type', 'newtonls')
+        #opts.setValue('snes_view', None)
+        opts.setValue('snes_divergence_tolerance', 1e12)
+        opts.setValue('snes_max_it', 200)
+        opts.setValue('snes_linesearch_type', 'l2')
+        self.snes.setFromOptions()
+
+        self.snes.setErrorIfNotConverged(True)
+
+
+        class Projector():
+            def __init__(self, V):
+                self.v = TestFunction(V)
+                u = TrialFunction(V)
+                form = inner(u, self.v)*dx
+                self.A = assemble(form)
+                self.solver = LUSolver(self.A)
+                self.V = V
+            
+            def project(self, f):
+                L = inner(f, self.v)*dx
+                b = assemble(L)
+                
+                uh = Function(self.V)
+                self.solver.solve(uh.vector(), b)
+                
+                return uh
+        
+
     @ExtensionOperator.timings_extension
     def extend(self, boundary_conditions, params = None):
         """ harmonic extension of boundary_conditions (Function on self.mesh) to the interior """
 
+        b_old = None
         if params != None:
             try:
                 b_old = params["b_old"]
@@ -255,9 +296,9 @@ class LearnExtension(ExtensionOperator):
             except:
                 displacementy = None
 
-        if self.incremental == True and self.incremental_correct == False:
+        if self.incremental == True and self.incremental_corrected == False:
             trafo = True
-        elif self.incremental == True and self.incremental_correct == True:
+        elif self.incremental == True and self.incremental_corrected == True:
             if displacementy == None:
                 Warning("displacementy == None; set trafo to False")
                 trafo = False
@@ -305,8 +346,21 @@ class LearnExtension(ExtensionOperator):
             u = Function(self.FS2)
             solve(lhs(E) == rhs(E), u, bc)
         else:
-            solve(E == 0, u, bc, solver_parameters={"nonlinear_solver": "newton", "newton_solver":
-                {"maximum_iterations": 200}})
+            #solve(E == 0, u, bc, solver_parameters={"nonlinear_solver": "newton", "newton_solver":
+            #    {"maximum_iterations": 200, "relative_tolerance": 1e-7}})
+            problem = SNESProblem(E, u, bc)
+            
+            b = PETScVector()  # same as b = PETSc.Vec()
+            J_mat = PETScMatrix()   
+
+            ksp = self.snes.getKSP()
+            ksp.getPC().setType('lu')
+            ksp.getPC().setFactorSolverType('mumps')
+            ksp.setType('preonly')
+
+            self.snes.setFunction(problem.F, b.vec())
+            self.snes.setJacobian(problem.J, J_mat.mat())
+            self.snes.solve(None, problem.u.vector().vec())
 
         if trafo:
             u = project(u + self.bc_old, self.FS2)
@@ -389,6 +443,7 @@ class TorchExtension(ExtensionOperator):
 
         return
 
+    @ExtensionOperator.timings_extension
     def extend(self, boundary_conditions, params):
         """ Torch-corrected extension of boundary_conditions (Function on self.mesh) to the interior """
 

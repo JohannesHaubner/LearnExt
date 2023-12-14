@@ -100,7 +100,7 @@ FSI_param['boundary_cond'] = Expression("1.5e7*t", t=FSI_param['t'], degree=2)
 # extension operator
 ids = [boundary_labels[i] for i in subdomain_boundaries["fluid"]]
 
-extension_operator = extension.Biharmonic(fluid_domain, markers_fluid, ids, save_extension=True, save_filename= str(here.parent) + "/Output/Extension/Data/membrane_test.xdmf")
+extension_operator = extension.Biharmonic(fluid_domain, markers_fluid, ids, save_extension=True, save_filename= str(here.parent) + "/Output/Extension/Data/membrane_data.xdmf")
 
 # save options
 FSI_param['save_directory'] = str(here.parent)+ '/Output/FSIbenchmarkII_membrane' #no save if set to None
