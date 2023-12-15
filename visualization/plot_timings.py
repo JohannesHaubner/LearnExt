@@ -48,6 +48,6 @@ for k in b.keys():
         i += 1
         bottom += times
     ax.legend()
-    ax.set_ylabel('avg wall tot time')
+    ax.set_ylabel('avg wall tot time per iteration')
     plt.savefig('./timings_plot' + str(k) + '.png')
 
