@@ -16,27 +16,29 @@ L, B, H, r = 2.5, 0.41, 0.41, 0.05
 channel = gmsh.model.occ.addBox(0, 0, 0, L, B, H)
 flap = gmsh.model.occ.addBox(0.5, 0.11, 0.19, 0.4, 0.2, 0.02)
 cylinder = gmsh.model.occ.addCylinder(0.5, 0, 0.2, 0, B, 0, r)
-fluid = gmsh.model.occ.cut([(3, channel)], [(3, flap), (3, cylinder)])
+fluid, _ = gmsh.model.occ.cut([(3, channel)], [(3, flap), (3, cylinder)])
 flap2 = gmsh.model.occ.addBox(0.5, 0.11, 0.19, 0.4, 0.2, 0.02)
 cylinder2 = gmsh.model.occ.addCylinder(0.5, 0, 0.2, 0, B, 0, r)
-solid = gmsh.model.occ.cut([(3, flap2)], [(3, cylinder2)])
+solid, _ = gmsh.model.occ.cut([(3, flap2)], [(3, cylinder2)])
 
 
 gmsh.model.occ.synchronize()
 volumes = gmsh.model.getEntities(dim=3)
-from IPython import embed; embed()
 #assert (volumes == fluid[0])
-fluid_marker = 11
-solid_marker = 12
+fluid_marker = 13
+solid_marker = 15
 gmsh.model.addPhysicalGroup(volumes[0][0], [volumes[0][1]], fluid_marker)
 gmsh.model.addPhysicalGroup(volumes[1][0], [volumes[1][1]], solid_marker)
 gmsh.model.setPhysicalName(volumes[0][0], fluid_marker, "Fluid volume")
 gmsh.model.setPhysicalName(volumes[1][0], solid_marker, "Solid volume")
 
-surfaces = gmsh.model.occ.getEntities(dim=2)
-inlet_marker, outlet_marker, wall_marker, obstacle_marker = 1, 3, 5, 7
+surfaces = gmsh.model.getEntities(dim=2)
+inlet_marker, outlet_marker, wall_marker, obstacle_marker, obstacle_solid_marker, interface_marker = 1, 3, 5, 7, 9, 11
 walls = []
 obstacles = []
+obstacle_solid = []
+interface = []
+obstacles_ = []
 for surface in surfaces:
     com = gmsh.model.occ.getCenterOfMass(surface[0], surface[1])
     if np.allclose(com, [0, B/2, H/2]):
@@ -48,15 +50,30 @@ for surface in surfaces:
         gmsh.model.setPhysicalName(surface[0], outlet_marker, "Fluid outlet")
     elif np.isclose(com[2], 0) or np.isclose(com[1], B) or np.isclose(com[2], H) or np.isclose(com[1], 0):
         walls.append(surface[1])
+    elif 0.25 < com[0] <= 0.6 and 0.19 <= com[2] <= 0.21:
+        interface.append(surface[1])
+        obstacles_.append(surface[1])
+    elif 0.19 <= com[2] <= 0.21 and com[0] > 0.2 and 0.11 <= com[1] <= 0.31:
+        obstacle_solid.append(surface[1])
+        obstacles_.append(surface[1])
     else:
         obstacles.append(surface[1])
+        obstacles_.append(surface[1])
 gmsh.model.addPhysicalGroup(2, walls, wall_marker)
 gmsh.model.setPhysicalName(2, wall_marker, "Walls")
 gmsh.model.addPhysicalGroup(2, obstacles, obstacle_marker)
 gmsh.model.setPhysicalName(2, obstacle_marker, "Obstacle")
+gmsh.model.addPhysicalGroup(2, interface, interface_marker)
+gmsh.model.setPhysicalName(2, interface_marker, "Interface")
+gmsh.model.addPhysicalGroup(2, obstacle_solid, obstacle_solid_marker)
+gmsh.model.setPhysicalName(2, obstacle_solid_marker, "Obstacle_solid")
+
+from IPython import embed; embed()
+
 
 distance = gmsh.model.mesh.field.add("Distance")
-gmsh.model.mesh.field.setNumbers(distance, "FacesList", obstacles)
+gmsh.model.mesh.field.setNumbers(distance, "FacesList", obstacles_)
+#gmsh.model.mesh.field.setNumbers(distance, "FacesList", obstacle_solid)
 
 resolution = r/10
 threshold = gmsh.model.mesh.field.add("Threshold")
