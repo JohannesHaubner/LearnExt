@@ -40,6 +40,46 @@ def get_flipped_cells(mesh: df.Mesh, u: df.Function) -> df.Function:
     return flipped_cells.astype(np.float64)
 
 
+def get_degenerate_cells(u: df.Function, tensor_dg_order: int = 2) -> df.Function:
+
+    msh = u.function_space().mesh()
+
+    F = df.Identity(len(u)) + df.grad(u)
+
+    V = df.TensorFunctionSpace(msh, 'DG', tensor_dg_order)
+    ndofs_per_dim = V.sub(0).collapse().dolfin_element().space_dimension()
+
+    v = df.TrialFunction(V)
+    dv = df.TestFunction(V)
+
+    a = df.inner(v, dv)*df.dx
+    L = df.inner(F, dv)*df.dx
+
+    cell_stats = []
+    # dim = V.dolfin_element().space_dimension()
+    for cell in df.cells(msh):
+        A = df.assemble_local(a, cell=cell)
+        b = df.assemble_local(L, cell=cell)
+        T = np.linalg.solve(A, b)
+
+        # Sample in dofs
+        dets = []
+        T_at_dofs = T.reshape((4, ndofs_per_dim)).T
+        for T in T_at_dofs:
+            T = T.reshape((2, 2))
+            dets.append(np.linalg.det(T))
+        cell_stats.append((min(dets), max(dets)))
+    cell_stats = np.array(cell_stats)
+
+    # bad_cells = np.where(cell_stats[:, 0] < 0)
+    bad_cells = np.where(cell_stats[:, 0] < 0, -np.ones(cell_stats.shape[0], dtype=np.float64), np.ones(cell_stats.shape[0], dtype=np.float64))
+
+    # cell_f = df.MeshFunction('size_t', msh, 2, 0)
+    # cell_f.array()[bad_cells] = 1
+
+    return bad_cells
+
+
 def extend_from_file(path_to_files: os.PathLike, save_to_path: os.PathLike, 
                      extension: ExtensionOperator, order: int, save_order: int = 1, checkpoints: Sequence[int] | None = None):
     print(str(path_to_files))
@@ -65,13 +105,13 @@ def extend_from_file(path_to_files: os.PathLike, save_to_path: os.PathLike,
 
 
     V = df.VectorFunctionSpace(mesh, "CG", order)
-    CG1 = df.VectorFunctionSpace(mesh, "CG", 1)
+    # CG1 = df.VectorFunctionSpace(mesh, "CG", 1)
     V_save = df.VectorFunctionSpace(mesh, "CG", save_order)
 
     # interp_mat = df.PETScDMCollection.create_transfer_matrix(V, V_save)
     
     u_bc = df.Function(V)
-    u_cg1 = df.Function(CG1)
+    # u_cg1 = df.Function(CG1)
     u_save = df.Function(V_save)
 
     DG0 = df.FunctionSpace(mesh, "DG", 0)
@@ -85,11 +125,13 @@ def extend_from_file(path_to_files: os.PathLike, save_to_path: os.PathLike,
     for l, k in enumerate(tqdm(ks)):
         infile.read_checkpoint(u_bc, "uh", k)
         u_ext = extension.extend(u_bc)
-        u_cg1.interpolate(u_ext)
+        # u_cg1.interpolate(u_ext)
         u_save.interpolate(u_ext)
         # interp_mat.mult(u_ext.vector(), u_save.vector()) # u_save.interpolate(u_ext)
-        flipped_cells = get_flipped_cells(mesh, u_cg1)
-        signs.vector()[:] = flipped_cells
+        # flipped_cells = get_flipped_cells(mesh, u_cg1)
+        # signs.vector()[:] = flipped_cells
+        degenerate_cells = get_degenerate_cells(u_ext)
+        signs.vector()[:] = degenerate_cells
         outfile.write_checkpoint(u_save, "uh", l, append=True)
         outfile_signs.write_checkpoint(signs, "sign_h", l, append=True)
 
@@ -104,10 +146,8 @@ def extend_from_file(path_to_files: os.PathLike, save_to_path: os.PathLike,
 def main():
 
     path_to_files = Path("membrane_test/data/Data_MoF/membrane_test_p2.xdmf")
-    # save_to_dir = Path("membrane_test/data/extended")
-    # save_to_dir = Path("membrane_test/data/extended_p2")
-    # save_to_dir = Path("membrane_test/data/cell_flip")
-    save_to_dir = Path("membrane_test/data/histograms")
+    # save_to_dir = Path("membrane_test/data/histograms")
+    save_to_dir = Path("membrane_test/data/histograms_redo")
 
     mesh = df.Mesh()
     with df.XDMFFile(str(path_to_files)) as meshfile:
@@ -126,8 +166,8 @@ def main():
 
     df.set_log_active(False)
     order = 2
-    save_order = 1
-    checkpoints = [0, 10, 20, 120, 272]
+    save_order = 2
+    # checkpoints = [0, 10, 20, 120, 272]
     # checkpoints = list(range(150, 211))
     checkpoints = [50, 150, 272]
     # checkpoints = None
