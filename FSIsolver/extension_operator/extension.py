@@ -340,7 +340,7 @@ class LearnExtension(ExtensionOperator):
 
     @ExtensionOperator.timings_extension
     def extend(self, boundary_conditions, params = None):
-        """ harmonic extension of boundary_conditions (Function on self.mesh) to the interior """
+        """ learned extension of boundary_conditions (Function on self.mesh) to the interior """
 
         b_old = None
         if params != None:
@@ -426,15 +426,15 @@ class LearnExtension(ExtensionOperator):
         self.bc_old.assign(project(u, self.FS))
         self.u_old.assign(u)
 
+        if trafo:
+            try:
+                ALE.move(self.mesh, upi, annotate=False)
+            except:
+                ALE.move(self.mesh, upi)
+
         if self.save_ext:
             self.iter +=1
             self.xdmf_output.write_checkpoint(u_, "output_biharmonic_ext", self.iter, XDMFFile.Encoding.HDF5, append=True)
-
-        if trafo:
-            try:
-                ALE.move(self.mesh, up, annotate=False)
-            except:
-                ALE.move(self.mesh, up)
 
         return u
 
