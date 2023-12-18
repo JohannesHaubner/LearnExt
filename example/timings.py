@@ -48,7 +48,6 @@ u_bc = df.Function(df.VectorFunctionSpace(msh, "CG", 2))
 df.parameters['allow_extrapolation'] = False
 
 file = df.File('./mesh_levels.pvd')
-file2 = df.File('./mesh_plots.pvd')
 
 i = 0
 infile = df.XDMFFile("Output/Extension/Data/FSIbenchmarkII_data_.xdmf") #TODO: change input data file
@@ -77,9 +76,7 @@ while i <= refinement_levels:
     for j in tqdm.tqdm(ext_ops.keys()):
         for k in tqdm.tqdm(datapoints):
             infile.read_checkpoint(u_bc, "output_biharmonic_ext", k)
-            file2 << u_bc
             u_bc_r.assign(df.project(u_bc, V))
-            file2 << u_bc_r
             if j == "nncor" or "nncor_art":
                 print(j)
                 u_ext = ext_ops[j].extend(u_bc_r, {"t": 1.0})
