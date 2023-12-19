@@ -26,6 +26,46 @@ def get_flipped_cells(u: df.Function) -> np.ndarray:
     return flipped_cells.astype(np.float64)
 
 
+def get_degenerate_cells(u: df.Function, tensor_dg_order: int = 2) -> df.Function:
+
+    msh = u.function_space().mesh()
+
+    F = df.Identity(len(u)) + df.grad(u)
+
+    V = df.TensorFunctionSpace(msh, 'DG', tensor_dg_order)
+    ndofs_per_dim = V.sub(0).collapse().dolfin_element().space_dimension()
+
+    v = df.TrialFunction(V)
+    dv = df.TestFunction(V)
+
+    a = df.inner(v, dv)*df.dx
+    L = df.inner(F, dv)*df.dx
+
+    cell_stats = []
+    # dim = V.dolfin_element().space_dimension()
+    for cell in df.cells(msh):
+        A = df.assemble_local(a, cell=cell)
+        b = df.assemble_local(L, cell=cell)
+        T = np.linalg.solve(A, b)
+
+        # Sample in dofs
+        dets = []
+        T_at_dofs = T.reshape((4, ndofs_per_dim)).T
+        for T in T_at_dofs:
+            T = T.reshape((2, 2))
+            dets.append(np.linalg.det(T))
+        cell_stats.append((min(dets), max(dets)))
+    cell_stats = np.array(cell_stats)
+
+    # bad_cells = np.where(cell_stats[:, 0] < 0)
+    bad_cells = np.where(cell_stats[:, 0] < 0, -np.ones(cell_stats.shape[0], dtype=np.float64), np.ones(cell_stats.shape[0], dtype=np.float64))
+
+    # cell_f = df.MeshFunction('size_t', msh, 2, 0)
+    # cell_f.array()[bad_cells] = 1
+
+    return bad_cells
+
+
 def extend_from_file(path_to_files: os.PathLike, save_to_path: os.PathLike, extension: ExtensionOperator, 
                      order: int, save_order: int = 1):
     path_to_files = Path(path_to_files)
@@ -53,12 +93,10 @@ def extend_from_file(path_to_files: os.PathLike, save_to_path: os.PathLike, exte
     save_to_path.with_suffix(".ls.txt").write_text(path_to_files.with_suffix(".ls.txt").read_text())
 
     V = df.VectorFunctionSpace(mesh, "CG", order)
-    CG1 = df.VectorFunctionSpace(mesh, "CG", 1)
     V_save = df.VectorFunctionSpace(mesh, "CG", save_order)
     DG0 = df.FunctionSpace(mesh, "DG", 0)
     
     u_bc = df.Function(V)
-    u_mm = df.Function(CG1)
     u_save = df.Function(V_save)
     signs = df.Function(DG0)
 
@@ -66,8 +104,7 @@ def extend_from_file(path_to_files: os.PathLike, save_to_path: os.PathLike, exte
     for k in ks:
         infile.read_checkpoint(u_bc, "uh", k)
         u_ext = extension.extend(u_bc)
-        u_mm.interpolate(u_ext)
-        cell_signs = get_flipped_cells(u_mm)
+        cell_signs = get_degenerate_cells(u_ext)
         signs.vector()[:] = cell_signs
         u_save.interpolate(u_ext)
         outfile.write_checkpoint(u_save, "uh", k, append=True)
@@ -87,13 +124,17 @@ def main():
     fluid_mesh = Problem(0.0).fluid_mesh
 
     path_to_files = "gravity_driven_test/data/max_deformations_redo/max_deformations_redo"
-    save_to_dir = Path("gravity_driven_test/data/max_def_dev")
+    save_to_dir = Path("gravity_driven_test/data/max_deformations_redo2")
 
     from FSIsolver.extension_operator.extension import Biharmonic, Harmonic, TorchExtension, LearnExtensionSimplifiedSNES, LearnExtensionSimplified
     biharmonic_extension = Biharmonic(fluid_mesh)
     harmonic_extension = Harmonic(fluid_mesh)
-    hybrid_fsi_extension = LearnExtensionSimplifiedSNES(fluid_mesh, "example/learned_networks/trained_network.pkl", snes_divergence_tolerance=1e18, snes_max_it=100)
-    hybrid_art_extension = LearnExtensionSimplifiedSNES(fluid_mesh, "example/learned_networks/artificial/trained_network.pkl", snes_divergence_tolerance=1e18, snes_max_it=100)
+    hybrid_fsi_extension = LearnExtensionSimplifiedSNES(fluid_mesh, "example/learned_networks/trained_network.pkl", 
+                                                        snes_divergence_tolerance=1e18, snes_max_it=100,
+                                                        snes_atol=1e-10, snes_rtol=1e-48, snes_stol=1e-48)
+    hybrid_art_extension = LearnExtensionSimplifiedSNES(fluid_mesh, "example/learned_networks/artificial/trained_network.pkl", 
+                                                        snes_divergence_tolerance=1e18, snes_max_it=100,
+                                                        snes_atol=1e-10, snes_rtol=1e-48, snes_stol=1e-48)
     # hybrid_fsi_extension = LearnExtensionSimplified(fluid_mesh, "example/learned_networks/trained_network.pkl")
     # hybrid_art_extension = LearnExtensionSimplified(fluid_mesh, "example/learned_networks/artificial/trained_network.pkl")
     nn_correct_extension_fsi = TorchExtension(fluid_mesh, "torch_extension/models/yankee")
@@ -108,7 +149,7 @@ def main():
     extend_from_file(path_to_files, save_to_dir / "nn_correct_fsi", nn_correct_extension_fsi, read_order, save_order)
     extend_from_file(path_to_files, save_to_dir / "nn_correct_art", nn_correct_extension_art, read_order, save_order)
 
-    return
+    # return
 
 
 if __name__ == "__main__":
