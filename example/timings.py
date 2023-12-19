@@ -44,25 +44,29 @@ refinement_levels = 1
 datapoints = range(40) #TODO: adapt 5 to number of snapshots you want to average over
 
 df.parameters['allow_extrapolation'] = True
-u_bc = df.Function(df.VectorFunctionSpace(msh, "CG", 2))
 df.parameters['allow_extrapolation'] = False
 
 file = df.File('./mesh_levels.pvd')
+file2 = df.File('Output/mesh_plots.pvd')
 
 i = 0
 infile = df.XDMFFile("Output/Extension/Data/FSIbenchmarkII_data_.xdmf") #TODO: change input data file
 
+u_bc = df.Function(df.VectorFunctionSpace(msh, "CG", 2))
+u_bc.set_allow_extrapolation(True)
+
 while i <= refinement_levels:
+    print("refinement level ", i)
     if i != 0:
         msh_r = df.refine(msh_r)
 
     file << msh_r
     
     ext_ops = {}
-    ext_ops["harmonic"] = extension.Harmonic(msh_r)
-    ext_ops["biharmonic"] = extension.Biharmonic(msh_r)
+    #ext_ops["harmonic"] = extension.Harmonic(msh_r)
+    #ext_ops["biharmonic"] = extension.Biharmonic(msh_r)
     ##ext_ops["learned"] = extension.LearnExtension(msh_r, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold)# learned
-    ext_ops["learned artificial"] = extension.LearnExtension(msh_r, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold)# learned artificial dataset
+    #ext_ops["learned artificial"] = extension.LearnExtension(msh_r, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold)# learned artificial dataset
     ##ext_ops["learned incremental"] = extension.LearnExtension(msh_r, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=False)# learned linearized
     ext_ops["learned incremental artificial"] = extension.LearnExtension(msh_r, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=False)# learned linearized artificial dataset
     ##ext_ops["learned incremental corrected"] = extension.LearnExtension(msh_r, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=True)# learned linearized corrected
@@ -72,16 +76,20 @@ while i <= refinement_levels:
 
     timings_r = {}
     V = df.VectorFunctionSpace(msh_r, "CG", 2)
+    projector = extension.Projector(V)
+
     u_bc_r = df.Function(V)
-    for j in tqdm.tqdm(ext_ops.keys()):
+
+    for j in ext_ops.keys():
+        print(j)
         for k in tqdm.tqdm(datapoints):
             infile.read_checkpoint(u_bc, "output_biharmonic_ext", k)
+            file2 << msh_r
+            #u_bc.set_allow_extrapolation(True)
             u_bc_r.assign(df.project(u_bc, V))
             if j == "nncor" or "nncor_art":
-                print(j)
                 u_ext = ext_ops[j].extend(u_bc_r, {"t": 1.0})
             else:
-                print(j)
                 u_ext = ext_ops[j].extend(u_bc_r)
         timings_r[j] = ext_ops[j].get_timings()
         

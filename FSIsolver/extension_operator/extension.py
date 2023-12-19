@@ -13,6 +13,24 @@ import petsc4py, sys
 petsc4py.init(sys.argv)
 from petsc4py import PETSc
 
+class Projector():
+    def __init__(self, V):
+        self.v = TestFunction(V)
+        u = TrialFunction(V)
+        form = inner(u, self.v)*dx
+        self.A = assemble(form)
+        self.solver = LUSolver(self.A)
+        self.V = V
+    
+    def project(self, f):
+        L = inner(f, self.v)*dx
+        b = assemble(L)
+        
+        uh = Function(self.V)
+        self.solver.solve(uh.vector(), b)
+        
+        return uh
+
 class ExtensionOperator(object):
     def __init__(self, mesh, marker, ids):
         self.mesh = mesh
@@ -22,6 +40,8 @@ class ExtensionOperator(object):
         # times
         times = {}
         times["linear_solves"] = 0
+        times["correct"] = 0
+        times["clement"] = 0
         times["torch"] = 0
         times["total"] = 0
         times["no_ext"] = 0
@@ -40,6 +60,8 @@ class ExtensionOperator(object):
 
     def get_timings(self):
         lin_solves = self.times["linear_solves"]
+        correct = self.times["correct"]
+        clement = self.times["clement"]
         torch = self.times["torch"]
         total = self.times["total"]
         snes_solve = self.times["snes_solve"]
@@ -47,15 +69,19 @@ class ExtensionOperator(object):
         no_ext = self.times["no_ext"]
 
         lin_solves_avg = lin_solves/no_ext
+        correct_avg = correct/no_ext
+        clement_avg = clement/no_ext
         torch_avg = torch/no_ext
         total_avg = total/no_ext 
         snes_solve_avg = snes_solve/no_ext
         assemble_snes_avg = assemble_snes/no_ext
 
-        print('timings', lin_solves_avg, torch_avg, total_avg)
+        # print('timings', lin_solves_avg, torch_avg, total_avg)
 
         timings = {}
         timings["linear solves"] = lin_solves_avg
+        timings["correct"] = correct_avg
+        timings["clement"] = clement_avg
         timings["torch"] = torch_avg
         timings["total"] = total_avg
         timings["snes_total"] = snes_solve_avg
@@ -64,6 +90,8 @@ class ExtensionOperator(object):
 
     def reset_timings(self):
         self.times["linear_solves"] = 0
+        self.times["correct"] = 0
+        self.times["clement"] = 0
         self.times["torch"] = 0
         self.times["total"] = 0
         self.times["no_ext"] = 0
@@ -104,6 +132,10 @@ class ExtensionOperator(object):
                 #from IPython import embed; embed()
                 if process == 'LU solver':
                     self.times["linear_solves"] += float(data[process][col])
+                elif process == 'Correct':
+                    self.times["correct"] += float(data[process][col])
+                elif process == 'Clement':
+                    self.times["clement"] += float(data[process][col])
                 elif process == 'Torch':
                     self.times["torch"] += float(data[process][col])
                 elif process == 'do extension':
@@ -157,7 +189,7 @@ class Biharmonic(ExtensionOperator):
         for bci in self.bc:
             bci.apply(self.A)
 
-        self.solver = LUSolver(self.A)
+        self.solver = LUSolver(self.A, "mumps")
 
         self.L = assemble(L)
 
@@ -231,7 +263,7 @@ class Harmonic(ExtensionOperator):
         for bci in self.bc:
             bci.apply(self.A)
 
-        self.solver = LUSolver(self.A)
+        self.solver = LUSolver(self.A, "mumps")
 
         self.L = assemble(L)
 
@@ -303,7 +335,7 @@ class LearnExtension(ExtensionOperator):
 
         self.snes = PETSc.SNES().create(MPI.comm_world) 
         opts = PETSc.Options()
-        opts.setValue('snes_monitor', None)
+        # opts.setValue('snes_monitor', None)
         #opts.setValue('ksp_view', None)
         #opts.setValue('pc_view', None)
         #opts.setValue('log_view', None)
@@ -316,26 +348,10 @@ class LearnExtension(ExtensionOperator):
 
         self.snes.setErrorIfNotConverged(True)
 
+        self.projector_vector_cg1 = Projector(self.FS)
+        self.projector_vector_cg2 = Projector(self.FS2)
+
         self.u_old = Function(self.FS2)
-
-
-        class Projector():
-            def __init__(self, V):
-                self.v = TestFunction(V)
-                u = TrialFunction(V)
-                form = inner(u, self.v)*dx
-                self.A = assemble(form)
-                self.solver = LUSolver(self.A)
-                self.V = V
-            
-            def project(self, f):
-                L = inner(f, self.v)*dx
-                b = assemble(L)
-                
-                uh = Function(self.V)
-                self.solver.solve(uh.vector(), b)
-                
-                return uh
         
 
     @ExtensionOperator.timings_extension
@@ -368,10 +384,10 @@ class LearnExtension(ExtensionOperator):
             trafo = False
 
         if b_old != None:
-            self.bc_old = project(b_old, self.FS)
+            self.bc_old = self.projector_vector_cg1.project(b_old)
 
         if trafo:
-            up = project(self.bc_old, self.FS)
+            up = self.projector_vector_cg1.project(self.bc_old)
             upi = Function(self.FS)
             upi.vector().axpy(-1.0, up.vector())
             try:
@@ -395,7 +411,7 @@ class LearnExtension(ExtensionOperator):
 
         # solve PDE
         if trafo:
-            bc_func = project(boundary_conditions - self.bc_old, self.FS2)
+            bc_func = self.projector_vector_cg2.project(boundary_conditions - self.bc_old)
         else:
             bc_func = boundary_conditions
         bc = DirichletBC(self.FS2, bc_func, 'on_boundary')
@@ -422,8 +438,8 @@ class LearnExtension(ExtensionOperator):
                 self.snes.solve(None, problem.u.vector().vec())
 
         if trafo:
-            u = project(u + self.bc_old, self.FS2)
-        self.bc_old.assign(project(u, self.FS))
+            u = self.projector_vector_cg2.project(u + self.bc_old)
+        self.bc_old.assign(self.projector_vector_cg2.project(u))
         self.u_old.assign(u)
 
         if trafo:
@@ -462,7 +478,7 @@ class TorchExtension(ExtensionOperator):
         bc = df.DirichletBC(self.F, df.Constant((0.,0.)), 'on_boundary')
         bc.apply(A)
 
-        self.solver_harmonic = df.LUSolver(A)
+        self.solver_harmonic = df.LUSolver(A, "mumps")
         self.rhs_harmonic = df.assemble(L)
 
         # For clement interpolation
@@ -514,7 +530,7 @@ class TorchExtension(ExtensionOperator):
         bc.apply(self.rhs_harmonic)
         self.solver_harmonic.solve(self.uh.vector(), self.rhs_harmonic)
 
-        with Timer("Torch"):
+        with Timer("Correct"):
             if t < self.T_switch:
                 self.u_ = self.uh
             
@@ -524,14 +540,16 @@ class TorchExtension(ExtensionOperator):
 
                 self.interp_mat_2_1.mult(self.uh.vector(), self.harm_cg1.vector())
 
-                gh_harm = self.clement_interpolater()
+                with Timer("Clement"):
+                    gh_harm = self.clement_interpolater()
 
                 harmonic_plus_grad_w_coords_np = CG1_vector_plus_grad_to_array_w_coords(self.harm_cg1, gh_harm)
                 harmonic_plus_grad_w_coords_torch = torch.tensor(harmonic_plus_grad_w_coords_np, dtype=torch.float32)
 
-                with torch.no_grad():
-                    corr_np = self.model(harmonic_plus_grad_w_coords_torch).numpy()
-                    corr_np = corr_np * self.mask_np
+                with Timer("Torch"):
+                    with torch.no_grad():
+                        corr_np = self.model(harmonic_plus_grad_w_coords_torch).numpy()
+                        corr_np = corr_np * self.mask_np
 
                 new_dofs = self.harm_cg1.vector().get_local()
                 new_dofs[0::2] += corr_np[:,0]
