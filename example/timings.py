@@ -85,7 +85,6 @@ while i <= refinement_levels:
         for k in tqdm.tqdm(datapoints):
             infile.read_checkpoint(u_bc, "output_biharmonic_ext", k)
             file2 << msh_r
-            #u_bc.set_allow_extrapolation(True)
             u_bc_r.assign(df.project(u_bc, V))
             if j == "nncor" or "nncor_art":
                 u_ext = ext_ops[j].extend(u_bc_r, {"t": 1.0})
