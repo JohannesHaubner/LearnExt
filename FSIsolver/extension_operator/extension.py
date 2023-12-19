@@ -439,7 +439,7 @@ class LearnExtension(ExtensionOperator):
 
         if trafo:
             u = self.projector_vector_cg2.project(u + self.bc_old)
-        self.bc_old.assign(self.projector_vector_cg2.project(u))
+        self.bc_old.assign(self.projector_vector_cg1.project(u))
         self.u_old.assign(u)
 
         if trafo:
