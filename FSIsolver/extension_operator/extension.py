@@ -384,7 +384,7 @@ class LearnExtension(ExtensionOperator):
             trafo = False
 
         if b_old != None:
-            self.bc_old = self.projector_vector_cg1.project(b_old)
+            self.bc_old = self.projector_vector_cg2.project(b_old)
 
         if trafo:
             up = self.projector_vector_cg1.project(self.bc_old)
@@ -438,8 +438,8 @@ class LearnExtension(ExtensionOperator):
                 self.snes.solve(None, problem.u.vector().vec())
 
         if trafo:
-            u = self.projector_vector_cg2.project(u + self.bc_old)
-        self.bc_old.assign(self.projector_vector_cg1.project(u))
+            u.vector().axpy(1.0, self.bc_old.vector()) 
+        self.bc_old.assign(u)
         self.u_old.assign(u)
 
         if trafo:
