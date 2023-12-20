@@ -441,7 +441,8 @@ class LearnExtension(ExtensionOperator):
 
             b = Function(self.FS2).vector()
             bc.apply(b)
-            solver.solve(u.vector(), b)
+            with Timer('snes_solve'):
+                solver.solve(u.vector(), b)
 
             #solve(lhs(E) == rhs(E), u, bc)
         else:
