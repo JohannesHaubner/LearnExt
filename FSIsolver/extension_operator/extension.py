@@ -32,7 +32,8 @@ class Projector():
             from IPython import embed; embed()
         
         uh = Function(self.V)
-        self.solver.solve(uh.vector(), b)
+        with Timer('LU solver'):
+            self.solver.solve(uh.vector(), b)
         
         return uh
 
