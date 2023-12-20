@@ -140,7 +140,7 @@ class ExtensionOperator(object):
                     self.times["total"] += float(data[process][col])
                 elif process == 'snes_solve' or process == 'LU solver':
                     self.times["solve"] += float(data[process][col])
-                elif process == 'assemble_snes' or 'assemble':
+                elif process == 'assemble_snes' or process == 'assemble':
                     self.times["assemble"] += float(data[process][col])
             self.times["no_ext"] += 1
             return res
