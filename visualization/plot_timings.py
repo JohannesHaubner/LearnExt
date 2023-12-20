@@ -45,14 +45,14 @@ for k in b.keys():
     j6 = []
     j7 = []
     for j in b[k].keys():
-        j1.append(b[k][j]['solve'])
         #j6.append(b[k][j]['torch'])
         #j7.append(b[k][j]['clement'])
         j2.append(b[k][j]['correct']) # - j7[-1] - j6[-1])
         j3.append(b[k][j]['assemble'])
+        j1.append(b[k][j]['solve'] - j3[-1])
         j5.append(b[k][j]['total'] - j1[-1] - j2[-1] - j3[-1]) # - j6[-1] - j7[-1])
         d['linear solves'] = np.array(j1)
-        d['assembly'] = np.array(j3)
+        d['assemble'] = np.array(j3)
         d['NN correction'] = np.array(j2) #j6)
         #d['Clement interpolation'] = np.array(j7)
         #d['torch rest'] = np.array(j2)
@@ -75,4 +75,4 @@ for k in b.keys():
     js += 1
     #ax.tick_params(axis='y', labelrotation = 90)
     #plt.gca().invert_yaxis()
-    plt.savefig('./timings_plot' + str(k) + '.png')
+    plt.savefig('./timings_plot_' + str(k) + '.png')
