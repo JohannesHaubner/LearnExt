@@ -21,6 +21,10 @@ for i in range(3):
 
 colors = np.concatenate( (np.asarray(colors_blue), np.asarray(colors_orange), np.asarray([color_[2]])), axis=0)
 
+colors =  [np.asarray([0, 51, 89])*1./255,
+          np.asarray([0, 101, 189])*1./255,
+          np.asarray([227, 114, 34])*1./255,
+          np.asarray([218, 215, 213])*1./255]
 #colors.append(colors_orange)
 #colors.append(color_[2])
 
@@ -42,16 +46,16 @@ for k in b.keys():
     j7 = []
     for j in b[k].keys():
         j1.append(b[k][j]['solve'])
-        j6.append(b[k][j]['torch'])
-        j7.append(b[k][j]['clement'])
-        j2.append(b[k][j]['correct'] - j7[-1] - j6[-1])
+        #j6.append(b[k][j]['torch'])
+        #j7.append(b[k][j]['clement'])
+        j2.append(b[k][j]['correct']) # - j7[-1] - j6[-1])
         j3.append(b[k][j]['assemble'])
-        j5.append(b[k][j]['total'] - j1[-1] - j2[-1] - j3[-1] )
+        j5.append(b[k][j]['total'] - j1[-1] - j2[-1] - j3[-1]) # - j6[-1] - j7[-1])
         d['linear solves'] = np.array(j1)
         d['assembly'] = np.array(j3)
-        d['NN correction'] = np.array(j6)
-        d['Clement interpolation'] = np.array(j7)
-        d['torch rest'] = np.array(j2)
+        d['NN correction'] = np.array(j2) #j6)
+        #d['Clement interpolation'] = np.array(j7)
+        #d['torch rest'] = np.array(j2)
         d['rest'] = np.array(j5)
     
     # plot
