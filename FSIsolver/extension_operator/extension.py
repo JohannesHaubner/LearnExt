@@ -426,7 +426,7 @@ class LearnExtension(ExtensionOperator):
             bc_func = Function(self.FS2)
             bc_func.vector().axpy(1.0, self.projector_vector_cg2.project(boundary_conditions).vector())
             bc_func.vector().axpy(-1.0, self.projector_vector_cg2.project(self.bc_old).vector())
-            
+
             try:
                 ALE.move(self.mesh, up, annotate=False)
             except:
@@ -439,7 +439,16 @@ class LearnExtension(ExtensionOperator):
         if trafo:
             u = Function(self.FS2)
             u.assign(self.u_old)
-            solve(lhs(E) == rhs(E), u, bc)
+
+            A = assemble(lhs(E))
+            bc.apply(A)
+
+            solver = df.LUSolver(A, "mumps")
+
+            b = assemble(rhs(E))
+            solver.solve(u.vector(), b)
+
+            #solve(lhs(E) == rhs(E), u, bc)
         else:
             #solve(E == 0, u, bc, solver_parameters={"nonlinear_solver": "newton", "newton_solver":
             #    {"maximum_iterations": 200, "relative_tolerance": 1e-7}})
