@@ -21,7 +21,7 @@ class Projector():
         u = TrialFunction(V)
         form = inner(u, self.v)*dx(V.mesh())
         self.A = assemble(form)
-        self.solver = LUSolver(self.A)
+        self.solver = LUSolver(self.A, "mumps")
         self.V = V
     
     def project(self, f):
@@ -445,7 +445,8 @@ class LearnExtension(ExtensionOperator):
 
             solver = df.LUSolver(A, "mumps")
 
-            b = assemble(rhs(E))
+            b = assemble(Constant(0.0)*dx(self.mesh))
+            bc.apply(b)
             solver.solve(u.vector(), b)
 
             #solve(lhs(E) == rhs(E), u, bc)
