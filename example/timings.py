@@ -8,32 +8,10 @@ import sys, os
 sys.path.insert(0, str(here.parent))
 import FSIsolver.extension_operator.extension as extension
 
-#msh = df.Mesh()
-#infile = df.XDMFFile("Output/Extension/Data/FSIbenchmarkII_data_.xdmf") #TODO: change input data file
-#infile.read(msh)
-#
-#msh_r = df.Mesh(msh)
+msh = df.Mesh()
+infile = df.XDMFFile("Output/Extension/Data/FSIbenchmarkII_data_new.xdmf") #TODO: change input data file; use script_convert_dataset.py to preprocess data
+infile.read(msh)
 
-# load mesh
-mesh = df.Mesh()
-with df.XDMFFile(str(here.parent) + "/Output/Mesh_Generation/mesh_triangles.xdmf") as infile:
-    infile.read(mesh)
-mvc = df.MeshValueCollection("size_t", mesh, 2)
-mvc2 = df.MeshValueCollection("size_t", mesh, 2)
-with df.XDMFFile(str(here.parent) + "/Output/Mesh_Generation/facet_mesh.xdmf") as infile:
-    infile.read(mvc, "name_to_read")
-with df.XDMFFile(str(here.parent) + "/Output/Mesh_Generation/mesh_triangles.xdmf") as infile:
-    infile.read(mvc2, "name_to_read")
-boundaries = df.cpp.mesh.MeshFunctionSizet(mesh, mvc)
-domains = df.cpp.mesh.MeshFunctionSizet(mesh,mvc2)
-
-# boundary parts
-params = np.load(str(here.parent) + '/Output/Mesh_Generation/params.npy', allow_pickle='TRUE').item()
-
-params["no_slip_ids"] = ["noslip", "obstacle_fluid", "obstacle_solid"]
-
-# subdomains
-msh = df.MeshView.create(domains, params["fluid"])
 msh_r = df.Mesh(msh)
 
 threshold = 0.001
@@ -50,7 +28,6 @@ file = df.File('./mesh_levels.pvd')
 file2 = df.File('Output/mesh_plots.pvd')
 
 i = 0
-infile = df.XDMFFile("Output/Extension/Data/FSIbenchmarkII_data_.xdmf") #TODO: change input data file
 
 u_bc = df.Function(df.VectorFunctionSpace(msh, "CG", 2))
 u_bc.set_allow_extrapolation(True)
@@ -83,13 +60,14 @@ while i <= refinement_levels:
     for j in ext_ops.keys():
         print(j)
         for k in tqdm.tqdm(datapoints):
-            infile.read_checkpoint(u_bc, "output_biharmonic_ext", k)
-            file2 << msh_r
-            u_bc_r.assign(df.project(u_bc, V))
+            infile.read_checkpoint(u_bc, "data", k)
+            #file2 << msh_r
+            u_bc_r.assign(projector.project(u_bc))
             if j == "nncor" or "nncor_art":
                 u_ext = ext_ops[j].extend(u_bc_r, {"t": 1.0})
             else:
                 u_ext = ext_ops[j].extend(u_bc_r)
+            file2 << u_ext #msh_r
         timings_r[j] = ext_ops[j].get_timings()
         
     timings["refinment " + str(i)] = timings_r

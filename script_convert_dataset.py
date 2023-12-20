@@ -76,9 +76,9 @@ def transfer_subfunction_to_parent(f, f_full):
 
 print(fluid_domain.num_vertices())
 
-old_xdmf = df.XDMFFile("Output/Extension/Data/input_.xdmf")
+old_xdmf = df.XDMFFile("Output/Extension/Data/FSIbenchmarkII_data_.xdmf")
 
-new_xdmf = df.XDMFFile("learnext_p2/input.xdmf")
+new_xdmf = df.XDMFFile("Output/Extension/Data/FSIbenchmarkII_data_new.xdmf")
 new_xdmf.write(f_domain)
 
 V = df.VectorFunctionSpace(fluid_domain, "CG", 2)
@@ -94,17 +94,17 @@ def MeshView_to_Submesh(u):
 
 
 u = df.Function(V)
-old_xdmf.read_checkpoint(u, "input_harmonic_ext", 0)
+old_xdmf.read_checkpoint(u, "output_biharmonic_ext", 0)
 
 print(u.function_space())
 
 
 from tqdm import tqdm
-checkpoints = range(0, 2401)
+checkpoints = range(0, 80)
 for k in tqdm(checkpoints):
-    old_xdmf.read_checkpoint(u, "input_harmonic_ext", k)
+    old_xdmf.read_checkpoint(u, "output_biharmonic_ext", k)
     uf = MeshView_to_Submesh(u)
-    new_xdmf.write_checkpoint(uf, "uh", k, df.XDMFFile.Encoding.HDF5, append=True)
+    new_xdmf.write_checkpoint(uf, "data", k, df.XDMFFile.Encoding.HDF5, append=True)
 
 old_xdmf.close()
 new_xdmf.close()

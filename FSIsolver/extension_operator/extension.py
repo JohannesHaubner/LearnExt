@@ -1,4 +1,5 @@
 from dolfin import *
+import dolfin as df
 import xml.etree.ElementTree as ET
 
 from pathlib import Path
@@ -13,18 +14,22 @@ import petsc4py, sys
 petsc4py.init(sys.argv)
 from petsc4py import PETSc
 
+
 class Projector():
     def __init__(self, V):
         self.v = TestFunction(V)
         u = TrialFunction(V)
-        form = inner(u, self.v)*dx
+        form = inner(u, self.v)*dx(V.mesh())
         self.A = assemble(form)
         self.solver = LUSolver(self.A)
         self.V = V
     
     def project(self, f):
-        L = inner(f, self.v)*dx
-        b = assemble(L)
+        L = inner(f, self.v)*dx(self.V.mesh())
+        try:
+            b = assemble(L)
+        except:
+            from IPython import embed; embed()
         
         uh = Function(self.V)
         self.solver.solve(uh.vector(), b)
@@ -352,6 +357,8 @@ class LearnExtension(ExtensionOperator):
         self.projector_vector_cg2 = Projector(self.FS2)
 
         self.u_old = Function(self.FS2)
+
+        self.file = File('test_extension.pvd')
         
 
     @ExtensionOperator.timings_extension
@@ -384,7 +391,7 @@ class LearnExtension(ExtensionOperator):
             trafo = False
 
         if b_old != None:
-            self.bc_old = self.projector_vector_cg2.project(b_old)
+            self.bc_old = self.projector_vector_cg1.project(b_old)
 
         if trafo:
             up = self.projector_vector_cg1.project(self.bc_old)
@@ -411,13 +418,27 @@ class LearnExtension(ExtensionOperator):
 
         # solve PDE
         if trafo:
-            bc_func = self.projector_vector_cg2.project(boundary_conditions - self.bc_old)
+            try:
+                ALE.move(self.mesh, upi, annotate=False)
+            except:
+                ALE.move(self.mesh, upi)
+
+            bc_func = Function(self.FS2)
+            bc_func.vector().axpy(1.0, self.projector_vector_cg2.project(boundary_conditions).vector())
+            bc_func.vector().axpy(-1.0, self.projector_vector_cg2.project(self.bc_old).vector())
+            
+            try:
+                ALE.move(self.mesh, up, annotate=False)
+            except:
+                ALE.move(self.mesh, up)
+
         else:
             bc_func = boundary_conditions
         bc = DirichletBC(self.FS2, bc_func, 'on_boundary')
 
         if trafo:
             u = Function(self.FS2)
+            u.assign(self.u_old)
             solve(lhs(E) == rhs(E), u, bc)
         else:
             #solve(E == 0, u, bc, solver_parameters={"nonlinear_solver": "newton", "newton_solver":
@@ -436,21 +457,21 @@ class LearnExtension(ExtensionOperator):
             self.snes.setJacobian(problem.J, J_mat.mat())
             with Timer('snes_solve'):
                 self.snes.solve(None, problem.u.vector().vec())
-
-        if trafo:
-            u.vector().axpy(1.0, self.bc_old.vector()) 
-        self.bc_old.assign(u)
-        self.u_old.assign(u)
-
+        
         if trafo:
             try:
                 ALE.move(self.mesh, upi, annotate=False)
             except:
                 ALE.move(self.mesh, upi)
 
+        if trafo:
+            u = self.projector_vector_cg2.project(u + self.bc_old)
+        self.bc_old.assign(self.projector_vector_cg1.project(u))
+        self.u_old.assign(u)
+
         if self.save_ext:
             self.iter +=1
-            self.xdmf_output.write_checkpoint(u_, "output_biharmonic_ext", self.iter, XDMFFile.Encoding.HDF5, append=True)
+            self.xdmf_output.write_checkpoint(u, "output_biharmonic_ext", self.iter, XDMFFile.Encoding.HDF5, append=True)
 
         return u
 
