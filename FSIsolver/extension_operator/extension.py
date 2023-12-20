@@ -44,14 +44,13 @@ class ExtensionOperator(object):
 
         # times
         times = {}
-        times["linear_solves"] = 0
         times["correct"] = 0
         times["clement"] = 0
         times["torch"] = 0
         times["total"] = 0
         times["no_ext"] = 0
-        times["snes_solve"] = 0
-        times["assemble_snes"] = 0
+        times["solve"] = 0
+        times["assemble"] = 0
 
         self.times = times
 
@@ -64,44 +63,40 @@ class ExtensionOperator(object):
         return False
 
     def get_timings(self):
-        lin_solves = self.times["linear_solves"]
         correct = self.times["correct"]
         clement = self.times["clement"]
         torch = self.times["torch"]
         total = self.times["total"]
-        snes_solve = self.times["snes_solve"]
-        assemble_snes = self.times["assemble_snes"]
+        solve = self.times["solve"]
+        assemble = self.times["assemble"]
         no_ext = self.times["no_ext"]
 
-        lin_solves_avg = lin_solves/no_ext
         correct_avg = correct/no_ext
         clement_avg = clement/no_ext
         torch_avg = torch/no_ext
         total_avg = total/no_ext 
-        snes_solve_avg = snes_solve/no_ext
-        assemble_snes_avg = assemble_snes/no_ext
+        solve_avg = solve/no_ext
+        assemble_avg = assemble/no_ext
 
         # print('timings', lin_solves_avg, torch_avg, total_avg)
 
         timings = {}
-        timings["linear solves"] = lin_solves_avg
+        timings["solve"] = solve_avg
         timings["correct"] = correct_avg
         timings["clement"] = clement_avg
         timings["torch"] = torch_avg
         timings["total"] = total_avg
-        timings["snes_total"] = snes_solve_avg
-        timings["assemble_snes"] = assemble_snes_avg
+        timings["assemble"] = assemble_avg
         return timings
 
     def reset_timings(self):
-        self.times["linear_solves"] = 0
+        self.times["solve"] = 0
         self.times["correct"] = 0
         self.times["clement"] = 0
         self.times["torch"] = 0
         self.times["total"] = 0
         self.times["no_ext"] = 0
-        self.times["snes_solve"] = 0
-        self.times["assemble_snes"] = 0
+        self.times["assemble"] = 0
         pass
     
     @staticmethod
@@ -135,9 +130,7 @@ class ExtensionOperator(object):
             for process in data:
                 #print(process, data[process]['reps'], data[process][col])
                 #from IPython import embed; embed()
-                if process == 'LU solver':
-                    self.times["linear_solves"] += float(data[process][col])
-                elif process == 'Correct':
+                if process == 'Correct':
                     self.times["correct"] += float(data[process][col])
                 elif process == 'Clement':
                     self.times["clement"] += float(data[process][col])
@@ -145,10 +138,10 @@ class ExtensionOperator(object):
                     self.times["torch"] += float(data[process][col])
                 elif process == 'do extension':
                     self.times["total"] += float(data[process][col])
-                elif process == 'snes_solve':
-                    self.times["snes_solve"] += float(data[process][col])
-                elif process == 'assemble_snes':
-                    self.times["assemble_snes"] += float(data[process][col])
+                elif process == 'snes_solve' or process == 'LU solver':
+                    self.times["solve"] += float(data[process][col])
+                elif process == 'assemble_snes' or 'assemble':
+                    self.times["assemble"] += float(data[process][col])
             self.times["no_ext"] += 1
             return res
         return wrapper
@@ -383,7 +376,7 @@ class LearnExtension(ExtensionOperator):
                 Warning("displacementy == None; set trafo to False")
                 trafo = False
             elif abs(displacementy) <= 0.005:
-                print('displacementy <= 0.005: displacementy = ', displacementy)
+                #print('displacementy <= 0.005: displacementy = ', displacementy)
                 trafo = False
             else:
                 trafo = True
@@ -440,12 +433,13 @@ class LearnExtension(ExtensionOperator):
             u = Function(self.FS2)
             u.assign(self.u_old)
 
-            A = assemble(lhs(E))
+            with Timer('assemble_snes'):
+                A = assemble(lhs(E))
             bc.apply(A)
 
             solver = df.LUSolver(A, "mumps")
 
-            b = assemble(Constant(0.0)*v[0]*dx(self.mesh))
+            b = Function(self.FS2).vector()
             bc.apply(b)
             solver.solve(u.vector(), b)
 

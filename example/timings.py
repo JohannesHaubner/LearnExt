@@ -63,11 +63,11 @@ while i <= refinement_levels:
             infile.read_checkpoint(u_bc, "data", k)
             #file2 << msh_r
             u_bc_r.assign(projector.project(u_bc))
-            if j == "nncor" or "nncor_art":
+            if j == "nncor" or j == "nncor_art":
                 u_ext = ext_ops[j].extend(u_bc_r, {"t": 1.0})
             else:
                 params = {}
-                params["displacementy"] = u_bc_r(Point((0.6, 0.2)))[1]
+                params["displacementy"] = u_bc_r(df.Point((0.6, 0.2)))[1]
                 u_ext = ext_ops[j].extend(u_bc_r, params)
 
             file2 << u_ext #msh_r
