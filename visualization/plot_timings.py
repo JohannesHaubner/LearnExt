@@ -8,14 +8,22 @@ import sys, os
 sys.path.insert(0, str(here.parent))
 
 color_ = [np.asarray([0, 51, 89])*1./255,
+          np.asarray([227, 114, 34]) * 1/255,
           np.asarray([218, 215, 213])*1./255
           ]
 
-colors = []
-for i in range(7):
-    colors.append( i/7*color_[1] + (6-i)/7*color_[0])
+colors_blue = []
+colors_orange = []
+for i in range(3):
+    colors_blue.append( (4 - i)/4*color_[0] + i/4*np.asarray([1,1,1]))
+    colors_orange.append( (8 - 2*i)/8*color_[1] + i/8*np.asarray([1,1,1]))
 
-with open('combined_timings.pickle', 'rb') as handle:
+colors = np.concatenate( (np.asarray(colors_blue), np.asarray(colors_orange), np.asarray([color_[2]])), axis=0)
+
+#colors.append(colors_orange)
+#colors.append(color_[2])
+
+with open('Output/Extension/Data/timings.pickle', 'rb') as handle:
     b = pickle.load(handle)
 
 #from IPython import embed; embed()
