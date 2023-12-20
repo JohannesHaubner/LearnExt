@@ -18,7 +18,7 @@ threshold = 0.001
 
 timings = {}
 
-refinement_levels = 1
+refinement_levels = 2
 datapoints = range(40) #TODO: adapt 5 to number of snapshots you want to average over
 
 df.parameters['allow_extrapolation'] = True
@@ -40,10 +40,10 @@ while i <= refinement_levels:
     file << msh_r
     
     ext_ops = {}
-    #ext_ops["harmonic"] = extension.Harmonic(msh_r)
-    #ext_ops["biharmonic"] = extension.Biharmonic(msh_r)
+    ext_ops["harmonic"] = extension.Harmonic(msh_r)
+    ext_ops["biharmonic"] = extension.Biharmonic(msh_r)
     ##ext_ops["learned"] = extension.LearnExtension(msh_r, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold)# learned
-    #ext_ops["learned artificial"] = extension.LearnExtension(msh_r, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold)# learned artificial dataset
+    ext_ops["learned artificial"] = extension.LearnExtension(msh_r, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold)# learned artificial dataset
     ##ext_ops["learned incremental"] = extension.LearnExtension(msh_r, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=False)# learned linearized
     ext_ops["learned incremental artificial"] = extension.LearnExtension(msh_r, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=False)# learned linearized artificial dataset
     ##ext_ops["learned incremental corrected"] = extension.LearnExtension(msh_r, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=True)# learned linearized corrected
@@ -66,7 +66,10 @@ while i <= refinement_levels:
             if j == "nncor" or "nncor_art":
                 u_ext = ext_ops[j].extend(u_bc_r, {"t": 1.0})
             else:
-                u_ext = ext_ops[j].extend(u_bc_r)
+                params = {}
+                params["displacementy"] = u_bc_r(Point((0.6, 0.2)))[1]
+                u_ext = ext_ops[j].extend(u_bc_r, params)
+
             file2 << u_ext #msh_r
         timings_r[j] = ext_ops[j].get_timings()
         
