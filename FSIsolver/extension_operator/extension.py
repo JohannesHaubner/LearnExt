@@ -445,7 +445,7 @@ class LearnExtension(ExtensionOperator):
 
             solver = df.LUSolver(A, "mumps")
 
-            b = assemble(Constant(0.0)*dx(self.mesh))
+            b = assemble(Constant(0.0)*v[0]*dx(self.mesh))
             bc.apply(b)
             solver.solve(u.vector(), b)
 
