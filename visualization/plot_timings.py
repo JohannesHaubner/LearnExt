@@ -32,7 +32,7 @@ with open('Output/Extension/Data/timings.pickle', 'rb') as handle:
     b = pickle.load(handle)
 
 #from IPython import embed; embed()
-j = 0
+js = 0
 
 for k in b.keys():
     c = list(b[k].keys())
@@ -71,8 +71,8 @@ for k in b.keys():
     ax.legend()
     ax.set_ylabel('avg wall tot time per iteration')
     ax.tick_params(axis='x')
-    plt.title(titles[j])
-    j += 1
+    plt.title(titles[js])
+    js += 1
     #ax.tick_params(axis='y', labelrotation = 90)
     #plt.gca().invert_yaxis()
     plt.savefig('./timings_plot' + str(k) + '.png')
