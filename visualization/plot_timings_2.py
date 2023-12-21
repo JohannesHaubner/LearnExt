@@ -71,7 +71,7 @@ for k in b.keys():
         p = ax.bar(itemgetter(*indices)(c), itemgetter(*indices)(times), 0.5, label=type, bottom=bottom, color=colors[i])
         i += 1
         bottom += itemgetter(*indices)(times)
-    ax.legend()
+    ax.legend(loc='upper right')
     ax.set_ylabel('avg wall tot time per iteration')
     ax.tick_params(axis='x')
     plt.title(titles[js])
