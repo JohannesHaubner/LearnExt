@@ -2,10 +2,6 @@ import sympy as sym
 from dolfin import *
 import numpy as np
 
-import petsc4py, sys
-petsc4py.init(sys.argv)
-from petsc4py import PETSc
-
 from pathlib import Path
 here = Path(__file__).parent
 import sys
@@ -26,36 +22,6 @@ class Solver(object):
     def save_snapshot(self):
         """save snapshot"""
         raise NotImplementedError
-    
-class SNESProblem():
-    def __init__(self, F, u, bc):
-        V = u.function_space()
-        du = TrialFunction(V)
-        self.L = F
-        self.a = derivative(F, u, du)
-        self.bcs = bc
-        self.u = u
-
-    def F(self, snes, x, F):
-        x = PETScVector(x)
-        F  = PETScVector(F)
-        with Timer('assemble_snes'):
-            assemble(self.L, tensor=F)
-        try:
-            for bc in self.bcs:
-                bc.apply(F, x) 
-        except:
-            self.bcs.apply(F, x)               
-
-    def J(self, snes, x, J, P):
-        J = PETScMatrix(J)
-        with Timer('assemble_snes'):
-            assemble(self.a, tensor=J)
-        try:
-            for bc in self.bcs:
-                bc.apply(J)
-        except:
-            self.bcs.apply(J)
 
 class Context(object):
     def __init__(self, params):
@@ -125,56 +91,38 @@ class FSI(Context):
 
         if "material_model" in self.FSI_params.keys():
             if self.FSI_params["material_model"] == "IMR":
-                self.theta = 1.0
+                self.opt = 1
             else:
-                self.theta = 0.5 + self.FSI_params["deltat"] # theta-time-stepping parameter
+                self.opt = 2
         else:
+            self.opt = 2
+
+        if self.opt == 2:
             self.theta = 0.5 + self.FSI_params["deltat"] # theta-time-stepping parameter
-
-        if "bc_type" in self.FSI_params.keys():
-            bc_type = self.FSI_params["bc_type"]
-            print("Choice for boundary type: ", self.FSI_params["bc_type"])
-        else:
-            print("Default choice for boundary type: inflow")
-            bc_type = "inflow"
-
-        self.bc_type = bc_type
+        elif self.opt == 1:
+            self.theta = 1.0 # theta-time-stepping parameter
 
         # help variables
         self.aphat = 1e-9
 
         self.savedir = FSI_params["save_directory"]
         #self.N = FSI_params["save_every_N_snapshot"]
-        try:
-            self.save_snapshot_on = FSI_params["save_snapshot_on"]
-        except:
-            self.save_snapshot_on = False
-        try:
-            self.save_data_on = FSI_params["save_data_on"]
-        except:
-            self.save_data_on = False
-        try:
-            self.save_states_on = FSI_params["save_states_on"]
-        except:
-            self.save_states_on = False
 
-        if self.savedir is not None and self.save_data_on:
-            self.displacement_filename = self.savedir + "/displacementy.txt"
-            self.determinant_filename = self.savedir + "/determinant.txt"
-            self.times_filename = self.savedir + "/times.txt"
-            self.displacement = []
-            self.determinant_deformation = []
-            self.times = []
+        self.displacement_filename = self.savedir + "/displacementy.txt"
+        self.determinant_filename = self.savedir + "/determinant.txt"
+        self.times_filename = self.savedir + "/times.txt"
+        self.displacement = []
+        self.determinant_deformation = []
+        self.times = []
 
         # files for warmstart
-        if self.savedir is not None and self.save_states_on:
-            output_directory = self.FSI_params["save_directory"]
-            self.xdmf_states = XDMFFile(output_directory + "/warmstart/states.xdmf")
-            self.xdmf_load = XDMFFile(output_directory[:-2] + "/states.xdmf")
-            self.time_save = str(output_directory + "/warmstart/t.npy")
-            self.time_load = str(output_directory[:-2] + "/t.npy")
+        output_directory = self.FSI_params["save_directory"]
+        self.xdmf_states = XDMFFile(output_directory + "/warmstart/states.xdmf")
+        self.xdmf_load = XDMFFile(output_directory[:-2] + "/states.xdmf")
+        self.time_save = str(output_directory + "/warmstart/t.npy")
+        self.time_load = str(output_directory[:-2] + "/t.npy")
 
-        if not self.savedir == None and self.save_states_on:
+        if not self.savedir == None:
             velocity_filename = self.savedir + "/velocity.pvd"
             charfunc_filename = self.savedir + "/char.pvd"
             pressure_filename = self.savedir + "/pressure.pvd"
@@ -186,7 +134,7 @@ class FSI(Context):
             self.dfile = File(deformation_filename)
 
         dx = Measure("dx", domain=self.mesh, subdomain_data=self.domains)
-        ds = Measure("ds", domain=self.mesh, subdomain_data=boundaries)
+        ds = Measure("ds", domain=self.mesh, subdomain_data=self.boundaries)
 
         self.dxf = dx(self.param["fluid"])
         self.dxs = dx(self.param["solid"])
@@ -198,45 +146,6 @@ class FSI(Context):
         self.tools_solid = Tools(V, Vs)
         self.tools_fluid = Tools(V, Vf)
 
-        self.bc_weak_form = []
-
-        self.snes = PETSc.SNES().create(MPI.comm_world) 
-        opts = PETSc.Options()
-        opts.setValue('snes_monitor', None)
-        #opts.setValue('ksp_view', None)
-        #opts.setValue('pc_view', None)
-        #opts.setValue('log_view', None)
-        opts.setValue('snes_type', 'newtonls')
-        #opts.setValue('snes_view', None)
-        opts.setValue('snes_divergence_tolerance', 1e2)
-        opts.setValue('snes_linesearch_type', 'l2')
-        self.snes.setFromOptions()
-
-        self.snes.setErrorIfNotConverged(True)
-
-
-        class Projector():
-            def __init__(self, V):
-                self.v = TestFunction(V)
-                u = TrialFunction(V)
-                form = inner(u, self.v)*dx
-                self.A = assemble(form)
-                self.solver = LUSolver(self.A)
-                self.V = V
-            
-            def project(self, f):
-                L = inner(f, self.v)*dx
-                b = assemble(L)
-                
-                uh = Function(self.V)
-                self.solver.solve(uh.vector(), b)
-                
-                return uh
-        
-        self.projector_scalar_dg0 = Projector(FunctionSpace(self.mesh, "DG", 0))
-        self.projector_scalar_cg1 = Projector(FunctionSpace(self.mesh, "CG", 1))
-        self.projector_vector_cg1 = Projector(VectorFunctionSpace(self.mesh, "CG", 1))
-
 
     def warmstart(self, t):
         self.warmstart = True
@@ -244,30 +153,52 @@ class FSI(Context):
         self.bc.t = t
 
     def save_states(self, u, u_, vp, vp_):
-        v, p = vp.split(deepcopy=True)
-        v_, p_ = vp_.split(deepcopy=True)
+        if self.opt == 2:
+            (v, p) = vp.split(deepcopy=True)
+            (v_, p_) = vp_.split(deepcopy=True)
+            (psiv, psip) = split(psi)
+            ps = p
+        elif self.opt == 1:
+            (v, p, ps) = vp.split(deepcopy=True)
+            (v_, p_, ps_) = vp_.split(deepcopy=True)
         self.xdmf_states.write_checkpoint(u, "u", 0, XDMFFile.Encoding.HDF5, append=True)
         self.xdmf_states.write_checkpoint(u_, "u_", 0, XDMFFile.Encoding.HDF5, append=True)
         self.xdmf_states.write_checkpoint(v, "v", 0, XDMFFile.Encoding.HDF5, append=True)
         self.xdmf_states.write_checkpoint(v_, "v_", 0, XDMFFile.Encoding.HDF5, append=True)
         self.xdmf_states.write_checkpoint(p, "p", 0, XDMFFile.Encoding.HDF5, append=True)
         self.xdmf_states.write_checkpoint(p_, "p_", 0, XDMFFile.Encoding.HDF5, append=True)
+        self.xdmf_states.write_checkpoint(ps, "ps", 0, XDMFFile.Encoding.HDF5, append=True)
+        self.xdmf_states.write_checkpoint(ps_, "ps_", 0, XDMFFile.Encoding.HDF5, append=True)
         np.save(self.time_save, self.t)
         return u, u_, vp, vp_
+    
+    def deepcopy_split(self, vp):
+        if self.opt == 2:
+            (v, p) = vp.split(deepcopy=True)
+            ps = p
+        elif self.opt == 1:
+            (v, p, ps) = vp.split(deepcopy=True)
+        return v, p, ps
+
 
     def load_states(self, u, u_, vp, vp_):
-        v, p = vp.split(deepcopy=True)
-        v_, p_ = vp_.split(deepcopy=True)
+        v, p, ps = self.deepcopy_split(vp)
+        v_, p_, ps_ = self.deepcopy_split(vp_)
         self.xdmf_load.read_checkpoint(u, "u")
         self.xdmf_load.read_checkpoint(u_, "u_")
         self.xdmf_load.read_checkpoint(v, "v")
         self.xdmf_load.read_checkpoint(v_, "v_")
         self.xdmf_load.read_checkpoint(p, "p")
         self.xdmf_load.read_checkpoint(p_, "p_")
+        self.xdmf_load.write_checkpoint(ps, "ps", 0, XDMFFile.Encoding.HDF5, append=True)
+        self.xdmf_load.write_checkpoint(ps_, "ps_", 0, XDMFFile.Encoding.HDF5, append=True)
         assign(vp.sub(0), v)
         assign(vp.sub(1), p)
         assign(vp_.sub(0), v_)
         assign(vp_.sub(1), p_)
+        if self.opt == 1:
+            assign(vp.sub(2), ps)
+            assign(vp_.sub(2), ps_)
         t = np.load(self.time_load)
         self.warmstart(t)
         ui = project(-1.0*u, u.function_space())
@@ -284,7 +215,7 @@ class FSI(Context):
         else:
             print('Check if snapshot is saved for t = ', self.t)
             t_frac = abs(self.t / 0.04 - round(self.t / 0.04))*0.04  # make a snapshot every 1/25 s
-            if abs(t_frac) < self.dt_min * 0.5: # or True:
+            if abs(t_frac) < self.dt_min * 0.5: 
                 print('save snapshot...', self.t)
 
                 # save displacement
@@ -292,7 +223,8 @@ class FSI(Context):
                 self.dfile << u
 
                 # save velocity and pressure
-                (v, p) = vp.split(deepcopy=True)
+                v,  p,  ps = self.deepcopy_split(vp)
+
                 ui = Function(u.function_space())
                 ui.vector()[:] = -1.0 * u.vector()[:]
                 pmed = assemble(p * self.dxf)
@@ -301,7 +233,7 @@ class FSI(Context):
                     ALE.move(self.mesh, u, annotate=False)
                 except:
                     ALE.move(self.mesh, u)
-                pp = self.projector_scalar_cg1.project(p - pmed / vol * Constant("1.0"))
+                pp = project(p - pmed / vol * Constant("1.0"), p.function_space())
                 v.rename("velocity", "velocity")
                 p.rename("pressure", "pressure")
                 self.pfile << p
@@ -312,7 +244,6 @@ class FSI(Context):
                     ALE.move(self.mesh, ui)
 
                 # save characteristic function of solid mesh
-                Vs = VectorFunctionSpace(self.FSI_params["solid_mesh"], "CG", 2)
                 c = interpolate(Constant(1.0), FunctionSpace(self.FSI_params["solid_mesh"], "CG", 1))
                 c.rename("charfunc", "charfunc")
                 us = self.tools_solid.transfer_to_subfunc(u)
@@ -327,7 +258,6 @@ class FSI(Context):
                     ALE.move(self.FSI_params["solid_mesh"], usi, annotate=False)
                 except:
                     ALE.move(self.FSI_params["solid_mesh"], usi)
-                print("snapshot saved")
             else:
                 print('Snapshot is not stored for t = ', self.t,
                       ' since it only taken close to every multiple of 1/25s.')
@@ -344,8 +274,10 @@ class FSI(Context):
         np.savetxt(self.times_filename, self.times)
         try:
             if save_det == True:
-                up = self.projector_vector_cg1.project(u)
-                det_u = self.projector_scalar_dg0.project(det(Identity(2) + grad(up)))
+                V = VectorFunctionSpace(u.function_space().mesh(), "CG", 1)
+                V0 = FunctionSpace(u.function_space().mesh(), "DG", 0)
+                up = project(u, V)
+                det_u = project(det(Identity(2) + grad(up)), V0)
                 self.determinant_deformation.append(det_u.vector().min())
                 np.savetxt(self.determinant_filename, self.determinant_deformation)
         except:
@@ -354,8 +286,8 @@ class FSI(Context):
 
     def get_deformation(self, vp, vp_, u_, b_old=None):
         u = Function(u_.function_space())
-        (v_, p_) = vp_.split(deepcopy=True)
-        (v, p) = vp.split(deepcopy=True)
+        v, p, ps = self.deepcopy_split(vp)
+        v_, p_, ps_ = self.deepcopy_split(vp_)
         u.vector()[:] = u_.vector()[:] + self.dt*((1-self.theta)*v_.vector()[:] + self.theta*v.vector()[:])
         # 0 displacement on outer fluid boundary
         bc = DirichletBC(u.function_space(), Constant((0.0,0.0)), 'on_boundary')
@@ -386,39 +318,9 @@ class FSI(Context):
 
         F = self.get_weak_form(vp, vp_, u, u_, psi, option)
 
-        ## see https://fenicsproject.discourse.group/t/using-petsc4py-petsc-snes-directly/2368/12
-                    
-        problem = SNESProblem(F, vp, bc)
-            
-        b = PETScVector()  # same as b = PETSc.Vec()
-        J_mat = PETScMatrix()   
+        solve(F == 0, vp, bc, solver_parameters={"nonlinear_solver": "newton", "newton_solver":
+            {"maximum_iterations": 20}})
 
-        ksp = self.snes.getKSP()
-        ksp.getPC().setType('lu')
-        ksp.getPC().setFactorSolverType('mumps')
-        ksp.setType('preonly')
-
-        self.snes.setFunction(problem.F, b.vec())
-        self.snes.setJacobian(problem.J, J_mat.mat())
-        self.snes.solve(None, problem.u.vector().vec())
-
-        #if snes.converged == False:
-        #    raise Exception("ERROR: SNES solver not converged")
-
-        
-        #problem = NonlinearVariationalProblem(F, vp, bc, J)
-        #solver = NonlinearVariationalSolver(problem)
-        #prm = solver.parameters
-        #prm['nonlinear_solver'] = 'snes'
-
-        #info(solver.parameters, True)
-        #from IPython import embed; embed()
-        #solver.solve()
-        #exit(0)
-
-        #solve(F == 0, vp, bc, solver_parameters={"nonlinear_solver": "newton", "newton_solver":
-        #    {"maximum_iterations": 20}})
-        
         return vp
 
     def get_boundary_conditions(self, VP):
@@ -427,19 +329,27 @@ class FSI(Context):
         :return:
         """
 
+        if "bc_type" in self.FSI_params.keys():
+            bc_type = self.FSI_params["bc_type"]
+            print("Choice for boundary type: ", self.FSI_params["bc_type"])
+        else:
+            print("Default choice for boundary type: inflow")
+            bc_type = "inflow"
+
         # pressure BC
         class PressureB(SubDomain):
             def inside(self, x, on_boundary):
                 return near(x[0], (0.1)) and near(x[1], (0.05))
-            
+
         pressureb = PressureB()
 
         bc = []
-        if self.bc_type == "inflow":
-            bc.append(DirichletBC(VP.sub(1), Constant(0.0), pressureb, method='pointwise'))
+        #bc.append(DirichletBC(VP.sub(1), Constant(0.0), pressureb, method='pointwise'))
+        if bc_type == "inflow":
             bc.append(DirichletBC(VP.sub(0), self.bc, self.boundaries, self.param["inflow"]))
-        elif self.bc_type == "pressure":
-            pass
+        elif bc_type == "pressure":
+            if self.opt == 2:
+                bc.append(DirichletBC(VP.sub(2), Constant(0.0), pressureb, method='pointwise'))
         else:
             raise("Not Implemented")
 
@@ -452,31 +362,38 @@ class FSI(Context):
     def get_weak_form(self, vp, vp_, u, u_, psi, option):
         # 0 to solve system 1, 1 to solve system 3
         k = self.dt
-        theta = Constant(self.theta)
+        theta = self.theta
         lambdas = self.FSI_params["lambdas"]
         mys = self.FSI_params["mys"]
         rhof = self.FSI_params["rhof"]
         rhos = self.FSI_params["rhos"]
         nyf = self.FSI_params["nyf"]
 
-        dx = Measure("dx", domain=self.mesh, subdomain_data=self.domains)
-
         dxf = self.dxf
         dxs = self.dxs
         ds = self.ds
         
         n = FacetNormal(self.mesh)
+        
+        if self.opt == 2:
+            # split functions
+            (v, p) = split(vp)
+            (v_, p_) = split(vp_)
+            (psiv, psip) = split(psi)
+            ps = p
+            psips = psip
+            ps_ = p_
+        elif self.opt == 1:
+            (v, p, ps) = split(vp)
+            (v_, p_, ps_) = split(vp_)
+            (psiv, psip, psips) = split(psi)
 
-        # split functions
-        (v, p) = split(vp)
-        (v_, p_) = split(vp_)
-        (psiv, psip) = split(psi)
 
         # variables for variational form
         I = Identity(2)
 
         if option == 0:
-            Fhat = I + grad(u_ + k*(theta*v + (Constant(1.)-theta)*v_))
+            Fhat = I + grad(u_ + k*(theta*v + (1-theta)*v_))
         elif option == 1:
             Fhat = I + grad(u)
 
@@ -494,7 +411,7 @@ class FSI(Context):
             sEhat = Ehat
             sJhat = Jhat
         elif option == 1:
-            sFhat = I + grad(u_ + k*(theta * v + (Constant(1.) - theta)*v_))
+            sFhat = I + grad(u_ + k*(theta * v + (1 - theta)*v_))
             sFhatt = sFhat.T
             sFhati = inv(sFhat)
             sFhatti = sFhati.T
@@ -543,9 +460,9 @@ class FSI(Context):
             sigmasp = Constant(0.0)
             imr = Constant(0.0)
         elif material == "IMR": 
-            sigmasv = mys * sFhat * sFhatt - lambdas * sFhatti * sFhati
-            sigmasv_ = mys * sFhat_ * sFhatt_ - lambdas * sFhatti_ * sFhati_ 
-            sigmasp =  Constant(-1.0) * p * I 
+            sigmasv = mys * sFhat * sFhatt + lambdas * sFhatti * sFhati
+            sigmasv_ = mys * sFhat_ * sFhatt_ + lambdas * sFhatti_ * sFhati_
+            sigmasp =  Constant(-1.0) * ps * I 
             imr = Constant(1.0)
         else:
             print('Material not defined yet.')
@@ -566,8 +483,9 @@ class FSI(Context):
 
         # implicit terms (e.g. incompressibility)
         A_I = (inner(tr(grad(Jhat * Fhati * v).T), psip) * dxf
-               + (Constant(1.0) - imr ) *inner(self.aphat * grad(p),grad(psip)) * dxs
-               + imr * inner(sJhat - Constant(1.0), psip) * dxs
+               + inner(self.aphat * grad(p),grad(psip)) * dxs
+               + imr  * inner(self.aphat * grad(ps), grad(psips)) * dxf
+               + imr * inner(sJhat - Constant(1.0), psips) * dxs
                )
 
         # remaining explicit terms
@@ -591,10 +509,8 @@ class FSI(Context):
         F = A_T + A_P + A_I + theta * A_E + (1 - theta)*A_E_rhs
 
         # add boundary conditions that appear in weak form (get_boundary_conditions)
-        if self.bc_type == "pressure":
-            F += inner(self.bc* n, psiv)*ds(self.param["inflow"])
-            F -= rhof * nyf *inner(grad(v).T*n, psiv)*ds(self.param["inflow"])
-            F -= rhof * nyf *inner(grad(v).T*n, psiv)*ds(self.param["outflow"])
+        if self.opt == 1:
+            F += inner(self.bc* n, psiv)*ds(1)
 
 
 
@@ -633,7 +549,13 @@ class FSIsolver(Solver):
         # function space
         V2 = VectorElement("CG", mesh.ufl_cell(), 2) 
         S1 = FiniteElement("CG", mesh.ufl_cell(), 1)
-        self.VP = FunctionSpace(mesh, MixedElement(V2, S1))
+        if "material_model" in self.FSI_params.keys():
+            if self.FSI_params["material_model"] == "IMR":
+                self.VP = FunctionSpace(mesh, MixedElement(V2, S1, S1))
+            else:
+                self.VP = FunctionSpace(mesh, MixedElement(V2, S1))
+        else:
+            self.VP = FunctionSpace(mesh, MixedElement(V2, S1))
 
         self.U = VectorFunctionSpace(mesh, "CG", 2)
 
@@ -664,13 +586,9 @@ class FSIsolver(Solver):
             vp.assign(self.FSI.solve_system(vp_, u, u_, 1))
 
         while not self.FSI.check_termination():
-            if self.FSI.savedir is not None:
-                if self.FSI.save_snapshot_on:
-                    self.FSI.save_snapshot(vp, u)
-                if self.FSI.save_data_on:
-                    self.FSI.save_displacement(u, save_det=True)
-                if self.FSI.save_states_on:
-                    self.FSI.save_states(u, u_, vp, vp_)
+            self.FSI.save_snapshot(vp, u)
+            self.FSI.save_displacement(u, save_det=True)
+            self.FSI.save_states(u, u_, vp, vp_)
 
             #u__.assign(u_)
             #vp__.assign(vp_)
@@ -680,18 +598,18 @@ class FSIsolver(Solver):
             while not self.FSI.check_timestep_success():
                 self.FSI.advance_time()
                 print(self.FSI.t, self.FSI.dt)
-                try:
-                    vp.assign(self.FSI.solve_system(vp_, u, u_, 0))   #u = u_ here in this system
-                    u.assign(self.FSI.get_deformation(vp, vp_, u_))
-                    vp.assign(self.FSI.solve_system(vp_, u, u_, 1))
-                    self.FSI.timestep_success()
-                    self.FSI.adapt_dt()
-                except Exception as e:
-                    print(e)
-                    self.FSI.adapt_dt()
-                    flag = self.extension_operator.custom(self.FSI)
-                    if flag == True:
-                        u_.assign(self.FSI.get_deformation(vp, vp_, u_))
+                #try:
+                vp.assign(self.FSI.solve_system(vp_, u, u_, 0))   #u = u_ here in this system
+                u.assign(self.FSI.get_deformation(vp, vp_, u_))
+                vp.assign(self.FSI.solve_system(vp_, u, u_, 1))
+                self.FSI.timestep_success()
+                self.FSI.adapt_dt()
+                #except Exception as e:
+                #    print(e)
+                #    self.FSI.adapt_dt()
+                #    flag = self.extension_operator.custom(self.FSI)
+                #    if flag == True:
+                #        u_.assign(self.FSI.get_deformation(vp, vp_, u_))
 
             if self.FSI.success == False:
                 raise ValueError('System not solvable with minimal time-step size.')

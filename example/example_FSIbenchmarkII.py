@@ -53,7 +53,7 @@ FSI_param['nyf'] = 1.0e-3
 
 FSI_param['t'] = 0.0
 FSI_param['deltat'] = 0.01 #0.0025
-FSI_param['T'] = 15.0
+FSI_param['T'] = 17.0
 
 FSI_param['displacement_point'] = Point((0.6, 0.2))
 
@@ -64,10 +64,13 @@ FSI_param['boundary_cond'] = Expression(("(t < 2)?(1.5*Ubar*4.0*x[1]*(0.41 -x[1]
                                         Ubar=Ubar, t=FSI_param['t'], degree=2)
 
 # extension operator
-extension_operator = extension.Biharmonic(fluid_domain)
+extension_operator = extension.Biharmonic(fluid_domain) #, save_extension=True, save_filename= str(here.parent) + "/Output/Extension/Data/FSIbenchmarkII_data_.xdmf")
 
 # save options
-FSI_param['save_directory'] = str(here.parent)+ '/Output/FSIbenchmarkII_biharmonic_adaptive_n' #no save if set to None
+FSI_param["save_snapshot_on"] = True
+FSI_param["save_data_on"] = True
+FSI_param["save_states_on"] = True
+FSI_param['save_directory'] = str(here.parent)+ '/Output/FSIbenchmarkII_biharmonic_new' #no save if set to None
 
 # initialize FSI solver
 fsisolver = solver.FSIsolver(mesh, boundaries, domains, params, FSI_param, extension_operator, warmstart=False)

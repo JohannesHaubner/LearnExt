@@ -29,6 +29,7 @@ MANIFEST
 
 # Folder
 Output/
+TorchOutput/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -130,3 +131,11 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+#
+*.vtu
+*.xml
+*.btr
+*.pvtu
+*.pvd
+
