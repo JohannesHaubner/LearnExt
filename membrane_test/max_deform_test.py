@@ -81,7 +81,8 @@ def get_degenerate_cells(u: df.Function, tensor_dg_order: int = 2) -> df.Functio
 
 
 def extend_from_file(path_to_files: os.PathLike, save_to_path: os.PathLike, 
-                     extension: ExtensionOperator, order: int, save_order: int = 1, checkpoints: Sequence[int] | None = None):
+                     extension: ExtensionOperator, order: int, save_order: int = 1,
+                     degen_test_order: int = 2, checkpoints: Sequence[int] | None = None):
     print(str(path_to_files))
     print(str(save_to_path))
     path_to_files = Path(path_to_files)
@@ -127,10 +128,7 @@ def extend_from_file(path_to_files: os.PathLike, save_to_path: os.PathLike,
         u_ext = extension.extend(u_bc)
         # u_cg1.interpolate(u_ext)
         u_save.interpolate(u_ext)
-        # interp_mat.mult(u_ext.vector(), u_save.vector()) # u_save.interpolate(u_ext)
-        # flipped_cells = get_flipped_cells(mesh, u_cg1)
-        # signs.vector()[:] = flipped_cells
-        degenerate_cells = get_degenerate_cells(u_ext)
+        degenerate_cells = get_degenerate_cells(u_ext, tensor_dg_order=degen_test_order)
         signs.vector()[:] = degenerate_cells
         outfile.write_checkpoint(u_save, "uh", l, append=True)
         outfile_signs.write_checkpoint(signs, "sign_h", l, append=True)
@@ -147,7 +145,7 @@ def main():
 
     path_to_files = Path("membrane_test/data/Data_MoF/membrane_test_p2.xdmf")
     # save_to_dir = Path("membrane_test/data/histograms")
-    save_to_dir = Path("membrane_test/data/histograms_redo")
+    save_to_dir = Path("membrane_test/data/histograms_degen_dg6")
 
     mesh = df.Mesh()
     with df.XDMFFile(str(path_to_files)) as meshfile:
@@ -167,18 +165,16 @@ def main():
     df.set_log_active(False)
     order = 2
     save_order = 2
-    # checkpoints = [0, 10, 20, 120, 272]
-    # checkpoints = list(range(150, 211))
+    degen_test_order = 6
     checkpoints = [50, 150, 272]
-    # checkpoints = None
-    extend_from_file(path_to_files, save_to_dir / "biharmonic", biharmonic, order, save_order=save_order, checkpoints=checkpoints)
-    extend_from_file(path_to_files, save_to_dir / "harmonic", harmonic, order, save_order=save_order, checkpoints=checkpoints)
+    extend_from_file(path_to_files, save_to_dir / "biharmonic", biharmonic, order, save_order=save_order, degen_test_order=degen_test_order, checkpoints=checkpoints)
+    extend_from_file(path_to_files, save_to_dir / "harmonic", harmonic, order, save_order=save_order, degen_test_order=degen_test_order, checkpoints=checkpoints)
     # extend_from_file(path_to_files, save_to_dir / "hybrid_fsi", hybrid_fsi, order, save_order=save_order, checkpoints=checkpoints)
     # extend_from_file(path_to_files, save_to_dir / "hybrid_art", hybrid_art, order, save_order=save_order, checkpoints=checkpoints)
-    extend_from_file(path_to_files, save_to_dir / "nn_correct_fsi", NN_correct_fsi, order, save_order=save_order, checkpoints=checkpoints)
-    extend_from_file(path_to_files, save_to_dir / "nn_correct_art", NN_correct_art, order, save_order=save_order, checkpoints=checkpoints)
-    extend_from_file(path_to_files, save_to_dir / "hybrid_fsi_snes", hybrid_fsi_snes, order, save_order=save_order, checkpoints=checkpoints)
-    extend_from_file(path_to_files, save_to_dir / "hybrid_art_snes", hybrid_art_snes, order, save_order=save_order, checkpoints=checkpoints)
+    extend_from_file(path_to_files, save_to_dir / "nn_correct_fsi", NN_correct_fsi, order, save_order=save_order, degen_test_order=degen_test_order, checkpoints=checkpoints)
+    extend_from_file(path_to_files, save_to_dir / "nn_correct_art", NN_correct_art, order, save_order=save_order, degen_test_order=degen_test_order, checkpoints=checkpoints)
+    extend_from_file(path_to_files, save_to_dir / "hybrid_fsi_snes", hybrid_fsi_snes, order, save_order=save_order, degen_test_order=degen_test_order, checkpoints=checkpoints)
+    extend_from_file(path_to_files, save_to_dir / "hybrid_art_snes", hybrid_art_snes, order, save_order=save_order, degen_test_order=degen_test_order, checkpoints=checkpoints)
 
     return
 

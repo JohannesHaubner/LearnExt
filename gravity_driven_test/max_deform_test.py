@@ -67,7 +67,7 @@ def get_degenerate_cells(u: df.Function, tensor_dg_order: int = 2) -> df.Functio
 
 
 def extend_from_file(path_to_files: os.PathLike, save_to_path: os.PathLike, extension: ExtensionOperator, 
-                     order: int, save_order: int = 1):
+                     order: int, save_order: int = 1, degen_test_order: int = 2):
     path_to_files = Path(path_to_files)
     assert path_to_files.with_suffix(".xdmf").exists()
     assert path_to_files.with_suffix(".h5").exists()
@@ -104,7 +104,7 @@ def extend_from_file(path_to_files: os.PathLike, save_to_path: os.PathLike, exte
     for k in ks:
         infile.read_checkpoint(u_bc, "uh", k)
         u_ext = extension.extend(u_bc)
-        cell_signs = get_degenerate_cells(u_ext)
+        cell_signs = get_degenerate_cells(u_ext, tensor_dg_order=degen_test_order)
         signs.vector()[:] = cell_signs
         u_save.interpolate(u_ext)
         outfile.write_checkpoint(u_save, "uh", k, append=True)
@@ -124,7 +124,7 @@ def main():
     fluid_mesh = Problem(0.0).fluid_mesh
 
     path_to_files = "gravity_driven_test/data/max_deformations_redo/max_deformations_redo"
-    save_to_dir = Path("gravity_driven_test/data/max_deformations_redo2")
+    save_to_dir = Path("gravity_driven_test/data/max_deformations_degen_dg6")
 
     from FSIsolver.extension_operator.extension import Biharmonic, Harmonic, TorchExtension, LearnExtensionSimplifiedSNES, LearnExtensionSimplified
     biharmonic_extension = Biharmonic(fluid_mesh)
@@ -142,14 +142,15 @@ def main():
 
     read_order = 2
     save_order = 2
-    extend_from_file(path_to_files, save_to_dir / "biharmonic", biharmonic_extension, read_order, save_order)
-    extend_from_file(path_to_files, save_to_dir / "harmonic", harmonic_extension, read_order, save_order)
-    extend_from_file(path_to_files, save_to_dir / "hybrid_fsi", hybrid_fsi_extension, read_order, save_order)
-    extend_from_file(path_to_files, save_to_dir / "hybrid_art", hybrid_art_extension, read_order, save_order)
-    extend_from_file(path_to_files, save_to_dir / "nn_correct_fsi", nn_correct_extension_fsi, read_order, save_order)
-    extend_from_file(path_to_files, save_to_dir / "nn_correct_art", nn_correct_extension_art, read_order, save_order)
+    degen_test_order = 6
+    extend_from_file(path_to_files, save_to_dir / "biharmonic", biharmonic_extension, read_order, save_order, degen_test_order)
+    extend_from_file(path_to_files, save_to_dir / "harmonic", harmonic_extension, read_order, save_order, degen_test_order)
+    extend_from_file(path_to_files, save_to_dir / "hybrid_fsi", hybrid_fsi_extension, read_order, save_order, degen_test_order)
+    extend_from_file(path_to_files, save_to_dir / "hybrid_art", hybrid_art_extension, read_order, save_order, degen_test_order)
+    extend_from_file(path_to_files, save_to_dir / "nn_correct_fsi", nn_correct_extension_fsi, read_order, save_order, degen_test_order)
+    extend_from_file(path_to_files, save_to_dir / "nn_correct_art", nn_correct_extension_art, read_order, save_order, degen_test_order)
 
-    # return
+    return
 
 
 if __name__ == "__main__":
