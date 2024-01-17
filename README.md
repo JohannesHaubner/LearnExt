@@ -17,8 +17,8 @@ docker run -it learnext
 ```
 or
 ```
-docker pull ghcr.io/johanneshaubner/learnext:release
-docker run -it ghcr.io/johanneshaubner/learnext:release
+docker pull ghcr.io/johanneshaubner/learnext:v0.0.3
+docker run -it ghcr.io/johanneshaubner/learnext:v0.0.3
 ```
 
 The code in learnExt/NeuralNet builds on https://github.com/sebastkm/hybrid-fem-nn. The code in example/example_turtleFSI.py builds on the example presented in https://github.com/KVSlab/turtleFSI.
