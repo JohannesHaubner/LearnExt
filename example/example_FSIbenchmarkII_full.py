@@ -53,7 +53,7 @@ FSI_param['nyf'] = 1.0e-3
 
 FSI_param['t'] = 0.0
 FSI_param['deltat'] = 0.01
-FSI_param['T'] = 15.0
+FSI_param['T'] = 0.1
 
 FSI_param['displacement_point'] = Point((0.6, 0.2))
 
@@ -70,5 +70,6 @@ FSI_param['save_every_N_snapshot'] = 1 # save every 8th snapshot
 
 # initialize FSI solver
 fsisolver = solver.FSIsolver(mesh, boundaries, domains, params, FSI_param)
-fsisolver.solve()
-
+with Timer("FSIsolve"):
+    fsisolver.solve()
+dump_timings_to_xml('fsi_full_timings.xml', TimingClear.clear)
