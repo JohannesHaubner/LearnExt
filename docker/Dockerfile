@@ -183,7 +183,7 @@ ENV ENV DEB_PYTHON_INSTALL_LAYOUT=deb_system
 RUN git clone --branch ${FIAT_BRANCH} --single-branch  https://github.com/FEniCS/fiat.git && \
     git clone --branch ${FFC_BRANCH} --single-branch https://bitbucket.com/fenics-project/ffc.git && \
     git clone --branch ${UFL_BRANCH} --single-branch https://github.com/FEniCS/ufl.git && \
-    git clone --branch ${DOLFIN_BRANCH} --single-branch https://bitbucket.com/fenics-project/dolfin.git && \
+    git clone --single-branch https://JohannesHaubner@bitbucket.org/JohannesHaubner/dolfin_23.git && \
     git clone --branch ${DIJITSO_BRANCH} --single-branch https://bitbucket.com/fenics-project/dijitso.git
 
 RUN cd fiat && python3 -m pip install --no-cache-dir . && \
@@ -192,11 +192,11 @@ RUN cd fiat && python3 -m pip install --no-cache-dir . && \
     cd ../ffc && python3 -m pip install --no-cache-dir . && \
     cd ../ && python3 -m pip install --no-cache-dir ipython
 
-RUN cd dolfin && \
+RUN cd dolfin_23 && \
     cmake -G Ninja -DCMAKE_BUILD_TYPE=${DOLFIN_CMAKE_BUILD_TYPE} -DCMAKE_CXX_FLAGS=${DOLFIN_CMAKE_CXX_FLAGS} -B build . && \
     ninja ${MAKEFLAGS} install -C build
 
-RUN python3 -m pip install --no-dependencies ./dolfin/python
+RUN python3 -m pip install --no-dependencies ./dolfin_23/python
 
 WORKDIR /root
 RUN rm -rf /src

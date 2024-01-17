@@ -70,6 +70,5 @@ FSI_param['save_every_N_snapshot'] = 1 # save every 8th snapshot
 
 # initialize FSI solver
 fsisolver = solver.FSIsolver(mesh, boundaries, domains, params, FSI_param)
-with Timer("FSIsolve"):
-    fsisolver.solve()
-dump_timings_to_xml('fsi_full_timings.xml', TimingClear.clear)
+fsisolver.solve()
+
