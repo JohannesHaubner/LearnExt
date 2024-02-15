@@ -344,9 +344,39 @@ class FSI(Context):
         np.savetxt(self.times_filename, self.times)
         try:
             if save_det == True:
-                up = self.projector_vector_cg1.project(u)
-                det_u = self.projector_scalar_dg0.project(det(Identity(2) + grad(up)))
-                self.determinant_deformation.append(det_u.vector().min())
+                project_onto_cg1 = False #True
+                if project_onto_cg1:
+                    up = self.projector_vector_cg1.project(u)
+                    det_u = self.projector_scalar_dg0.project(det(Identity(2) + grad(up)))
+                    self.determinant_deformation.append(det_u.vector().min())
+                else:
+                    F = Identity(len(u)) + grad(u)
+
+                    V = TensorFunctionSpace(u.function_space().mesh(), 'DG', 2)
+                    ndofs_per_dim = V.sub(0).collapse().dolfin_element().space_dimension()
+
+                    v = TrialFunction(V)
+                    dv = TestFunction(V)
+
+                    a = inner(v, dv)*dx
+                    L = inner(F, dv)*dx
+
+                    cell_stats = []
+                    dim = V.dolfin_element().space_dimension()
+                    for cell in cells(u.function_space().mesh()):
+                        A = assemble_local(a, cell=cell)
+                        b = assemble_local(L, cell=cell)
+                        T = np.linalg.solve(A, b)
+
+                        # Sample in dofs
+                        dets = []
+                        T_at_dofs = T.reshape((4, ndofs_per_dim)).T
+                        for T in T_at_dofs:
+                            T = T.reshape((2, 2))
+                            dets.append(np.linalg.det(T))
+                        cell_stats.append((min(dets), max(dets)))
+                    self.determinant_deformation.append(min(np.asarray(cell_stats)[:,0]))
+
                 np.savetxt(self.determinant_filename, self.determinant_deformation)
         except:
             print('Maximum determinant value can not be saved.')

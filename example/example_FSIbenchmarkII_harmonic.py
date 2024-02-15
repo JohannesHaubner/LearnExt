@@ -53,9 +53,11 @@ FSI_param['nyf'] = 1.0e-3
 
 FSI_param['t'] = 0.0
 FSI_param['deltat'] = 0.01
-FSI_param['T'] = 15.0
+FSI_param['T'] = 0.1
 
 FSI_param['displacement_point'] = Point((0.6, 0.2))
+
+FSI_param["save_data_on"] = True
 
 # boundary conditions, need to be 0 at t = 0
 Ubar = 1.0
@@ -63,7 +65,7 @@ FSI_param['boundary_cond'] = Expression(("(t < 2)?(1.5*Ubar*4.0*x[1]*(0.41 -x[1]
                                          "(1.5*Ubar*4.0*x[1]*(0.41 -x[1]))/ 0.1681", "0.0"),
                                         Ubar=Ubar, t=FSI_param['t'], degree=2)
 
-extension_operator = extension.Harmonic(fluid_domain, incremental=True, save_extension=True, save_filename=str(here.parent) + '/Output/Extension/Data/FSIII_harmonic_incremental.xdmf')
+extension_operator = extension.Harmonic(fluid_domain) #, incremental=True, save_extension=True, save_filename=str(here.parent) + '/Output/Extension/Data/FSIII_harmonic_incremental.xdmf')
 
 # save options
 FSI_param['save_directory'] = str(str(here.parent) + '/Output/FSIbenchmarkII_harmonic_trafo_adaptive_t') #no save if set to None
@@ -71,5 +73,6 @@ FSI_param['save_directory'] = str(str(here.parent) + '/Output/FSIbenchmarkII_har
 
 # initialize FSI solver
 fsisolver = solver.FSIsolver(mesh, boundaries, domains, params, FSI_param, extension_operator, warmstart=False)
-fsisolver.solve()
-
+with Timer("FSIsolve"):
+    fsisolver.solve()
+dump_timings_to_xml('fsi_timings.xml', TimingClear.clear)
