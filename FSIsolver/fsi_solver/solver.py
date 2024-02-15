@@ -344,7 +344,7 @@ class FSI(Context):
         np.savetxt(self.times_filename, self.times)
         try:
             if save_det == True:
-                project_onto_cg1 = False #True
+                project_onto_cg1 = True
                 if project_onto_cg1:
                     up = self.projector_vector_cg1.project(u)
                     det_u = self.projector_scalar_dg0.project(det(Identity(2) + grad(up)))
@@ -375,6 +375,7 @@ class FSI(Context):
                             T = T.reshape((2, 2))
                             dets.append(np.linalg.det(T))
                         cell_stats.append((min(dets), max(dets)))
+                    from IPython import embed; embed()
                     self.determinant_deformation.append(min(np.asarray(cell_stats)[:,0]))
 
                 np.savetxt(self.determinant_filename, self.determinant_deformation)
