@@ -53,7 +53,7 @@ FSI_param['nyf'] = 1.0e-3
 
 FSI_param['t'] = 0.0
 FSI_param['deltat'] = 0.01
-FSI_param['T'] = 0.1
+FSI_param['T'] = 15.0
 
 FSI_param['displacement_point'] = Point((0.6, 0.2))
 
