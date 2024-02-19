@@ -236,6 +236,8 @@ class Harmonic(ExtensionOperator):
         T = VectorElement("CG", self.mesh.ufl_cell(), 2)
         self.FS = FunctionSpace(self.mesh, T)
 
+        self.projector_vector_cg1 = Projector(self.FS)
+
         self.incremental = incremental
         if self.incremental:
             self.bc_old = Function(self.FS)
@@ -282,12 +284,13 @@ class Harmonic(ExtensionOperator):
             bci.apply(self.L)
 
         if self.incremental:
-            # move mesh with previous deformation
-            self.bc_old = boundary_conditions
-            up = project(self.bc_old, self.FS)
+            up = self.projector_vector_cg1.project(self.bc_old)
             upi = Function(self.FS)
-            upi.vector().axpy(-1., up.vector())
-            ALE.move(self.mesh, up)
+            upi.vector().axpy(-1.0, up.vector())
+            try:
+                ALE.move(self.mesh, up, annotate=False)
+            except:
+                ALE.move(self.mesh, up)
 
         u_ = Function(self.FS)
 
@@ -295,7 +298,10 @@ class Harmonic(ExtensionOperator):
 
         if self.incremental:
             # move mesh back
-            ALE.move(self.mesh, upi)
+            try:
+                ALE.move(self.mesh, upi, annotate=False)
+            except:
+                ALE.move(self.mesh, upi)
 
         if self.save_ext:
             self.iter +=1
