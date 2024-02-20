@@ -2,7 +2,7 @@ from dolfin import *
 from dolfin_adjoint import *
 from copy import deepcopy
 import numpy as np
-import backend
+# import backend
 
 from pyadjoint.optimization.optimization_solver import OptimizationSolver
 from pyadjoint.reduced_functional_numpy import ReducedFunctionalNumPy

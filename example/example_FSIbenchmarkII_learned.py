@@ -83,6 +83,10 @@ elif test_case == 5:
     extension_operator = extension.LearnExtension(fluid_domain, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=True)# learned linearized corrected
 elif test_case == 6:
     extension_operator = extension.LearnExtension(fluid_domain, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=True)# learned linearized corrected artificial dataset
+elif test_case == 7:
+    extension_operator = extension.TorchExtension(fluid_domain, "torch_extension/models/yankee", T_switch=0.0, silent=True) # NN-corrected
+elif test_case == 8:
+    extension_operator = extension.TorchExtension(fluid_domain, "torch_extension/models/foxtrot", T_switch=0.0, silent=True) # NN-corrected artificial dataset
 else:
     raise ValueError
 

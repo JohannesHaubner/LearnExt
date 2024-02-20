@@ -1,6 +1,9 @@
 from fenics import *
 from fenics_adjoint import *
-import ufl
+try:
+    import ufl
+except ImportError:
+    import ufl_legacy as ufl
 import numpy as np
 #from IPython import embed
 from numpy.random import randn, random, seed

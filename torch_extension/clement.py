@@ -1,5 +1,8 @@
 import dolfin as df
-import ufl
+try:
+    import ufl
+except ImportError:
+    import ufl_legacy as ufl
 
 
 class ClementInterpolant(object):
