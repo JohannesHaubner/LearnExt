@@ -58,6 +58,8 @@ FSI_param['deltat'] = 0.01
 FSI_param['T'] = 15.0
 
 FSI_param['displacement_point'] = Point((0.6, 0.2))
+FSI_param["save_data_on"] = True
+
 
 # boundary conditions, need to be 0 at t = 0
 Ubar = 1.0
@@ -67,15 +69,31 @@ FSI_param['boundary_cond'] = Expression(("(t < 2)?(1.5*Ubar*4.0*x[1]*(0.41 -x[1]
 
 threshold = 0.001
 
-extension_operator = extension.LearnExtension(fluid_domain, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold)# learned
-#extension_operator = extension.LearnExtension(fluid_domain, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold)# learned artificial dataset
-#extension_operator = extension.LearnExtension(fluid_domain, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=False)# learned linearized
-#extension_operator = extension.LearnExtension(fluid_domain, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=False)# learned linearized artificial dataset
-#extension_operator = extension.LearnExtension(fluid_domain, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=True)# learned linearized corrected
-#extension_operator = extension.LearnExtension(fluid_domain, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=Truee)# learned linearized corrected artificial dataset
+test_case = int(sys.argv[1])
+
+if test_case == 1:
+    extension_operator = extension.LearnExtension(fluid_domain, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold)# learned
+elif test_case == 2:
+    extension_operator = extension.LearnExtension(fluid_domain, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold)# learned artificial dataset
+elif test_case == 3:
+    extension_operator = extension.LearnExtension(fluid_domain, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=False)# learned linearized
+elif test_case == 4:
+    extension_operator = extension.LearnExtension(fluid_domain, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=False)# learned linearized artificial dataset
+elif test_case == 5:
+    extension_operator = extension.LearnExtension(fluid_domain, NN_path=str(str(here.parent) + "/example/learned_networks/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=True)# learned linearized corrected
+elif test_case == 6:
+    extension_operator = extension.LearnExtension(fluid_domain, NN_path=str(str(here.parent) + "/example/learned_networks/artificial/trained_network.pkl"), threshold=threshold, incremental=True, incremental_corrected=True)# learned linearized corrected artificial dataset
+elif test_case == 7:
+    extension_operator = extension.TorchExtension(fluid_domain, "torch_extension/models/yankee", T_switch=0.0, silent=True) # NN-corrected
+elif test_case == 8:
+    extension_operator = extension.TorchExtension(fluid_domain, "torch_extension/models/foxtrot", T_switch=0.0, silent=True) # NN-corrected artificial dataset
+else:
+    raise ValueError
+
+out_path = f'/Output/FSIbenchmarkII_supervised_300322_{test_case}'
 
 # save options
-FSI_param['save_directory'] = str(here.parent) + '/Output/FSIbenchmarkII_supervised_300322' #no save if set to None
+FSI_param['save_directory'] = str(here.parent) + out_path #no save if set to None
 #FSI_param['save_every_N_snapshot'] = 4 # save every 8th snapshot
 
 # initialize FSI solver

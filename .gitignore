@@ -28,7 +28,14 @@ share/python-wheels/
 MANIFEST
 
 # Folder
-Output/
+# Output/
+Output/Extension
+Output/FSI*
+Output/learnext
+Output/Mesh_Generation
+Output/mesh_plots
+Output/visualizations
+Output/*.pdf
 TorchOutput/
 
 # PyInstaller

@@ -65,10 +65,10 @@ FSI_param['boundary_cond'] = Expression(("(t < 2)?(1.5*Ubar*4.0*x[1]*(0.41 -x[1]
                                          "(1.5*Ubar*4.0*x[1]*(0.41 -x[1]))/ 0.1681", "0.0"),
                                         Ubar=Ubar, t=FSI_param['t'], degree=2)
 
-extension_operator = extension.Harmonic(fluid_domain) #, incremental=True, save_extension=True, save_filename=str(here.parent) + '/Output/Extension/Data/FSIII_harmonic_incremental.xdmf')
+extension_operator = extension.Harmonic(fluid_domain)#py, save_extension=True, save_filename=str(here.parent) + '/Output/Extension/Data/FSIII_harmonic_incremental.xdmf')
 
 # save options
-FSI_param['save_directory'] = str(str(here.parent) + '/Output/FSIbenchmarkII_harmonic_trafo_adaptive_t') #no save if set to None
+FSI_param['save_directory'] = str(str(here.parent) + '/Output/FSIbenchmarkII_harmonic_notrafo_adaptive_t') #no save if set to None
 #FSI_param['save_every_N_snapshot'] = 4 # save every 8th snapshot
 
 # initialize FSI solver

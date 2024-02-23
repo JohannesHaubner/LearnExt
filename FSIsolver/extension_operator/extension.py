@@ -236,6 +236,8 @@ class Harmonic(ExtensionOperator):
         T = VectorElement("CG", self.mesh.ufl_cell(), 2)
         self.FS = FunctionSpace(self.mesh, T)
 
+        self.projector_vector_cg1 = Projector(self.FS)
+
         self.incremental = incremental
         if self.incremental:
             self.bc_old = Function(self.FS)
@@ -245,11 +247,11 @@ class Harmonic(ExtensionOperator):
 
         dx = Measure('dx', domain=self.mesh)
 
-        a = inner(grad(u), grad(v)) * dx
-        L = Constant(0.0) * v[0] * dx
+        self.a = inner(grad(u), grad(v)) * dx
+        self.l = Constant(0.0) * v[0] * dx
 
 
-        self.A = assemble(a)
+        self.A = assemble(self.a)
 
         bc = []
         if self.marker == None:
@@ -264,12 +266,24 @@ class Harmonic(ExtensionOperator):
 
         self.solver = LUSolver(self.A, "mumps")
 
-        self.L = assemble(L)
+        self.L = assemble(self.l)
 
 
     @ExtensionOperator.timings_extension
     def extend(self, boundary_conditions, params=None):
         """ biharmonic extension of boundary_conditions (Function on self.mesh) to the interior """
+
+        if self.incremental:
+            up = self.projector_vector_cg1.project(self.bc_old)
+            upi = Function(self.FS)
+            upi.vector().axpy(-1.0, up.vector())
+            try:
+                ALE.move(self.mesh, up, annotate=False)
+            except:
+                ALE.move(self.mesh, up)
+
+            self.A = assemble(self.a)
+            self.L = assemble(self.l)
 
         bc = []
         if self.marker == None:
@@ -282,12 +296,9 @@ class Harmonic(ExtensionOperator):
             bci.apply(self.L)
 
         if self.incremental:
-            # move mesh with previous deformation
-            self.bc_old = boundary_conditions
-            up = project(self.bc_old, self.FS)
-            upi = Function(self.FS)
-            upi.vector().axpy(-1., up.vector())
-            ALE.move(self.mesh, up)
+            for bci in bc:
+                bci.apply(self.A)
+            self.solver = LUSolver(self.A, "mumps")
 
         u_ = Function(self.FS)
 
@@ -295,7 +306,10 @@ class Harmonic(ExtensionOperator):
 
         if self.incremental:
             # move mesh back
-            ALE.move(self.mesh, upi)
+            try:
+                ALE.move(self.mesh, upi, annotate=False)
+            except:
+                ALE.move(self.mesh, upi)
 
         if self.save_ext:
             self.iter +=1

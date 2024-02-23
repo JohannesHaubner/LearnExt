@@ -1,5 +1,6 @@
 import matplotlib.pyplot as pl
 import numpy as np
+from pathlib import Path
 
 #times = np.asarray(range(len(displacement)))*deltat
 
@@ -7,7 +8,7 @@ import numpy as np
 #pl.axis([0,15, -0.1, 0.1])
 #pl.savefig('./displacement_plot.png')
 
-tmax = 0.8 # 15
+tmax = 15.0
 
 colors = [np.asarray([218, 215, 213])*1./255,
           np.asarray([0, 101, 189])*1./255,
@@ -60,34 +61,38 @@ def plot_timestep(times, str, colors, foldernames):
     pl.close()
 
 if __name__ == "__main__":
-    foldernames = ["biharmonic", "supervised_learn/standard", "supervised_learn/incremental", "supervised_learn/lintraf_correct"] # ["biharmonic", "harmonic_trafo", "harmonic_notrafo"] #
-    names =  ["biharmonic", "learned", "learned linear incremental", "learned linear incremental corrected"] #["biharmonic", "harmonic incremental", "harmonic"]
+    # foldernames = ["biharmonic", "supervised_learn/standard", "supervised_learn/incremental", "supervised_learn/lintraf_correct"] # ["biharmonic", "harmonic_trafo", "harmonic_notrafo"] #
+    # names =  ["biharmonic", "learned", "learned linear incremental", "learned linear incremental corrected"] #["biharmonic", "harmonic incremental", "harmonic"]
     # foldernames = ["biharmonic", "supervised_learn/standard", "../../TorchOutput/dataanalysis/learnext_dataset/yankee"]
-    foldernames = ["biharmonic", "supervised_learn/standard", "../../TorchOutput/dataanalysis/artificial/foxtrot"]
+    # foldernames = ["Output/FSIbenchmarkII_biharmonic_new", "Output/FSIbenchmarkII_supervised_300322_1", "Output/FSIbenchmarkII_supervised_300322_7"]
+    foldernames = ["Output/FSIbenchmarkII_biharmonic_new", "Output/FSIbenchmarkII_harmonic_trafo_adaptive_t", "Output/FSIbenchmarkII_harmonic_notrafo_adaptive_t"]
+    # foldernames = ["Output/FSIbenchmarkII_biharmonic_new", "Output/FSIbenchmarkII_supervised_300322_1", "Output/FSIbenchmarkII_supervised_300322_2"]
     names = ["biharmonic", "hybrid PDE-NN", "NN-corrected harmonic"]
+    names = ["biharmonic", "harmonic incremental", "harmonic"]
 
     times_list = []
     displacement_list = []
     determinant_list = []
 
-    for i in foldernames:
-        str = "../Output/files/" + i
-        str = "Output/files/" + i
-        times_list.append(np.loadtxt(str + "/times.txt"))
-        displacement_list.append(np.loadtxt(str + "/displacementy.txt"))
-        determinant_list.append(np.loadtxt(str + "/determinant.txt"))
+    for i, f in enumerate(foldernames):
+        # str = "../Output/files/" + i
+        # str = "Output/files/" + i
+        times_list.append(np.loadtxt(f + "/times.txt"))
+        displacement_list.append(np.loadtxt(f + "/displacementy.txt"))
+        determinant_list.append(np.loadtxt(f + "/determinant.txt"))
+
+
+    save_dir = Path("newfigs/biharm_harm/")
+
 
     # plot_displacement(displacement_list, times_list,
     #                   '../Output/visualizations/displacement_plot.pdf', colors, names)
-    plot_displacement(displacement_list, times_list,
-                     'Output/visualizations/artificial/foxtrot_2/displacement_plot.pdf', colors, names)
+    plot_displacement(displacement_list, times_list, save_dir / "displacement_plot.pdf", colors, names)
 
     # plot_determinant(determinant_list, times_list,
     #                  '../Output/visualizations/determinant_plot.pdf', colors, names)
-    plot_determinant(determinant_list, times_list,
-                     'Output/visualizations/artificial/foxtrot_2/determinant_plot.pdf', colors, names)
+    plot_determinant(determinant_list, times_list, save_dir / "determinant_plot.pdf", colors, names)
 
     # plot_timestep(times_list,
     #                  '../Output/visualizations/timestepsize_plot.pdf', colors, names)
-    plot_timestep(times_list,
-                     'Output/visualizations/artificial/foxtrot_2/timestepsize_plot.pdf', colors, names)
+    plot_timestep(times_list, save_dir / "timestepsize_plot.pdf", colors, names)

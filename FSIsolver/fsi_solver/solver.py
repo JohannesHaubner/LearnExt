@@ -8,7 +8,7 @@ from petsc4py import PETSc
 
 from pathlib import Path
 here = Path(__file__).parent
-import sys
+import sys, os
 sys.path.insert(0, str(here.parent) + "/tools")
 
 from tools import Tools
@@ -210,6 +210,7 @@ class FSI(Context):
         #opts.setValue('snes_view', None)
         opts.setValue('snes_divergence_tolerance', 1e2)
         opts.setValue('snes_linesearch_type', 'l2')
+        opts.setValue('snes_max_it', 30)
         self.snes.setFromOptions()
 
         self.snes.setErrorIfNotConverged(True)
@@ -341,10 +342,16 @@ class FSI(Context):
             print('Displacement can not be saved. Does FSI_params contain displacement_point?'
                   ' Does folder exist where .txt-file should be saved to?')
         self.times.append(float(self.t))
+
+        if not os.path.exists(self.times_filename):
+            if self.mesh.mpi_comm().rank == 0:
+                directory = os.path.dirname(self.times_filename)
+                not os.path.exists(directory) and os.makedirs(directory)
+
         np.savetxt(self.times_filename, self.times)
         try:
             if save_det == True:
-                project_onto_cg1 = True
+                project_onto_cg1 = False
                 if project_onto_cg1:
                     up = self.projector_vector_cg1.project(u)
                     det_u = self.projector_scalar_dg0.project(det(Identity(2) + grad(up)))
@@ -375,8 +382,8 @@ class FSI(Context):
                             T = T.reshape((2, 2))
                             dets.append(np.linalg.det(T))
                         cell_stats.append((min(dets), max(dets)))
-                    from IPython import embed; embed()
-                    self.determinant_deformation.append(min(np.asarray(cell_stats)[:,0]))
+                    cell_stats.sort()
+                    self.determinant_deformation.append(cell_stats[0][0])
 
                 np.savetxt(self.determinant_filename, self.determinant_deformation)
         except:

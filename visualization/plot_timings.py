@@ -28,7 +28,8 @@ colors =  [np.asarray([0, 51, 89])*1./255,
 #colors.append(colors_orange)
 #colors.append(color_[2])
 
-with open('Output/Extension/Data/timings.pickle', 'rb') as handle:
+# with open('Output/Extension/Data/timings.pickle', 'rb') as handle:
+with open('newtimings.pickle', 'rb') as handle:
     b = pickle.load(handle)
 
 #from IPython import embed; embed()
@@ -73,6 +74,11 @@ for k in b.keys():
     ax.tick_params(axis='x')
     plt.title(titles[js])
     js += 1
+    heights = [b[k][jj]["total"] for jj in b[k].keys()]
+    old_ymax = plt.ylim()[1]
+    new_ymax = 1.05 * max(heights)
+    plt.ylim(ymax=max(old_ymax, new_ymax))
     #ax.tick_params(axis='y', labelrotation = 90)
     #plt.gca().invert_yaxis()
-    plt.savefig('./timings_plot_' + str(k) + '.png')
+    # plt.savefig('./timings_plot_' + str(k) + '.png')
+    plt.savefig('./timings_plot_' + str(k) + '.pdf')

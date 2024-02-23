@@ -30,7 +30,8 @@ colors =  [np.asarray([0, 51, 89])*1./255,
 
 colors = np.concatenate( (np.asarray(colors_blue), np.asarray(colors_orange), np.asarray([color_[2]])), axis=0)
 
-with open('Output/Extension/Data/timings.pickle', 'rb') as handle:
+# with open('Output/Extension/Data/timings.pickle', 'rb') as handle:
+with open('newtimings.pickle', 'rb') as handle:
     b = pickle.load(handle)
 
 #from IPython import embed; embed()
@@ -78,4 +79,5 @@ for k in b.keys():
     js += 1
     #ax.tick_params(axis='y', labelrotation = 90)
     #plt.gca().invert_yaxis()
-    plt.savefig('./timings_plot_part_' + str(k) + '.png')
+    # plt.savefig('./timings_plot_part_' + str(k) + '.png')
+    plt.savefig('./timings_plot_part_' + str(k) + '.pdf')
