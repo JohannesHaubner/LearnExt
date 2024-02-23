@@ -210,6 +210,7 @@ class FSI(Context):
         #opts.setValue('snes_view', None)
         opts.setValue('snes_divergence_tolerance', 1e2)
         opts.setValue('snes_linesearch_type', 'l2')
+        opts.setValue('snes_max_it', 30)
         self.snes.setFromOptions()
 
         self.snes.setErrorIfNotConverged(True)

@@ -247,11 +247,11 @@ class Harmonic(ExtensionOperator):
 
         dx = Measure('dx', domain=self.mesh)
 
-        a = inner(grad(u), grad(v)) * dx
-        L = Constant(0.0) * v[0] * dx
+        self.a = inner(grad(u), grad(v)) * dx
+        self.l = Constant(0.0) * v[0] * dx
 
 
-        self.A = assemble(a)
+        self.A = assemble(self.a)
 
         bc = []
         if self.marker == None:
@@ -266,12 +266,24 @@ class Harmonic(ExtensionOperator):
 
         self.solver = LUSolver(self.A, "mumps")
 
-        self.L = assemble(L)
+        self.L = assemble(self.l)
 
 
     @ExtensionOperator.timings_extension
     def extend(self, boundary_conditions, params=None):
         """ biharmonic extension of boundary_conditions (Function on self.mesh) to the interior """
+
+        if self.incremental:
+            up = self.projector_vector_cg1.project(self.bc_old)
+            upi = Function(self.FS)
+            upi.vector().axpy(-1.0, up.vector())
+            try:
+                ALE.move(self.mesh, up, annotate=False)
+            except:
+                ALE.move(self.mesh, up)
+
+            self.A = assemble(self.a)
+            self.L = assemble(self.l)
 
         bc = []
         if self.marker == None:
@@ -284,13 +296,9 @@ class Harmonic(ExtensionOperator):
             bci.apply(self.L)
 
         if self.incremental:
-            up = self.projector_vector_cg1.project(self.bc_old)
-            upi = Function(self.FS)
-            upi.vector().axpy(-1.0, up.vector())
-            try:
-                ALE.move(self.mesh, up, annotate=False)
-            except:
-                ALE.move(self.mesh, up)
+            for bci in bc:
+                bci.apply(self.A)
+            self.solver = LUSolver(self.A, "mumps")
 
         u_ = Function(self.FS)
 
