@@ -12,20 +12,21 @@ sys.path.insert(0, str(here.parent))
 from FSIsolver.extension_operator.extension import *
 from learnExt.learnext_hybridPDENN import LearnExt
 
+mesh_dir = Path("Output/Mesh_Generation")
 # load mesh
 mesh = Mesh()
-with XDMFFile(str(here.parent) + "/Output/Mesh_Generation/mesh_triangles.xdmf") as infile:
+with XDMFFile(str(mesh_dir / "mesh_triangles.xdmf")) as infile:
     infile.read(mesh)
 mvc = MeshValueCollection("size_t", mesh, 2)
 mvc2 = MeshValueCollection("size_t", mesh, 2)
-with XDMFFile(str(here.parent) + "/Output/Mesh_Generation/facet_mesh.xdmf") as infile:
+with XDMFFile(str(mesh_dir / "facet_mesh.xdmf")) as infile:
     infile.read(mvc, "name_to_read")
-with XDMFFile(str(here.parent) + "/Output/Mesh_Generation/mesh_triangles.xdmf") as infile:
+with XDMFFile(str(mesh_dir / "mesh_triangles.xdmf")) as infile:
     infile.read(mvc2, "name_to_read")
 #boundaries = cpp.mesh.MeshFunctionSizet(mesh, mvc)
 domains = cpp.mesh.MeshFunctionSizet(mesh, mvc2)
 
-params = np.load(str(here.parent) + '/Output/Mesh_Generation/params.npy', allow_pickle='TRUE').item()
+params = np.load(str(mesh_dir / "params.npy"), allow_pickle='TRUE').item()
 
 # subdomains
 fluid_domain = MeshView.create(domains, params["fluid"])
@@ -53,59 +54,27 @@ interface.mark(boundaries, interface_marker)
 params["def_boundary_parts"] = ["interface"]
 params["zero_boundary_parts"] = ["no_slip"]
 
-V_mesh = VectorFunctionSpace(mesh, "CG", 2)
 
-option_data = True
-option_data_1 = True
-# 0 one measurement
-# 1 several measurements
 
-# read data
-if option_data_1:
-    deformation = Function(V_mesh)
-    def_file_name = str(here.parent) + "/Output/Extension/Data/output_.xdmf" # "./Mesh/deformation.xdmf"
-    try:
-        with XDMFFile(def_file_name) as infile:
-            infile.read_checkpoint(deformation, "output")
-    except ImportError:
-        print("run example_FSIbenchmarkII_generate_data.py first")
-    # biharmonic extension
-    Biharmonic = Biharmonic(fluid_domain)
-    ext_deformation = Biharmonic.extend(deformation)
-    deformation = [deformation]
-    ext_deformation = [ext_deformation]
-else:
-    deformation = []
-    ext_deformation = []
-if option_data:
-    # function space
-    T = VectorElement("CG", fluid_domain.ufl_cell(), 2)
-    FS = FunctionSpace(fluid_domain, T)
+T = VectorElement("CG", fluid_domain.ufl_cell(), 2)
+FS = FunctionSpace(fluid_domain, T)
 
-    xdmf_input = XDMFFile(str(here.parent) + "/Output/Extension/Data/input.xdmf")
-    xdmf_output = XDMFFile(str(here.parent) + "/Output/Extension/Data/output.xdmf")
+deformation = []
+ext_deformation = []
 
-    ifile = File(str(here.parent) + "/Output/Extension/input_func.pvd")
-    ofile = File(str(here.parent) + "/Output/Extension/output_func.pvd")
+data_dir = Path("Output/Extension/Data")
+input_file = df.XDMFFile(str(data_dir / "input_.xdmf"))
+input_tag = "input_harmonic_ext"
+output_file = df.XDMFFile(str(data_dir / "output_.xdmf"))
+output_tag = "output_biharmonic_ext"
 
-    i = 0
-    error = False
-    while not error:
-        try:
-            input = Function(FS)
-            output = Function(FS)
-            xdmf_input.read_checkpoint(input, "input", i)
-            ifile << input
-            xdmf_output.read_checkpoint(output, "output", i)
-            ofile << output
-            if i%40 == 0:
-                deformation.append(project(input, FS))
-                ext_deformation.append(project(output, FS))
-            i = i+1
-            print(i)
-        except Exception as e:
-            #print(e)
-            error = True
+for k in range(0,800,20):
+    func = df.Function(FS)
+    input_file.read_checkpoint(func, input_tag, k)
+    deformation.append(func)
+    func = df.Function(FS)
+    output_file.read_checkpoint(func, output_tag, k)
+    ext_deformation.append(func)
 
 data = {}
 data["input"] = deformation
