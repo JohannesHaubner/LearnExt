@@ -1,8 +1,10 @@
+# https://github.com/scientificcomputing/packages/blob/main/fenics/Dockerfile
+
 # Dependency versions
 ARG PYBIND11_VERSION=2.10.1
 ARG PETSC_VERSION=3.18.6
 ARG SLEPC_VERSION=3.18.3
-ARG UFL_BRANCH="2021.1.0"
+ARG UFL_BRANCH="main"
 ARG DOLFIN_BRANCH="master"
 ARG FFC_BRANCH="master"
 ARG DIJITSO_BRANCH="master"
@@ -18,7 +20,10 @@ ARG DOLFIN_CMAKE_CXX_FLAGS="-O2"
 
 ########################################
 
-FROM nvidia/cuda:12.0.0-devel-ubuntu22.04 as fenics-base
+
+FROM nvidia/cuda:12.3.1-devel-ubuntu22.04 as cuda-fenics-base
+
+
 # Usage of pip setuptools
 ENV DEB_PYTHON_INSTALL_LAYOUT=deb_system
 
@@ -44,6 +49,7 @@ ENV OPENBLAS_NUM_THREADS=1 \
     OPENBLAS_VERBOSE=0
 ENV DEB_PYTHON_INSTALL_LAYOUT=deb_system
 WORKDIR /tmp
+
 
 # Install dependencies available via apt-get.
 # - First set of packages are required to build and run FEniCS.
@@ -75,10 +81,8 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     pkg-config \
     python3-dev \
     python3-pip \
-    python3-setuptools \
     python3-numpy \
     python3-matplotlib \
-    python3-scipy \
     python3-venv \
     wget && \
     apt-get clean && \
@@ -103,13 +107,15 @@ RUN python3 -m pip install --no-cache-dir pybind11==${PYBIND11_VERSION} && \
     make install
 
 
+
 # Install PETSc with real and complex types
+
 RUN apt-get -qq update && \
     apt-get -y install bison flex && \
     wget -nc --quiet http://ftp.mcs.anl.gov/pub/petsc/release-snapshots/petsc-lite-${PETSC_VERSION}.tar.gz -O petsc-${PETSC_VERSION}.tar.gz && \
     mkdir -p ${PETSC_DIR} && tar -xf petsc-${PETSC_VERSION}.tar.gz -C ${PETSC_DIR} --strip-components 1 && \
-    cd ${PETSC_DIR} && \
     # Real, 32-bit int
+    cd ${PETSC_DIR} && \
     python3 ./configure \
     --COPTFLAGS=${PETSC_SLEPC_OPTFLAGS} \
     --CXXOPTFLAGS=${PETSC_SLEPC_OPTFLAGS} \
@@ -150,6 +156,7 @@ RUN apt-get -qq update && \
     ${PETSC_DIR}/systems/ && \ 
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
+
 # Install SLEPc
 RUN wget -nc --quiet https://slepc.upv.es/download/distrib/slepc-${SLEPC_VERSION}.tar.gz -O slepc-${SLEPC_VERSION}.tar.gz && \
     mkdir -p ${SLEPC_DIR} && tar -xf slepc-${SLEPC_VERSION}.tar.gz -C ${SLEPC_DIR} --strip-components 1 && \
@@ -163,7 +170,7 @@ RUN wget -nc --quiet https://slepc.upv.es/download/distrib/slepc-${SLEPC_VERSION
     rm -rf /tmp/*
 
 
-FROM fenics-base as fenics-end-user
+FROM cuda-fenics-base as cuda-fenics-end-user
 LABEL description="End user image"
 
 ARG FIAT_BRANCH
@@ -182,50 +189,93 @@ ENV ENV DEB_PYTHON_INSTALL_LAYOUT=deb_system
 
 RUN git clone --branch ${FIAT_BRANCH} --single-branch  https://github.com/FEniCS/fiat.git && \
     git clone --branch ${FFC_BRANCH} --single-branch https://bitbucket.com/fenics-project/ffc.git && \
-    git clone --branch ${UFL_BRANCH} --single-branch https://github.com/FEniCS/ufl.git && \
-    git clone --single-branch https://JohannesHaubner@bitbucket.org/JohannesHaubner/dolfin_23.git && \
+    git clone --branch ${UFL_BRANCH} --single-branch https://github.com/FEniCS/ufl-legacy.git && \
+    git clone --branch ${DOLFIN_BRANCH} --single-branch https://bitbucket.com/fenics-project/dolfin.git && \
     git clone --branch ${DIJITSO_BRANCH} --single-branch https://bitbucket.com/fenics-project/dijitso.git
 
 RUN cd fiat && python3 -m pip install --no-cache-dir . && \
-    cd ../ufl && python3 -m pip install --no-cache-dir . && \
+    cd ../ufl-legacy && python3 -m pip install --no-cache-dir . && \
     cd ../dijitso && python3 -m pip install --no-cache-dir . && \
     cd ../ffc && python3 -m pip install --no-cache-dir . && \
     cd ../ && python3 -m pip install --no-cache-dir ipython
 
-RUN cd dolfin_23 && \
+RUN cd dolfin && \
     cmake -G Ninja -DCMAKE_BUILD_TYPE=${DOLFIN_CMAKE_BUILD_TYPE} -DCMAKE_CXX_FLAGS=${DOLFIN_CMAKE_CXX_FLAGS} -B build . && \
     ninja ${MAKEFLAGS} install -C build
 
-RUN python3 -m pip install --no-dependencies ./dolfin_23/python
+RUN python3 -m pip install --no-dependencies ./dolfin/python
 
 WORKDIR /root
 RUN rm -rf /src
 
-FROM fenics-end-user as fenics-plus
-LABEL description="Plus image"
 
-# Install pytest
-RUN python3 -m pip install pytest
+# https://github.com/scientificcomputing/packages/blob/main/fenics-gmsh/Dockerfile
+# FROM ghcr.io/scientificcomputing/fenics:2023-08-14
+FROM cuda-fenics-end-user AS cuda-fenics-end-user-gmsh
 
-# Install dolfin-adjoint
+# Dependency versions
+ARG GMSH_VERSION=4_11_1
 
-RUN /bin/bash -l -c "pip3 install --no-cache git+https://github.com/dolfin-adjoint/pyadjoint.git@constant-adjfloat" 
-RUN /bin/bash -l -c "pip3 install matplotlib"
+WORKDIR /tmp
 
-# Install IPython
-RUN python3 -m pip install IPython
+# Install dependencies available via apt-get.
+RUN export DEBIAN_FRONTEND=noninteractive && \
+    apt-get -qq update && \
+    apt-get -yq --with-new-pkgs -o Dpkg::Options::="--force-confold" upgrade && \
+    apt-get -y install \
+    libglu1 \
+    libxcursor-dev \
+    libxft2 \
+    libxinerama1 \
+    libfltk1.3-dev \
+    libfreetype6-dev  \
+    libgl1-mesa-dev \
+    libocct-foundation-dev \
+    libocct-data-exchange-dev && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+
+# Install OpenCASACADE
+# OpenCASACADE is currently installed via apt, but the following lines
+# would be way to install this from source in case this is needed later
+# ARG OCC_VERSION=7_7_0
+# RUN curl -L -o occt.tgz "http://git.dev.opencascade.org/gitweb/?p=occt.git;a=snapshot;h=refs/tags/V${OCC_VERSION};sf=tgz" && \
+#     tar zxf occt.tgz && \
+#     cmake -G Ninja -DBUILD_MODULE_Draw:BOOL=FALSE -DCMAKE_BUILD_TYPE=Release -B build-occt -S occt-V${OCC_VERSION} && \
+#     cmake --build build-occt && \
+#     cmake --install build-occt && \
+#     rm -rf /tmp/*
 
 # Install gmsh
-RUN python3 -m pip install gmsh
-RUN python3 -m pip install meshio
-RUN python3 -m pip install pygmsh 
+RUN git clone -b gmsh_${GMSH_VERSION} --single-branch --depth 1 https://gitlab.onelab.info/gmsh/gmsh.git && \
+    cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_BUILD_DYNAMIC=1 -B build-dir -S gmsh && \
+    cmake --build build-dir && \
+    cmake --install build-dir && \
+    rm -rf /tmp/*
 
-RUN apt-get update
-RUN apt-get -y install libglu1 libxcursor-dev libxft2 libxinerama1 libfltk1.3-dev libfreetype6-dev libgl1-mesa-dev libocct-foundation-dev libocct-data-exchange-dev
+# GMSH installs python package in /usr/local/lib, see: https://gitlab.onelab.info/gmsh/gmsh/-/issues/1414
+RUN export SP_DIR=$(python3 -c 'import sys, site; sys.stdout.write(site.getsitepackages()[0])') \
+    && mv /usr/local/lib/gmsh.py ${SP_DIR}/ \
+    && mv /usr/local/lib/gmsh*.dist-info ${SP_DIR}/
+
+# build h5py from source
+# disable build isolation due to https://github.com/h5py/h5py/issues/2222
+RUN export HDF5_MPI=ON \
+    && export HDF5_PKGCONFIG_NAME="hdf5" \
+    && python3 -m pip install cython pkgconfig mpi4py \
+    && python3 -m pip install --no-cache-dir --no-binary=h5py --no-build-isolation h5py -vv
+RUN python3 -m pip install --no-cache-dir meshio
+
+WORKDIR /
 
 
-# disable cache 
-ARG CACHEBUST=01236
+FROM cuda-fenics-end-user-gmsh AS cuda-fenics-adjoint
+
+# Install dolfin-adjoint
+RUN python3 -m pip install git+https://github.com/dolfin-adjoint/dolfin-adjoint.git
+
+
 
 ## Install Ipopt
 WORKDIR /usr/local
@@ -246,40 +296,23 @@ RUN /bin/bash -l -c "pip3 install six"
 RUN /bin/bash -l -c "pip3 install git+https://github.com/mechmotum/cyipopt.git"
 
 
-FROM fenics-plus as fenics-pytorch
-LABEL description="Pytorch image"
 
-WORKDIR /src
+FROM cuda-fenics-adjoint AS cuda-fenics-pytorch
 
-# Install essential Python packages
-RUN python3 -m pip --no-cache-dir install \
-    blackcellmagic\
-    pytest \
-    pytest-cov \
-    numpy \
-    matplotlib \
-    scipy \
-    pandas \
-    jupyter \
-    scikit-learn \
-    scikit-image \
-    seaborn \
-    graphviz \
-    gpustat \
-    h5py \
-    gitpython \
-    ptvsd \
-    Pillow==6.1.0 \
-    opencv-python
-RUN python3 -m pip --no-cache-dir install nvidia-pyindex 
-RUN python3 -m pip --no-cache-dir install nvidia-tensorrt 
-RUN python3 -m pip --no-cache-dir install torch-tensorrt==v1.3.0 \
-    -f https://github.com/pytorch/TensorRT/releases/expanded_assets/v1.3.0
-
-RUN python3 -m pip --no-cache-dir install ogs5py
-RUN python3 -m pip --no-cache-dir install dill
+RUN python3 -m pip install torch torchvision torchaudio
 
 
+FROM cuda-fenics-pytorch AS cuda-fenics-pytorch-pyvista
 
-# Add profiling library support
-ENV LD_LIBRARY_PATH /usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH}
+# Install pyvista-requirement vtk
+RUN python3 -m pip install vtk
+
+# Install pyvista
+RUN python3 -m pip install pyvista
+
+# Install everything else
+RUN python3 -m pip install numpy matplotlib ipykernel tqdm pytest pyyaml pandas dill
+
+# Install gmshnics
+RUN python3 -m pip install git+https://github.com/MiroK/gmshnics.git
+
