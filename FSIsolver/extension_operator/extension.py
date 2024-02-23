@@ -1,4 +1,5 @@
 from dolfin import *
+import numpy as np
 import dolfin as df
 import xml.etree.ElementTree as ET
 
@@ -494,6 +495,137 @@ class LearnExtension(ExtensionOperator):
             self.xdmf_output.write_checkpoint(u, "output_biharmonic_ext", self.iter, XDMFFile.Encoding.HDF5, append=True)
 
         return u
+    
+class LearnExtensionSimplified(ExtensionOperator):
+    def __init__(self, mesh, network_path: str):
+        super().__init__(mesh, marker=None, ids=None)
+
+        T = df.VectorElement("CG", self.mesh.ufl_cell(), 1)
+        T2 = df.VectorElement("CG", self.mesh.ufl_cell(), 2)
+        self.FS = df.FunctionSpace(self.mesh, T)
+        self.FS2 = df.FunctionSpace(self.mesh, T2)
+        self.bc_old = df.Function(self.FS)
+        self.net = ANN(network_path)
+        self.threshold = 0.001
+
+    def extend(self, boundary_conditions, params = None):
+        """ harmonic extension of boundary_conditions (Function on self.mesh) to the interior """
+
+
+        u = df.Function(self.FS2)
+        v = df.TestFunction(self.FS2)
+
+        dx = df.Measure('dx', domain=self.mesh, metadata={'quadrature_degree': 4})
+
+        E = df.inner(crf.NN_der(self.threshold, df.inner(df.grad(u), df.grad(u)), self.net) * df.grad(u), df.grad(v)) * dx
+
+
+        # solve PDE
+        bc = df.DirichletBC(self.FS2, boundary_conditions, 'on_boundary')
+
+
+        df.solve(E == 0, u, bc, solver_parameters={"nonlinear_solver": "newton", "newton_solver":
+            {"maximum_iterations": 200}})
+
+
+        self.bc_old.assign(df.project(u, self.FS))
+
+        return u
+    
+
+import petsc4py, sys
+petsc4py.init(sys.argv)
+from petsc4py import PETSc    
+class LearnExtensionSimplifiedSNES(ExtensionOperator):
+
+    class SNESProblem():
+        def __init__(self, F, u, bc):
+            V = u.function_space()
+            du = TrialFunction(V)
+            self.L = F
+            self.a = derivative(F, u, du)
+            self.bcs = bc
+            self.u = u
+            return
+
+        def F(self, snes, x, F):
+            x = PETScVector(x)
+            F = PETScVector(F)
+            assemble(self.L, tensor=F)
+            for bc in self.bcs:
+                bc.apply(F, x)    
+            return            
+
+        def J(self, snes, x, J, P):
+            J = PETScMatrix(J)
+            assemble(self.a, tensor=J)
+            for bc in self.bcs:
+                bc.apply(J)
+            return
+
+    def __init__(self, mesh, network_path: str, snes_divergence_tolerance: float = 1e12, snes_max_it: float | None = None,
+                 snes_atol: float | None = None, snes_rtol: float | None = None, snes_stol: float | None = None):
+        super().__init__(mesh, marker=None, ids=None)
+
+        T = df.VectorElement("CG", self.mesh.ufl_cell(), 1)
+        T2 = df.VectorElement("CG", self.mesh.ufl_cell(), 2)
+        self.FS = df.FunctionSpace(self.mesh, T)
+        self.FS2 = df.FunctionSpace(self.mesh, T2)
+        self.net = ANN(network_path)
+        self.threshold = 0.001
+
+        self.snes_ls = PETSc.SNES().create(MPI.comm_world) 
+        opts_ls = PETSc.Options()
+        opts_ls.setValue('snes_monitor', None)
+        opts_ls.setValue('snes_type', 'newtonls')
+        opts_ls.setValue('snes_linesearch_type', 'l2')
+        opts_ls.setValue('snes_divergence_tolerance', snes_divergence_tolerance)
+        if snes_max_it is not None:
+            opts_ls.setValue('snes_max_it', snes_max_it)
+        if snes_atol is not None:
+            opts_ls.setValue('snes_atol', snes_atol)
+        if snes_rtol is not None:
+            opts_ls.setValue('snes_rtol', snes_rtol)
+        if snes_stol is not None:
+            opts_ls.setValue('snes_stol', snes_stol)
+
+        self.snes_ls.setFromOptions()
+        self.snes_ls.setErrorIfNotConverged(True)
+
+
+        return
+
+    def extend(self, boundary_conditions, params = None):
+        """ harmonic extension of boundary_conditions (Function on self.mesh) to the interior """
+
+
+        u = df.Function(self.FS2)
+        v = df.TestFunction(self.FS2)
+
+        dx = df.Measure('dx', domain=self.mesh, metadata={'quadrature_degree': 4})
+
+        E = df.inner(crf.NN_der(self.threshold, df.inner(df.grad(u), df.grad(u)), self.net) * df.grad(u), df.grad(v)) * dx
+
+
+        # solve PDE
+        bc = df.DirichletBC(self.FS2, boundary_conditions, 'on_boundary')
+
+        problem = self.SNESProblem(E, u, [bc])
+            
+        b = PETScVector()  # same as b = PETSc.Vec()
+        J_mat = PETScMatrix()   
+
+        ksp = self.snes_ls.getKSP()
+        ksp.getPC().setType('lu')
+        ksp.getPC().setFactorSolverType('mumps')
+        ksp.setType('preonly')
+
+        self.snes_ls.setFunction(problem.F, b.vec())
+        self.snes_ls.setJacobian(problem.J, J_mat.mat())
+        self.snes_ls.solve(None, problem.u.vector().vec())
+
+        return u
+
 
 import torch
 import torch.nn as nn
@@ -560,8 +692,7 @@ class TorchExtension(ExtensionOperator):
 
         return
 
-    @ExtensionOperator.timings_extension
-    def extend(self, boundary_conditions, params):
+    def extend(self, boundary_conditions, params={"t": np.inf}):
         """ Torch-corrected extension of boundary_conditions (Function on self.mesh) to the interior """
 
         t = params["t"]

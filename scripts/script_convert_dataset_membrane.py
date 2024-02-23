@@ -74,6 +74,11 @@ solid_domain = df.MeshView.create(domains, params["solid"])
 f_domain = df.SubMesh(mesh, domains, params["fluid"])
 
 
+print(mesh.num_cells())
+print(solid_domain.num_cells())
+print(fluid_domain.num_cells())
+print(f_domain.num_cells())
+# quit()
 
 def transfer_subfunction_to_parent(f, f_full):
     """
@@ -102,20 +107,24 @@ def transfer_subfunction_to_parent(f, f_full):
 
     return f_f
 
+convert_file_path = Path("membrane_test/data/Data_MoF/membrane_test.xdmf")
+assert convert_file_path.exists()
+assert convert_file_path.with_suffix(".h5").exists()
+
+save_to_path_p2 = Path("membrane_test/data/Data_MoF/membrane_test_p2.xdmf")
+save_to_path_p1 = Path("membrane_test/data/Data_MoF/membrane_test_p1.xdmf")
+
+save_to_path_p2.with_suffix(".xdmf").unlink(missing_ok=True)
+save_to_path_p2.with_suffix(".h5").unlink(missing_ok=True)
+save_to_path_p1.with_suffix(".xdmf").unlink(missing_ok=True)
+save_to_path_p1.with_suffix(".h5").unlink(missing_ok=True)
 
 
-if Path("Data_MoF/membrane_test_p1.xdmf").exists():
-    Path("Data_MoF/membrane_test_p1.xdmf").unlink()
-    Path("Data_MoF/membrane_test_p1.h5").unlink()
-if Path("Data_MoF/membrane_test_p2.xdmf").exists():
-    Path("Data_MoF/membrane_test_p2.xdmf").unlink()
-    Path("Data_MoF/membrane_test_p2.h5").unlink()
+old_xdmf = df.XDMFFile(str(convert_file_path))
 
-old_xdmf = df.XDMFFile("Data_MoF/membrane_test.xdmf")
-
-new_xdmf_p1 = df.XDMFFile("Data_MoF/membrane_test_p1.xdmf")
+new_xdmf_p1 = df.XDMFFile(str(save_to_path_p1))
 new_xdmf_p1.write(f_domain)
-new_xdmf_p2 = df.XDMFFile("Data_MoF/membrane_test_p2.xdmf")
+new_xdmf_p2 = df.XDMFFile(str(save_to_path_p2))
 new_xdmf_p2.write(f_domain)
 
 V = df.VectorFunctionSpace(fluid_domain, "CG", 2)
@@ -139,7 +148,7 @@ u_cg1 = df.Function(V_f_p1)
 f_domain_CG2_to_CG1 = df.PETScDMCollection.create_transfer_matrix(V_f, V_f_p1)
 
 from tqdm import tqdm
-checkpoints = range(0, 89)
+checkpoints = range(0, 273)
 for k in tqdm(checkpoints): 
     old_xdmf.read_checkpoint(u, "output_biharmonic_ext", k)
     uf = MeshView_to_Submesh(u)
