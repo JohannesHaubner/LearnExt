@@ -9,7 +9,9 @@ sys.path.insert(0, str(here.parent))
 import FSIsolver.extension_operator.extension as extension
 
 msh = df.Mesh()
-infile = df.XDMFFile("Output/Extension/Data/FSIbenchmarkII_data_new.xdmf") #TODO: change input data file; use script_convert_dataset.py to preprocess data
+# infile = df.XDMFFile("Output/Extension/Data/FSIbenchmarkII_data_new.xdmf") #TODO: change input data file; use script_convert_dataset.py to preprocess data
+                                                                             #    - I don't think there is such a file.
+infile = df.XDMFFile("Output/Extension/learnext_period_p2/input.xdmf")
 infile.read(msh)
 
 msh_r = df.Mesh(msh)
@@ -20,12 +22,14 @@ timings = {}
 
 refinement_levels = 2
 datapoints = range(40) #TODO: adapt 5 to number of snapshots you want to average over
+# datapoints = range(5)
 
 df.parameters['allow_extrapolation'] = True
 df.parameters['allow_extrapolation'] = False
 
-file = df.File('./mesh_levels.pvd')
-file2 = df.File('Output/mesh_plots.pvd')
+# file = df.File('./mesh_levels.pvd')
+# file2 = df.File('Output/mesh_plots.pvd')
+file2 = df.File('Output/mesh_plots/mesh_plots.pvd')
 
 i = 0
 
@@ -37,7 +41,7 @@ while i <= refinement_levels:
     if i != 0:
         msh_r = df.refine(msh_r)
 
-    file << msh_r
+    # file << msh_r
     
     ext_ops = {}
     ext_ops["harmonic"] = extension.Harmonic(msh_r)
@@ -57,10 +61,13 @@ while i <= refinement_levels:
 
     u_bc_r = df.Function(V)
 
+    outfile = df.XDMFFile("tmp.xdmf")
+
     for j in ext_ops.keys():
         print(j)
         for k in tqdm.tqdm(datapoints):
-            infile.read_checkpoint(u_bc, "data", k)
+            # infile.read_checkpoint(u_bc, "data", k)
+            infile.read_checkpoint(u_bc, "uh", k)
             #file2 << msh_r
             u_bc_r.assign(projector.project(u_bc))
             if j == "nncor" or j == "nncor_art":
@@ -70,14 +77,15 @@ while i <= refinement_levels:
                 params["displacementy"] = u_bc_r(df.Point((0.6, 0.2)))[1]
                 u_ext = ext_ops[j].extend(u_bc_r, params)
 
-            file2 << u_ext #msh_r
+            # file2 << u_ext #msh_r
         timings_r[j] = ext_ops[j].get_timings()
+    # quit()
         
     timings["refinment " + str(i)] = timings_r
 
     i += 1
 
-    with open('Output/Extension/Data/timings.pickle', 'wb') as handle:
+    with open('newtimings.pickle', 'wb') as handle:
         pickle.dump(timings, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 # load with:
