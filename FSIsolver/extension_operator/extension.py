@@ -312,6 +312,8 @@ class Harmonic(ExtensionOperator):
             except:
                 ALE.move(self.mesh, upi)
 
+            self.bc_old = u_
+
         if self.save_ext:
             self.iter +=1
             self.xdmf_output.write_checkpoint(u_, "output_biharmonic_ext", self.iter, XDMFFile.Encoding.HDF5, append=True)
