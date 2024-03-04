@@ -3,12 +3,9 @@
 # LearnExt
 
 Code repository for the manuscript
-> J. Haubner, O. Hellan, M. Zeinhofer, M. Kuchta: Learning Mesh Motion Techniques with Application to Fluid-Structure Interaction, arXiv preprint arXiv:2206.02217
+> J. Haubner, O. Hellan, M. Zeinhofer, M. Kuchta (2024). Learning Mesh Motion Techniques with Application to Fluid-Structure Interaction, Comput. Methods Appl. Mech. Eng., 424. https://doi.org/10.1016/j.cma.2024.116890
 
 ## Usage/Examples
-
-Requires a recent master version of dolfin with MeshView support. It might require the changes propsed in https://bitbucket.org/fenics-project/dolfin/issues/1123/assemble-on-mixed-meshview-forms-returns.
-Moreover, it also requires a dolfin-adjoint version which supports the changes of git+https://github.com/dolfin-adjoint/pyadjoint.git@constant-adjfloat.
 
 The Dockerfile (preliminary version) can be used by running:
 ```
@@ -17,11 +14,11 @@ docker run -it learnext
 ```
 or
 ```
-docker pull ghcr.io/johanneshaubner/learnext:v0.0.3
-docker run -it ghcr.io/johanneshaubner/learnext:v0.0.3
+docker pull ghcr.io/johanneshaubner/learnext
+docker run -it ghcr.io/johanneshaubner/learnext
 ```
 
-The code in learnExt/NeuralNet builds on https://github.com/sebastkm/hybrid-fem-nn. The code in example/example_turtleFSI.py builds on the example presented in https://github.com/KVSlab/turtleFSI.
+The code in learnExt/NeuralNet builds on https://github.com/sebastkm/hybrid-fem-nn.
 
 In the Docker container, run the commands
 
@@ -30,11 +27,27 @@ cd example
 python3 example_FSIbenchmarkII_learned.py
 ```
 
-To redo the learning process run 
+To redo the learning process for the hybrid PDE-NN approach run 
 ```
 python3 example_learn.py
 ```
 (and modify the file accordingly).
+
+## Citation
+
+```
+@article{
+title = {Learning mesh motion techniques with application to fluid–structure interaction},
+journal = {Computer Methods in Applied Mechanics and Engineering},
+volume = {424},
+pages = {116890},
+year = {2024},
+issn = {0045-7825},
+doi = {https://doi.org/10.1016/j.cma.2024.116890},
+url = {https://www.sciencedirect.com/science/article/pii/S0045782524001464},
+author = {Johannes Haubner and Ottar Hellan and Marius Zeinhofer and Miroslav Kuchta},
+}
+```
 
 ## License
 
