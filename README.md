@@ -33,6 +33,8 @@ python3 example_learn.py
 ```
 (and modify the file accordingly).
 
+The code for training neural networks for the corrected harmonic extension approach is hosted at https://github.com/ottarph/learnext-correction.
+
 ## Citation
 
 ```
