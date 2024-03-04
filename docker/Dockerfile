@@ -299,7 +299,7 @@ RUN /bin/bash -l -c "pip3 install git+https://github.com/mechmotum/cyipopt.git"
 
 FROM cuda-fenics-adjoint AS cuda-fenics-pytorch
 
-RUN python3 -m pip install torch torchvision torchaudio
+RUN python3 -m pip install torch 
 
 
 FROM cuda-fenics-pytorch AS cuda-fenics-pytorch-pyvista
