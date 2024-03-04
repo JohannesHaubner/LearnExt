@@ -27,6 +27,9 @@ jobs:
       packages: write
 
     steps:
+      - name: Delete tools folder
+        run: rm -rf /opt/hostedtoolcache
+        
       - name: Checkout repository
         uses: actions/checkout@v3
 
