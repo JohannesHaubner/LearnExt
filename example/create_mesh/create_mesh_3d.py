@@ -1,8 +1,7 @@
 import numpy as np
-from ogs5py import OGS
 import pygmsh, meshio
 import gmsh
-import h5py
+
 
 from pathlib import Path
 here = Path(__file__).parent.resolve()

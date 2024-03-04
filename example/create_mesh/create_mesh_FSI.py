@@ -1,10 +1,9 @@
 import numpy as np
-from ogs5py import OGS
 import pygmsh, meshio
-import h5py
 
 from pathlib import Path
-here = Path(__file__).parent.resolve()
+
+work_dir = Path("Output/Mesh_Generation")
 
 # resolution
 resolution = 0.025  #0.05 #1 # 0.005 #0.1
@@ -46,8 +45,8 @@ geom_prop = {"barycenter_hold_all_domain": [0.5*L, 0.5*H],
              "heigth_pipe": H,
              "barycenter_obstacle": [ c[0], c[1]],
              }
-np.save(str(here.parent.parent) + '/Output/Mesh_Generation/params.npy', params)
-np.save(str(here.parent.parent) + '/Output/Mesh_Generation/geom_prop.npy', geom_prop)
+np.save(str(work_dir / 'params.npy'), params)
+np.save(str(work_dir / 'gom_prop.npy'), geom_prop)
 
 # Initialize empty geometry using the build in kernel in GMSH
 geometry = pygmsh.geo.Geometry()
@@ -108,12 +107,12 @@ model.add_physical([plane_surface2], "solid") # mark solid domain with 7
 
 geometry.generate_mesh(dim=2)
 import gmsh
-gmsh.write(str(here.parent.parent) + "/Output/Mesh_Generation/mesh.msh")
+gmsh.write(str(work_dir / "mesh.msh"))
 gmsh.clear()
 geometry.__exit__()
 
 import meshio
-mesh_from_file = meshio.read(str(here.parent.parent) + "/Output/Mesh_Generation/mesh.msh")
+mesh_from_file = meshio.read(str(work_dir / "mesh.msh"))
 
 import numpy
 def create_mesh(mesh: meshio.Mesh, cell_type: str, data_name: str = "name_to_read",
@@ -126,18 +125,8 @@ def create_mesh(mesh: meshio.Mesh, cell_type: str, data_name: str = "name_to_rea
     return out_mesh #https://fenicsproject.discourse.group/t/what-is-wrong-with-my-mesh/7504/8
 
 line_mesh = create_mesh(mesh_from_file, "line", prune_z=True)
-meshio.write(str(here.parent.parent) + "/Output/Mesh_Generation/facet_mesh.xdmf", line_mesh)
+meshio.write(str(work_dir / "facet_mesh.xdmf"), line_mesh)
 
 triangle_mesh = create_mesh(mesh_from_file, "triangle", prune_z=True)
-meshio.write(str(here.parent.parent) + "/Output/Mesh_Generation/mesh_triangles.xdmf", triangle_mesh)
+meshio.write(str(work_dir/ "mesh_triangles.xdmf"), triangle_mesh)
 
-#mesh = line_mesh
-#mesh_boundary = meshio.Mesh(points=mesh.points,
-#                                               cells={"line": mesh.get_cells_type("line")},
-#                                               cell_data={"name_to_read": [mesh.get_cell_data("gmsh:physical", "line")]})
-#meshio.write("../Output/Mesh_Generation/mesh_boundary.xdmf", mesh_boundary)
-
-
-#model = OGS()
-#model.msh.generate("gmsh", geo_object=geom)
-#model.msh.show()

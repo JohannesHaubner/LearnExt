@@ -311,7 +311,7 @@ RUN python3 -m pip install vtk
 RUN python3 -m pip install pyvista
 
 # Install everything else
-RUN python3 -m pip install numpy matplotlib ipykernel tqdm pytest pyyaml pandas dill
+RUN python3 -m pip install numpy matplotlib ipykernel tqdm pytest pyyaml pandas dill pygmsh
 
 # Install gmshnics
 RUN python3 -m pip install git+https://github.com/MiroK/gmshnics.git
