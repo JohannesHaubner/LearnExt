@@ -7,7 +7,7 @@ Code repository for the manuscript
 
 ## Usage/Examples
 
-The Dockerfile (preliminary version) can be used by running:
+The Dockerfile can be used by running:
 ```
 docker build -t learnext .
 docker run -it learnext
