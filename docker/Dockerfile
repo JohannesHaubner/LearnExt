@@ -278,11 +278,12 @@ RUN python3 -m pip install git+https://github.com/dolfin-adjoint/dolfin-adjoint.
 
 
 ## Install Ipopt
-WORKDIR /usr/local
+WORKDIR /tmp
 RUN git clone https://github.com/coin-or/Ipopt.git
 RUN git clone https://github.com/coin-or-tools/ThirdParty-Mumps.git
 RUN cd ThirdParty-Mumps && ./get.Mumps && ./configure --prefix=/usr/local && make && make install
 RUN cd Ipopt && mkdir build && cd build && ../configure --without-hsl --without-asl --with-lapack --with-mumps --prefix=/usr/local && make && make test && make install
+RUN rm -r /tmp/*
 
 ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 ENV PATH=/usr/local/bin:$PATH
