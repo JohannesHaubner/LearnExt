@@ -90,9 +90,9 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
 
 
 # Install Python packages (via pip)
-RUN python3 -m pip install --upgrade pip setuptools
-RUN python3 -m pip install Cython==0.29.32
-RUN python3 -m pip install pytest pkgconfig
+RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools
+RUN python3 -m pip install --no-cache-dir Cython==0.29.32
+RUN python3 -m pip install --no-cache-dir pytest pkgconfig
 RUN python3 -m pip install --no-cache-dir mpi4py
 
 # Install pybind11
@@ -203,7 +203,7 @@ RUN cd dolfin && \
     cmake -G Ninja -DCMAKE_BUILD_TYPE=${DOLFIN_CMAKE_BUILD_TYPE} -DCMAKE_CXX_FLAGS=${DOLFIN_CMAKE_CXX_FLAGS} -B build . && \
     ninja ${MAKEFLAGS} install -C build
 
-RUN python3 -m pip install --no-dependencies ./dolfin/python
+RUN python3 -m pip install --no-cache-dir --no-dependencies ./dolfin/python
 
 WORKDIR /root
 RUN rm -rf /src
@@ -263,7 +263,7 @@ RUN export SP_DIR=$(python3 -c 'import sys, site; sys.stdout.write(site.getsitep
 # disable build isolation due to https://github.com/h5py/h5py/issues/2222
 RUN export HDF5_MPI=ON \
     && export HDF5_PKGCONFIG_NAME="hdf5" \
-    && python3 -m pip install cython pkgconfig mpi4py \
+    && python3 -m pip install --no-cache-dir cython pkgconfig mpi4py \
     && python3 -m pip install --no-cache-dir --no-binary=h5py --no-build-isolation h5py -vv
 RUN python3 -m pip install --no-cache-dir meshio
 
@@ -273,7 +273,7 @@ WORKDIR /
 FROM cuda-fenics-end-user-gmsh AS cuda-fenics-adjoint
 
 # Install dolfin-adjoint
-RUN python3 -m pip install git+https://github.com/dolfin-adjoint/dolfin-adjoint.git
+RUN python3 -m pip install --no-cache-dir git+https://github.com/dolfin-adjoint/dolfin-adjoint.git
 
 
 
@@ -290,28 +290,28 @@ ENV PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH
 
 
 # Install cyipopt
-RUN /bin/bash -l -c "pip3 install Cython"
-RUN /bin/bash -l -c "pip3 install six"
+RUN /bin/bash -l -c "pip3 --no-cache-dir install Cython"
+RUN /bin/bash -l -c "pip3 --no-cache-dir install six"
 
-RUN /bin/bash -l -c "pip3 install git+https://github.com/mechmotum/cyipopt.git"
+RUN /bin/bash -l -c "pip3 --no-cache-dir install git+https://github.com/mechmotum/cyipopt.git"
 
 
 
 FROM cuda-fenics-adjoint AS cuda-fenics-pytorch
 
-RUN python3 -m pip --no-cache-dir install torch torchvision torchaudio
+RUN python3 -m pip install --no-cache-dir torch torchvision torchaudio
 
 
 FROM cuda-fenics-pytorch AS cuda-fenics-pytorch-pyvista
 
 # Install pyvista-requirement vtk
-RUN python3 -m pip install vtk
+RUN python3 -m pip install --no-cache-dir vtk
 
 # Install pyvista
-RUN python3 -m pip install pyvista
+RUN python3 -m pip install --no-cache-dir pyvista
 
 # Install everything else
-RUN python3 -m pip install numpy matplotlib ipykernel tqdm pytest pyyaml pandas dill pygmsh
+RUN python3 -m pip install --no-cache-dir numpy matplotlib ipykernel tqdm pytest pyyaml pandas dill pygmsh
 
 # Install gmshnics
-RUN python3 -m pip install git+https://github.com/MiroK/gmshnics.git
+RUN python3 -m pip install --no-cache-dir git+https://github.com/MiroK/gmshnics.git
