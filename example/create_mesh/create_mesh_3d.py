@@ -49,15 +49,16 @@ for surface in surfaces:
         gmsh.model.setPhysicalName(surface[0], outlet_marker, "Fluid outlet")
     elif np.isclose(com[2], 0) or np.isclose(com[1], B) or np.isclose(com[2], H) or np.isclose(com[1], 0):
         walls.append(surface[1])
+    elif 0.19 <= com[2] <= 0.21 and com[0] <= 0.5+1e-4 and 0.11 <= com[1] <= 0.31:
+        obstacle_solid.append(surface[1])
+        obstacles_.append(surface[1])
     elif 0.25 < com[0] <= 0.6 and 0.19 <= com[2] <= 0.21:
         interface.append(surface[1])
-        obstacles_.append(surface[1])
-    elif 0.19 <= com[2] <= 0.21 and com[0] > 0.2 and 0.11 <= com[1] <= 0.31:
-        obstacle_solid.append(surface[1])
         obstacles_.append(surface[1])
     else:
         obstacles.append(surface[1])
         obstacles_.append(surface[1])
+from IPython import embed; embed()
 gmsh.model.addPhysicalGroup(2, walls, wall_marker)
 gmsh.model.setPhysicalName(2, wall_marker, "Walls")
 gmsh.model.addPhysicalGroup(2, obstacles, obstacle_marker)
@@ -67,7 +68,7 @@ gmsh.model.setPhysicalName(2, interface_marker, "Interface")
 gmsh.model.addPhysicalGroup(2, obstacle_solid, obstacle_solid_marker)
 gmsh.model.setPhysicalName(2, obstacle_solid_marker, "Obstacle_solid")
 
-from IPython import embed; embed()
+#from IPython import embed; embed()
 
 
 distance = gmsh.model.mesh.field.add("Distance")
